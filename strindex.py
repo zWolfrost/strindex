@@ -285,7 +285,7 @@ def replace_with_table(string: str, table: dict[str, str]) -> str:
 
 
 def parse_strindex(filepath: str) -> tuple[list[str], list[str]]:
-	with open(filepath, 'r') as strindex:
+	with open(filepath, 'r', encoding='utf-8') as strindex:
 		strindex_original = []
 		strindex_replace = []
 		strindex_occurrences = []
@@ -370,7 +370,7 @@ def create(file_filepath, strindex_filepath, whitelist, min_length, list_only):
 
 	total_size = os.path.getsize(file_filepath)
 
-	with open(strindex_filepath, 'w') as f:
+	with open(strindex_filepath, 'w', encoding='utf-8') as f:
 		for string, offset in open_by_null(file_filepath, 'rb'):
 			try:
 				string = string.decode('utf-8')
@@ -396,11 +396,13 @@ def create(file_filepath, strindex_filepath, whitelist, min_length, list_only):
 def patch(file_filepath, strindex_filepath):
 	file_filepath_bak = file_filepath + '.bak'
 
+	COPY_COMMAND = "copy" if sys.platform == "win32" else "cp"
+	DEV_NULL = "> NUL" if sys.platform == "win32" else "> /dev/null"
 	if os.path.exists(file_filepath_bak):
-		os.system(f'cp "{file_filepath_bak}" "{file_filepath}"')
+		os.system(f'{COPY_COMMAND} "{file_filepath_bak}" "{file_filepath}" {DEV_NULL}')
 		print("(1/7) Restored from backup.")
 	else:
-		os.system(f'cp "{file_filepath}" "{file_filepath_bak}"')
+		os.system(f'{COPY_COMMAND} "{file_filepath}" "{file_filepath_bak}" {DEV_NULL}')
 		print("(1/7) Created backup.")
 
 
@@ -488,7 +490,7 @@ def filter(strindex_full_filepath, strindex_delta_filepath, strindex_filtered_fi
 		else:
 			detector = LanguageDetectorBuilder.build()
 
-	with open(strindex_filtered_filepath, 'w') as strindex_filter:
+	with open(strindex_filtered_filepath, 'w', encoding='utf-8') as strindex_filter:
 		strindex_full_index = 0
 		strindex_delta_index = 0
 		while strindex_full_index < len(strindex_full_original):
@@ -526,7 +528,7 @@ def spellcheck(strindex_filepath, strindex_spellcheck_filepath):
 		return
 
 	lang = LanguageTool(strindex_settings["target_language"])
-	with open(strindex_spellcheck_filepath, 'w') as f:
+	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
 		strindex_index = 0
 		while strindex_index < len(strindex_replace):
 			line_clean = re.sub(strindex_settings.get("filter_pattern", ""), "", strindex_replace[strindex_index])
@@ -554,6 +556,10 @@ def main():
 	args.add_argument("-l", "--list-only", action="store_true", help="Whether to only list the strings in the file (Does not add copies to replace).\nNot compatible with 'patch'.")
 
 	args = args.parse_args()
+
+	if not all([os.path.exists(file) for file in args.files]):
+		print("One or more files do not exist.")
+		return
 
 	args.whitelist = ''.join(CHARACTER_CLASSES[whitelist] for whitelist in args.whitelist)
 
@@ -601,6 +607,7 @@ def frozen_main():
 		return
 
 	patch(file_filepath, strindex_filepath)
+	input("Press enter to exit.")
 
 
 
