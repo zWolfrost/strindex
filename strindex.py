@@ -368,6 +368,7 @@ def create(file_filepath, strindex_filepath, whitelist, min_length, list_only):
 	sdp = SectionDoubleP(file_filepath)
 	print("(1/2) Opened PE file.")
 
+	BYTE_LENGTH = 4 if sdp.pe.OPTIONAL_HEADER.Magic == 0x10b else 8
 	total_size = os.path.getsize(file_filepath)
 
 	with open(strindex_filepath, 'w', encoding='utf-8') as f:
@@ -378,11 +379,11 @@ def create(file_filepath, strindex_filepath, whitelist, min_length, list_only):
 				continue
 			if len(string) >= min_length and all(x in whitelist for x in string):
 				rva = sdp.pe.get_rva_from_offset(offset) + sdp.pe.OPTIONAL_HEADER.ImageBase
-				occurrences = len(mmap_indices(sdp.pe.__data__, rva.to_bytes(4, 'little'))) * "1"
+				occurrences = len(mmap_indices(sdp.pe.__data__, rva.to_bytes(BYTE_LENGTH, 'little'))) * "1"
 				if occurrences:
 					if list_only:
 						hex_offset = hex(offset).lstrip("0x").rjust(8, '0')
-						hex_rva = hex(rva).lstrip("0x").rjust(8, '0')
+						hex_rva = hex(rva).lstrip("0x").rjust(2 * BYTE_LENGTH, '0')
 						f.write(STRINDEX_LIST_ONLY_FORMAT.format(hex_offset, hex_rva, string))
 					else:
 						f.write(STRINDEX_FORMAT.format(occurrences, string, string))
@@ -414,6 +415,10 @@ def patch(file_filepath, strindex_filepath):
 		print("This file is already patched with strindex.")
 		return
 
+
+	BYTE_LENGTH = 4 if sdp.pe.OPTIONAL_HEADER.Magic == 0x10b else 8
+
+
 	strdex_section_base_rva = sdp.pe.sections[-1].VirtualAddress + sdp.pe.sections[-1].Misc_VirtualSize
 	if strdex_section_base_rva % sdp.pe.OPTIONAL_HEADER.SectionAlignment:
 		strdex_section_base_rva += sdp.pe.OPTIONAL_HEADER.SectionAlignment - (strdex_section_base_rva % sdp.pe.OPTIONAL_HEADER.SectionAlignment)
@@ -426,7 +431,7 @@ def patch(file_filepath, strindex_filepath):
 	print("(3/7) Parsed strindex file.")
 
 
-	if os.path.getsize(file_filepath_bak) != strindex_settings.get("file_size"):
+	if strindex_settings.get("file_size") and strindex_settings["file_size"] != os.path.getsize(file_filepath_bak):
 		print("File size does not match the file size the strindex was created with. You might encounter issues.")
 
 
@@ -440,9 +445,9 @@ def patch(file_filepath, strindex_filepath):
 
 			original_rva = sdp.pe.get_rva_from_offset(offset) + sdp.pe.OPTIONAL_HEADER.ImageBase
 			replaced_rva = strdex_section_base_rva + len(new_section_data)
-			rva_replace_table[original_rva.to_bytes(4, 'little')] = replaced_rva.to_bytes(4, 'little')
+			rva_replace_table[original_rva.to_bytes(BYTE_LENGTH, 'little')] = replaced_rva.to_bytes(BYTE_LENGTH, 'little')
 
-			replaced_string = replace_with_table(strindex_replace.pop(0), strindex_settings.get("replace"))
+			replaced_string = replace_with_table(strindex_replace.pop(0), strindex_settings.get("replace", {}))
 			new_section_data += bytes(replaced_string, 'utf-8') + b'\x00'
 
 	if strindex_original:
@@ -459,7 +464,7 @@ def patch(file_filepath, strindex_filepath):
 	for original, replaced in rva_replace_table.items():
 		for index in mmap_indices(sdp.pe.__data__, original):
 			if strindex_occurrences[strindex_index] and strindex_occurrences[strindex_index].pop(0):
-				sdp.pe.__data__[index:index + 4] = replaced
+				sdp.pe.__data__[index:index + BYTE_LENGTH] = replaced
 		strindex_index += 1
 		print_progress(strindex_index, len(rva_replace_table))
 	print("(6/7) Relocated strings.")
