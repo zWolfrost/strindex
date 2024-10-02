@@ -496,7 +496,7 @@ def patch(file_filepath, strindex_filepath):
 		for original, replaced in rva_replace_table.items():
 			for index in mmap_indices(sdp.pe.__data__, original):
 				if STRINDEX["pointers"][strindex_index] and STRINDEX["pointers"][strindex_index].pop(0):
-					sdp.pe.__data__[index:index + BYTE_LENGTH] = replaced
+					sdp.pe.set_bytes_at_offset(index, replaced)
 			strindex_index += 1
 			print_progress(strindex_index, len(rva_replace_table))
 	else:
