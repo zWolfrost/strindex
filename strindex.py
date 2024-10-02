@@ -516,7 +516,7 @@ def patch(file_filepath, strindex_filepath):
 	print("(7/7) File was patched successfully.")
 
 
-	os.system(f'cp "{file_filepath}" "/home/zwolfrost/.steam/steam/steamapps/common/Katana ZERO/Katana ZERO.exe"')
+	# os.system(f'cp "{file_filepath}" "/home/zwolfrost/.steam/steam/steamapps/common/Katana ZERO/Katana ZERO.exe"')
 
 
 def filter(strindex_full_filepath, strindex_delta_filepath, strindex_filtered_filepath):
