@@ -253,7 +253,7 @@ class SectionDoubleP:
 
 
 CHARACTER_CLASSES = {
-	"default": " \t\n\r !\"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~",
+	"default": " \t\n !\"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~",
 	"symbols": "… ",
 	"latin": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
 	"spanish": "¡¿ÁÉÍÓÚÜÑáéíóúüñã",
@@ -283,15 +283,15 @@ def replace_with_table(string: str, table: dict[str, str]) -> str:
 
 
 def parse_strindex(filepath: str) -> tuple[list[str], list[str]]:
-	with open(filepath, 'r', encoding='utf-8') as f:
-		strindex = {
-			"original": [],
-			"replace": [],
-			"raw_pointers": [],
-			"pointers": [],
-			"settings": {}
-		}
+	strindex = {
+		"original": [],
+		"replace": [],
+		"raw_pointers": [],
+		"pointers": [],
+		"settings": {}
+	}
 
+	with open(filepath, 'r', encoding='utf-8') as f:
 		for line in f:
 			if line.startswith("{"):
 				strindex_settings_lines = line
@@ -312,9 +312,9 @@ def parse_strindex(filepath: str) -> tuple[list[str], list[str]]:
 				strindex["replace"].append('')
 				if strindex["is_compatible"]:
 					strindex["original"].append('')
-					get_pointers = lambda line: [bool(int(x)) for x in line.rstrip('\n').lstrip(STRINDEX_DELIMITERS[0])]
+					get_pointers = lambda line: [bool(int(p)) for p in line.rstrip('\n').lstrip(STRINDEX_DELIMITERS[0])]
 				else:
-					get_pointers = lambda line: line.rstrip('\n').rsplit(STRINDEX_DELIMITERS[2], 1)[1].split(STRINDEX_DELIMITERS[3])
+					get_pointers = lambda line: [int(p, 16) for p in line.rstrip('\n').rsplit(STRINDEX_DELIMITERS[2], 1)[1].split(STRINDEX_DELIMITERS[3])]
 
 				strindex["raw_pointers"].append(line)
 				strindex["pointers"].append(get_pointers(line))
@@ -383,18 +383,20 @@ def mmap_indices(mm, search_str):
 
 
 
-def create(file_filepath, strindex_filepath, compatible, whitelist, min_length):
+def create(file_filepath, strindex_filepath, compatible, list_only, whitelist, min_length):
 	sdp = SectionDoubleP(file_filepath)
 	print("(1/2) Opened PE file.")
 
-	STRINDEX_HEADER = "###############################################################################/ offset /  rva   / offsets of rva pointers /\n"
+	STRINDEX_HEADER = "-" * 79 + "/ offset /  rva   / offsets of rva pointers /\n"
 	STRINDEX_FORMAT = f"{STRINDEX_DELIMITERS[0]}{{}}{STRINDEX_DELIMITERS[2]}{{}}{STRINDEX_DELIMITERS[2]}{{}}\n{{}}\n"
 	STRINDEX_COMPATIBLE_FORMAT = f"{STRINDEX_DELIMITERS[0]}{{}}\n{{}}\n{STRINDEX_DELIMITERS[1]}\n{{}}\n"
+	STRINDEX_LIST_ONLY_FORMAT = f"{STRINDEX_DELIMITERS[0]}\n{{}}\n"
 
 	BYTE_LENGTH = 4 if sdp.pe.OPTIONAL_HEADER.Magic == 0x10b else 8
 
 	with open(strindex_filepath, 'w', encoding='utf-8') as f:
-		f.write(STRINDEX_HEADER)
+		if not list_only:
+			f.write(STRINDEX_HEADER)
 
 		for string, offset in open_by_null(file_filepath, 'rb'):
 			try:
@@ -402,16 +404,19 @@ def create(file_filepath, strindex_filepath, compatible, whitelist, min_length):
 			except UnicodeDecodeError:
 				continue
 			if len(string) >= min_length and all(x in whitelist for x in string):
-				rva = sdp.pe.get_rva_from_offset(offset) + sdp.pe.OPTIONAL_HEADER.ImageBase
-				rva_indexes = mmap_indices(sdp.pe.__data__, rva.to_bytes(BYTE_LENGTH, 'little'))
-				if rva_indexes:
-					if compatible:
-						f.write(STRINDEX_COMPATIBLE_FORMAT.format(len(rva_indexes) * "1", string, string))
-					else:
-						hex_offset = hex(offset).lstrip("0x").rjust(8, '0')
-						hex_rva = hex(rva).lstrip("0x").rjust(2 * BYTE_LENGTH, '0')
-						hex_rva_offsets = STRINDEX_DELIMITERS[3].join([hex(offset).lstrip("0x").rjust(8, '0') for offset in rva_indexes])
-						f.write(STRINDEX_FORMAT.format(hex_offset, hex_rva, hex_rva_offsets, string))
+				if list_only:
+					f.write(STRINDEX_LIST_ONLY_FORMAT.format(string))
+				else:
+					rva = sdp.pe.get_rva_from_offset(offset) + sdp.pe.OPTIONAL_HEADER.ImageBase
+					rva_indexes = mmap_indices(sdp.pe.__data__, rva.to_bytes(BYTE_LENGTH, 'little'))
+					if rva_indexes:
+						if compatible:
+							f.write(STRINDEX_COMPATIBLE_FORMAT.format(len(rva_indexes) * "1", string, string))
+						else:
+							hex_offset = hex(offset).lstrip("0x").rjust(8, '0')
+							hex_rva = hex(rva).lstrip("0x").rjust(2 * BYTE_LENGTH, '0')
+							hex_rva_offsets = STRINDEX_DELIMITERS[3].join([hex(offset).lstrip("0x").rjust(8, '0') for offset in rva_indexes])
+							f.write(STRINDEX_FORMAT.format(hex_offset, hex_rva, hex_rva_offsets, string))
 				print_progress(offset, len(sdp.pe.__data__))
 
 		f.seek(f.tell() - 1)
@@ -493,17 +498,17 @@ def patch(file_filepath, strindex_filepath):
 
 	if STRINDEX["is_compatible"]:
 		strindex_index = 0
-		for original, replaced in rva_replace_table.items():
-			for index in mmap_indices(sdp.pe.__data__, original):
+		for original_rva, replaced_rva in rva_replace_table.items():
+			for index in mmap_indices(sdp.pe.__data__, original_rva):
 				if STRINDEX["pointers"][strindex_index] and STRINDEX["pointers"][strindex_index].pop(0):
-					sdp.pe.set_bytes_at_offset(index, replaced)
+					sdp.pe.set_bytes_at_offset(index, replaced_rva)
 			strindex_index += 1
 			print_progress(strindex_index, len(rva_replace_table))
 	else:
 		strindex_index = 0
-		for replaced in rva_replace_table:
+		for replaced_rva in rva_replace_table:
 			for pointers in STRINDEX["pointers"][strindex_index]:
-				sdp.pe.set_bytes_at_offset(int(pointers, 16), replaced)
+				sdp.pe.set_bytes_at_offset(pointers, replaced_rva)
 			strindex_index += 1
 	print("(5/7) Relocated strings.")
 
@@ -608,12 +613,13 @@ def main():
 	args.add_argument("-o", "--output", type=str, help="Output file.")
 
 	# create arguments
+	args.add_argument("-l", "--list-only", action="store_true", help="Whether to create a strindex without the offsets, for listing purposes only, and make its creation much faster.")
 	args.add_argument("-c", "--compatible", action="store_true", help="Whether to create a strindex file compatible with the previous versions of a program.")
 	args.add_argument("-w", "--whitelist", type=str, action="append", choices=CHARACTER_CLASSES.keys(), default=[], help="Character classes to whitelist.")
 	args.add_argument("-m", "--min-length", type=int, default=3, help="Minimum length of the strings to be included.")
 
 	# spellcheck arguments
-	args.add_argument("-l", "--language", type=str, help="Language to spellcheck the strings (ISO 639-1 code).")
+	args.add_argument("-L", "--language", type=str, help="Language to spellcheck the strings (ISO 639-1 code).")
 
 	args = args.parse_args()
 
@@ -626,7 +632,7 @@ def main():
 	try:
 		match args.action:
 			case "create":
-				create(*args.files, strindex_filepath=(args.output or "strindex_full.txt"), compatible=args.compatible, whitelist=args.whitelist, min_length=args.min_length)
+				create(*args.files, strindex_filepath=(args.output or "strindex_full.txt"), list_only=args.list_only, compatible=args.compatible, whitelist=args.whitelist, min_length=args.min_length)
 			case "patch":
 				patch(*args.files)
 			case "filter":
