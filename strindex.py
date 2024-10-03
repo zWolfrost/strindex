@@ -395,7 +395,7 @@ def create(file_filepath, strindex_filepath, compatible, list_only, whitelist, m
 	BYTE_LENGTH = 4 if sdp.pe.OPTIONAL_HEADER.Magic == 0x10b else 8
 
 	with open(strindex_filepath, 'w', encoding='utf-8') as f:
-		if not list_only:
+		if not list_only and not compatible:
 			f.write(STRINDEX_HEADER)
 
 		for string, offset in open_by_null(file_filepath, 'rb'):
