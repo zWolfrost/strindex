@@ -518,7 +518,7 @@ def patch(file_filepath, strindex_filepath):
 
 
 	sdp.pe.write(file_filepath)
-	print("(7/7) File was patched successfully.")
+	print("(7/7) File was patched & saved successfully.")
 
 
 	# os.system(f'cp "{file_filepath}" "/home/zwolfrost/.steam/steam/steamapps/common/Katana ZERO/Katana ZERO.exe"')
