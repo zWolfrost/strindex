@@ -1,14 +1,7 @@
 import os, sys, re, json, argparse, pefile, time
+pefile.fast_load = True
 
 
-
-CHARACTER_CLASSES = {
-	"default": " \t\n !\"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~",
-	"symbols": "… ",
-	"latin": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-	"spanish": "¡¿ÁÉÍÓÚÜÑáéíóúüñã",
-	"cyrillic": "ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ",
-}
 
 STRINDEX_DELIMITERS = ('_' * 80, '↓' * 80, '/', '-')
 STRINDEX_HEADER = "-" * 79 + "/ offset /  rva   / offsets of rva pointers /\n"
@@ -18,7 +11,23 @@ STRINDEX_LIST_ONLY_FORMAT = f"{STRINDEX_DELIMITERS[0]}\n{{}}\n"
 
 
 
-def pe_adjust_optional_header(pe):
+class FastPrintProgress():
+	def __init__(self, total: int, precision: int = 0):
+		self.total = total
+		self.limit = 0
+		self.delta = total // (10 ** (precision + 2))
+		self.round = precision if precision > 0 else None
+		self.end = "%" + " " * (precision + 3) + "\r"
+		self.__call__(0)
+
+	def __call__(self, iteration: int):
+		if iteration >= self.limit:
+			self.limit += self.delta
+			print(round(iteration / self.total * 100, self.round), end=self.end)
+
+
+
+def pe_adjust_optional_header(pe: pefile.PE) -> pefile.PE:
 	""" Recalculates the SizeOfImage, SizeOfCode, SizeOfInitializedData and
 		SizeOfUninitializedData of the optional header.
 	"""
@@ -45,7 +54,7 @@ def pe_adjust_optional_header(pe):
 
 	return pe
 
-def pe_add_header_space(pe):
+def pe_add_header_space(pe: pefile.PE) -> pefile.PE:
 	""" To make space for a new section header a buffer filled with nulls is added at the
 		end of the headers. The buffer has the size of one file alignment.
 		The data between the last section header and the end of the headers is copied to
@@ -108,10 +117,10 @@ def pe_add_header_space(pe):
 	return pe
 
 def pe_add_section(
-	pe, Name=".NewSec", Data="", Characteristics=0xE00000E0,
+	pe: pefile.PE, Name=".NewSec", Data="", Characteristics=0xE00000E0,
 	VirtualSize=0x00000000, VirtualAddress=0x00000000,
 	RawSize=0x00000000, RawAddress=0x00000000
-):
+) -> pefile.PE:
 	"""
 		Tested with pefile 1.2.10-123 on 32bit PE executable files.
 		An implementation to push a section header to the section table of a PE file.
@@ -226,13 +235,6 @@ def pe_add_section(
 
 
 
-def print_progress(iteration, total, format=('[', '#', '-', ']')):
-	print(round(iteration / total * 100, 1), end="%   \r")
-	# length = os.get_terminal_size().columns - len(format[0]) - len(format[3]) - len("100.0%") - 1
-	# filled_length = int(length * iteration // total)
-	# percent = round(100 * iteration / total, 2)
-	# print(format[0] + format[1] * filled_length + format[2] * (length - filled_length) + format[3] + ' ' + str(percent) + "%", end='\r')
-
 def replace_with_table(string: str, table: dict[str, str]) -> str:
 	for key, value in table.items():
 		string = string.replace(key, value)
@@ -312,40 +314,47 @@ def parse_strindex(filepath: str) -> tuple[list[str], list[str]]:
 
 	return strindex
 
-def open_by_null(*args, **kwargs):
-	with open(*args, **kwargs) as file:
-		string = b''
-		char_count = 0
+def mmap_by_nulls(mm: bytearray):
+	string = b''
+	char_count = 0
+	for char in mm:
+		if char == b'\x00':
+			yield string, char_count - len(string)
+			string = b''
+		else:
+			string += char
+		char_count += 1
 
-		for line in file:
-			for char in line:
-				if char == 0:
-					yield string, char_count - len(string)
-					string = b''
-				else:
-					string += bytes([char])
+	yield string, char_count - len(string)
 
-				char_count += 1
-
-		yield string, char_count
-
-def mmap_indices(mm, search_str):
+def mmap_indices(mm: bytearray, search_str: bytes) -> list[int]:
 	index = 0
 	all_indices = []
 	while True:
 		index = mm.find(search_str, index)
 		if index == -1:
 			break
+
 		all_indices.append(index)
 		index += 1
 
 	return all_indices
 
+def mmap_indices_bulk(mm: bytearray, search_strs: list[bytes]):
+	search_index = 0
+	start_index = 0
+	while search_index < len(search_strs):
+		index = mm.find(search_strs[search_index], start_index)
+		if index != -1:
+			start_index = index + 1
+
+		yield search_index, index
+		search_index += 1
 
 
-def create(file_filepath, strindex_filepath, compatible, list_only, whitelist, min_length):
+
+def create(file_filepath: str, strindex_filepath: str, compatible: bool, list_only: bool, whitelist: str, min_length: int):
 	pe = pefile.PE(file_filepath)
-	print("(1/2) Opened PE file.")
 
 	BYTE_LENGTH = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
 
@@ -353,56 +362,62 @@ def create(file_filepath, strindex_filepath, compatible, list_only, whitelist, m
 		if not list_only and not compatible:
 			f.write(STRINDEX_HEADER)
 
-		for string, offset in open_by_null(file_filepath, 'rb'):
+		print_progress = FastPrintProgress(len(pe.__data__), 1)
+
+		for string, offset in mmap_by_nulls(pe.__data__):
+			if len(string) < min_length:
+				continue
+
 			try:
 				string = string.decode('utf-8')
 			except UnicodeDecodeError:
 				continue
 
-			if len(string) >= min_length and (not whitelist or all(x in whitelist for x in string)):
+			if not whitelist or all(x in whitelist for x in string):
 				if list_only:
 					f.write(STRINDEX_LIST_ONLY_FORMAT.format(string))
 				else:
-					rva = pe.get_rva_from_offset(offset) + pe.OPTIONAL_HEADER.ImageBase
+					rva = pe.get_rva_from_offset(offset)
+					if not rva:
+						continue
+					rva += pe.OPTIONAL_HEADER.ImageBase
 					rva_indexes = mmap_indices(pe.__data__, rva.to_bytes(BYTE_LENGTH, 'little'))
-					if rva_indexes:
-						if compatible:
-							f.write(STRINDEX_COMPATIBLE_FORMAT.format(len(rva_indexes) * "1", string, string))
-						else:
-							hex_offset = hex(offset).lstrip("0x").rjust(8, '0')
-							hex_rva = hex(rva).lstrip("0x").rjust(2 * BYTE_LENGTH, '0')
-							hex_rva_offsets = STRINDEX_DELIMITERS[3].join([hex(offset).lstrip("0x").rjust(8, '0') for offset in rva_indexes])
-							f.write(STRINDEX_FORMAT.format(hex_offset, hex_rva, hex_rva_offsets, string))
-				print_progress(offset, len(pe.__data__))
+					if not rva_indexes:
+						continue
+					if compatible:
+						f.write(STRINDEX_COMPATIBLE_FORMAT.format(len(rva_indexes) * "1", string, string))
+					else:
+						hex_offset = hex(offset).lstrip("0x").rjust(8, '0')
+						hex_rva = hex(rva).lstrip("0x").rjust(2 * BYTE_LENGTH, '0')
+						hex_rva_offsets = STRINDEX_DELIMITERS[3].join([hex(offset).lstrip("0x").rjust(8, '0') for offset in rva_indexes])
+						f.write(STRINDEX_FORMAT.format(hex_offset, hex_rva, hex_rva_offsets, string))
+
+			print_progress(offset)
 
 		f.seek(f.tell() - 1)
 		f.truncate()
-	print("(2/2) Created strindex file.")
+	print("Created strindex file.")
 
-def patch(file_filepath, strindex_filepath):
+def patch(file_filepath: str, strindex_filepath: str):
 	file_filepath_bak = file_filepath + '.bak'
 
 	COPY_COMMAND = "copy" if sys.platform == "win32" else "cp"
 	DEV_NULL = "> NUL" if sys.platform == "win32" else "> /dev/null"
 	if os.path.exists(file_filepath_bak):
 		os.system(f'{COPY_COMMAND} "{file_filepath_bak}" "{file_filepath}" {DEV_NULL}')
-		print("(1/7) Restored from backup.")
+		print("(1/4) Restored from backup.")
 	else:
 		os.system(f'{COPY_COMMAND} "{file_filepath}" "{file_filepath_bak}" {DEV_NULL}')
-		print("(1/7) Created backup.")
+		print("(1/4) Created backup.")
 
 
 	pe = pefile.PE(file_filepath_bak)
-	print("(2/7) Opened PE file.")
-
 
 	if any(sect.Name == b".strdex\0" for sect in pe.sections):
-		print("This file is already patched with strindex.")
-		return
+		raise ValueError("The file already contains a .strdex section.")
 
 
 	BYTE_LENGTH = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
-
 
 	strdex_section_base_rva = pe.sections[-1].VirtualAddress + pe.sections[-1].Misc_VirtualSize
 	if strdex_section_base_rva % pe.OPTIONAL_HEADER.SectionAlignment:
@@ -412,107 +427,91 @@ def patch(file_filepath, strindex_filepath):
 
 	new_section_data = b''
 	STRINDEX = parse_strindex(strindex_filepath)
-	print("(3/7) Parsed strindex file.")
-
 
 	if STRINDEX["settings"].get("file_size") and STRINDEX["settings"]["file_size"] != len(pe.__data__):
 		print("File size does not match the file size the strindex was created with. You might encounter issues.")
 
 
 	if STRINDEX["type"] == "compatible":
-		rva_replace_table = {}
-		for string, offset in open_by_null(file_filepath_bak, 'rb'):
-			if STRINDEX["original"] and string == bytes(STRINDEX["original"][0], 'utf-8'):
-				STRINDEX["original"].pop(0)
+		print_progress = FastPrintProgress(len(STRINDEX["replace"]))
+		for strindex_index, offset in mmap_indices_bulk(pe.__data__[:], [bytes(l, 'utf-8') for l in STRINDEX["original"]]):
+			if offset == -1:
+				print("String not found (skipping):\n" + STRINDEX["original"][strindex_index])
+				continue
 
-				# get_rva_from_offset is just "sect.VirtualAddress - sect.PointerToRawData + offset" (if encountering issues try this)
-				# sect = pe.get_section_by_offset(offset)
-				# if sect.VirtualAddress - sect.PointerToRawData + offset == pe.get_rva_from_offset(offset):
-				# 	print("RVA calculation is somehow different from the PE method. Keep an eye on this.")
+			# get_rva_from_offset is just "sect.VirtualAddress - sect.PointerToRawData + offset" (if encountering issues try this)
+			# sect = pe.get_section_by_offset(offset)
+			# if sect.VirtualAddress - sect.PointerToRawData + offset != pe.get_rva_from_offset(offset):
+			# 	print("RVA calculation is somehow different from the PE method. Keep an eye on this.")
 
-				original_rva = pe.get_rva_from_offset(offset) + pe.OPTIONAL_HEADER.ImageBase
-				replaced_rva = strdex_section_base_rva + len(new_section_data)
-				rva_replace_table[original_rva.to_bytes(BYTE_LENGTH, 'little')] = replaced_rva.to_bytes(BYTE_LENGTH, 'little')
+			original_rva = (pe.get_rva_from_offset(offset) + pe.OPTIONAL_HEADER.ImageBase).to_bytes(BYTE_LENGTH, 'little')
+			replaced_rva = (strdex_section_base_rva + len(new_section_data)).to_bytes(BYTE_LENGTH, 'little')
 
-				replaced_string = replace_with_table(STRINDEX["replace"].pop(0), STRINDEX["settings"].get("replace", {}))
-				new_section_data += bytes(replaced_string, 'utf-8') + b'\x00'
+			replaced_string = replace_with_table(STRINDEX["replace"][strindex_index], STRINDEX["settings"].get("replace", {}))
+			new_section_data += bytes(replaced_string, 'utf-8') + b'\x00'
 
-		if STRINDEX["original"]:
-			print("String not found:\n", STRINDEX["original"][0])
-			return
-	else:
-		rva_replace_table = []
-		for line in STRINDEX["replace"]:
-			replaced_rva = strdex_section_base_rva + len(new_section_data)
-			rva_replace_table.append(replaced_rva.to_bytes(BYTE_LENGTH, 'little'))
-
-			line = replace_with_table(line, STRINDEX["settings"].get("replace", {}))
-			new_section_data += bytes(line, 'utf-8') + b'\x00'
-	print("(4/7) Found strings.")
-
-
-	if STRINDEX["type"] == "compatible":
-		strindex_index = 0
-		for original_rva, replaced_rva in rva_replace_table.items():
 			for index in mmap_indices(pe.__data__, original_rva):
 				if STRINDEX["pointers"][strindex_index] and STRINDEX["pointers"][strindex_index].pop(0):
 					pe.set_bytes_at_offset(index, replaced_rva)
-			strindex_index += 1
-			print_progress(strindex_index, len(rva_replace_table))
+
+			print_progress(strindex_index)
 	else:
+		print_progress = FastPrintProgress(len(STRINDEX["replace"]))
 		strindex_index = 0
-		for replaced_rva in rva_replace_table:
+		while strindex_index < len(STRINDEX["replace"]):
+			replaced_rva = (strdex_section_base_rva + len(new_section_data)).to_bytes(BYTE_LENGTH, 'little')
+
+			replaced_string = replace_with_table(STRINDEX["replace"][strindex_index], STRINDEX["settings"].get("replace", {}))
+			new_section_data += bytes(replaced_string, 'utf-8') + b'\x00'
+
 			for pointers in STRINDEX["pointers"][strindex_index]:
 				pe.set_bytes_at_offset(pointers, replaced_rva)
+
+			print_progress(strindex_index)
 			strindex_index += 1
-	print("(5/7) Relocated strings.")
+	print("(2/4) Created section data & relocated strings.")
 
 
 	pe = pe_add_section(pe, Name=b".strdex", Characteristics=0xF0000040, Data=new_section_data)
-	print("(6/7) Added .strdex section.")
+	print("(3/4) Added '.strdex' section.")
 
 
 	pe.write(file_filepath)
-	print("(7/7) File was patched & saved successfully.")
+	print("(4/4) File was patched & saved successfully.")
 
 
 	# os.system(f'cp "{file_filepath}" "/home/zwolfrost/.steam/steam/steamapps/common/Katana ZERO/Katana ZERO.exe"') # TESTING
 
-def update(file_filepath, strindex_filepath, strindex_update_filepath):
+def update(file_filepath: str, strindex_filepath: str, strindex_update_filepath: str):
 	pe = pefile.PE(file_filepath)
-	print("(1/2) Opened PE file.")
 
 	BYTE_LENGTH = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
 
 	strindex = parse_strindex(strindex_filepath)
 
 	if strindex["type"] != "compatible":
-		print("This strindex file is not compatible with the update feature.")
-		return
+		raise ValueError("This strindex file is not compatible with the update feature.")
 
-	start_index = 0
-	strindex_index = 0
 	with open(strindex_update_filepath, 'w', encoding='utf-8') as f:
 		f.write(strindex["raw_header"])
 
-		while strindex_index < len(strindex["replace"]):
-			offset = pe.__data__.find(bytes(strindex["original"][strindex_index], 'utf-8'), start_index)
+		print_progress = FastPrintProgress(len(strindex["replace"]))
+		for strindex_index, offset in mmap_indices_bulk(pe.__data__, [bytes(l, 'utf-8') for l in strindex["original"]]):
 			if offset == -1:
-				print("String not found:\n", strindex["original"][strindex_index])
-			else:
-				start_index = offset + 1
-				rva = pe.get_rva_from_offset(offset) + pe.OPTIONAL_HEADER.ImageBase
-				rva_indexes = mmap_indices(pe.__data__, rva.to_bytes(BYTE_LENGTH, 'little'))
-				f.write(STRINDEX_COMPATIBLE_FORMAT.format(len(rva_indexes) * "1", strindex["original"][strindex_index], strindex["replace"][strindex_index]))
+				print("String not found (skipping):\n" + strindex["original"][strindex_index])
+				continue
 
-			strindex_index += 1
-			print_progress(strindex_index, len(strindex["replace"]))
+			rva = pe.get_rva_from_offset(offset) + pe.OPTIONAL_HEADER.ImageBase
+			rva_indexes = mmap_indices(pe.__data__, rva.to_bytes(BYTE_LENGTH, 'little'))
+			f.write(STRINDEX_COMPATIBLE_FORMAT.format(len(rva_indexes) * "1", strindex["original"][strindex_index], strindex["replace"][strindex_index]))
+
+			print_progress(strindex_index)
 
 		f.seek(f.tell() - 1)
 		f.truncate()
-	print("(2/2) Created strindex file.")
+	print("Created strindex file.")
 
-def filter(strindex_full_filepath, strindex_delta_filepath, strindex_filtered_filepath):
+def filter(strindex_full_filepath: str, strindex_delta_filepath: str, strindex_filtered_filepath: str):
 	STRINDEX_FULL = parse_strindex(strindex_full_filepath)
 	STRINDEX_DELTA = parse_strindex(strindex_delta_filepath)
 
@@ -520,8 +519,10 @@ def filter(strindex_full_filepath, strindex_delta_filepath, strindex_filtered_fi
 		try:
 			from lingua import IsoCode639_1, LanguageDetectorBuilder
 		except ImportError:
-			print("Please install the 'lingua' package (pip install lingua) to use this feature.\n(Or remove the 'source_language' key from the delta strindex file.)")
-			return
+			raise ImportError(
+				"Please install the 'lingua' package (pip install lingua) to use this feature.\n\
+				(Or remove the 'source_language' key from the delta strindex file.)"
+			)
 
 		LANGUAGES = [getattr(IsoCode639_1, code.upper()) for code in STRINDEX_DELTA["settings"].get("among_languages")]
 
@@ -536,6 +537,7 @@ def filter(strindex_full_filepath, strindex_delta_filepath, strindex_filtered_fi
 	with open(strindex_filtered_filepath, 'w', encoding='utf-8') as f:
 		f.write(STRINDEX_FULL["raw_header"])
 
+		print_progress = FastPrintProgress(len(STRINDEX_FULL_CHECK))
 		strindex_full_index = 0
 		strindex_delta_index = 0
 		while strindex_full_index < len(STRINDEX_FULL["replace"]):
@@ -561,25 +563,24 @@ def filter(strindex_full_filepath, strindex_delta_filepath, strindex_filtered_fi
 						)
 
 			strindex_full_index += 1
-			print_progress(strindex_full_index, len(STRINDEX_FULL_CHECK))
+			print_progress(strindex_full_index)
 	print("Filtered strindex file.")
 
-def spellcheck(strindex_filepath, strindex_spellcheck_filepath, target_language):
+def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str, target_language: str):
 	try:
 		from language_tool_python import LanguageTool
 	except ImportError:
-		print("Please install the 'language-tool-python' package (pip install language-tool-python) to use this feature.")
-		return
+		raise ImportError("Please install the 'language-tool-python' package (pip install language-tool-python) to use this feature.")
 
 	STRINDEX = parse_strindex(strindex_filepath)
 
 	target_language = target_language or STRINDEX["settings"].get("target_language")
 	if not target_language:
-		print("Please specify the target language to spellcheck in the strindex file. (Or use the --language argument.)")
-		return
+		raise ValueError("Please specify the target language to spellcheck in the strindex file. (Or use the --language argument.)")
 
 	lang = LanguageTool(target_language)
 	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
+		print_progress = FastPrintProgress(len(STRINDEX["replace"]))
 		strindex_index = 0
 		while strindex_index < len(STRINDEX["replace"]):
 			line_clean = re.sub(STRINDEX["settings"].get("filter_pattern", ""), "", STRINDEX["replace"][strindex_index])
@@ -587,12 +588,20 @@ def spellcheck(strindex_filepath, strindex_spellcheck_filepath, target_language)
 				f.write('\n'.join(str(error).split('\n')[-3:]) + '\n')
 
 			strindex_index += 1
-			print_progress(strindex_index, len(STRINDEX["replace"]))
+			print_progress(strindex_index)
 	print("Spellchecked strindex file.")
 
 
 
 def cmd_main():
+	CHARACTER_CLASSES = {
+		"default": " \t\n !\"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~",
+		"symbols": "… ",
+		"latin": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+		"spanish": "¡¿ÁÉÍÓÚÜÑáéíóúüñã",
+		"cyrillic": "ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ",
+	}
+
 	args = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
 
 	args.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "spellcheck"], help="Action to perform.")
@@ -611,10 +620,11 @@ def cmd_main():
 	args = args.parse_args()
 
 	if not all([os.path.exists(file) for file in args.files]):
-		print("One or more files do not exist.")
-		return
+		raise FileNotFoundError("One or more files do not exist.")
 
 	args.whitelist = None if "disable" in args.whitelist else ''.join([CHARACTER_CLASSES[whitelist] for whitelist in ((args.whitelist or ["latin"]) + ["default"])])
+
+	start_time = time.time()
 
 	match args.action:
 		case "create":
@@ -627,6 +637,8 @@ def cmd_main():
 			filter(*args.files, strindex_filtered_filepath=(args.output or "strindex_filtered.txt"))
 		case "spellcheck":
 			spellcheck(*args.files, strindex_spellcheck_filepath=(args.output or "strindex_spellcheck.txt"), target_language=args.language)
+
+	print("Time elapsed:", round(time.time() - start_time), "seconds.")
 
 def gui_main():
 	from filedialpy import openFile
@@ -651,21 +663,17 @@ def gui_main():
 	input("Press enter to exit.")
 
 def main():
-	start_time = time.time()
-
 	try:
 		if getattr(sys, 'frozen', False):
 			gui_main()
 		else:
 			cmd_main()
-	except (TypeError, FileNotFoundError) as e:
+	except (TypeError, ValueError, FileNotFoundError, ImportError) as e:
 		print(e)
 	except pefile.PEFormatError as e:
 		print("Error parsing the PE file:", e)
 	except KeyboardInterrupt:
 		print("Interrupted by user.")
-
-	print("Time elapsed:", round(time.time() - start_time), "seconds.")
 
 if __name__ == "__main__":
 	main()
