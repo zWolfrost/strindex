@@ -32,7 +32,7 @@ You can run the program with the command `python strindex.py -h` to show all ava
 ## Examples
 - Create a strindex from a PE file:
   ```
-  python strindex.py create program.exe -o strindex.txt -w disable
+  python strindex.py create program.exe -o strindex.txt
   ```
 - Patch a PE file with a strindex:
   ```
