@@ -22,19 +22,44 @@ You can install the required libraries with the command `pip install [library na
 
 ## Usage
 There are four available actions:
-- `create`: Create a list of strings from a PE file (a strindex). Use `-c` to create a strindex that uses the original strings.
+- `create`: Create a list of strings from a PE file (a strindex). Use `-c` to create a strindex that uses the original strings as references.
 - `patch`: Patch a PE file with a strindex.
-- `filter`: Filter a strindex by detected language and delete strings already present in another strindex (as a blacklist).
-- `spellcheck`: Spellcheck a strindex. Use `-l` to specify the language (ISO 639-1 code).
+- `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
+- `update`: Update a strindex pointers to match the new ones of a file, useful for when the file is modified (e.g. update)
+- `delta`: Create a delta file between two strindexes, that only contains the lines of the first strindex missing in the second one.
+- `spellcheck`: Spellcheck a strindex. You can specify the target language in the strindex settings as an ISO 639-1 code.
 
 You can run the program with the command `python strindex.py -h` to show all available arguments.
 
-## Examples
+## Usage Examples
 - Create a strindex from a PE file:
-  ```
+  ```sh
   python strindex.py create program.exe -o strindex.txt
   ```
 - Patch a PE file with a strindex:
-  ```
+  ```sh
   python strindex.py patch program.exe strindex.txt
   ```
+
+## Strindex Settings example
+```json
+{
+    "md5": "29ed1f9e450d43815c2d1a0cab168da3",
+
+    "prefix_bytes": ["24c7442404", "ec04c70424"],
+
+    "patch_replace": {
+        "ì": "í",
+        "Ì": "Í",
+        "ò": "ó",
+        "Ò": "Ó"
+    },
+
+    "clean_pattern": "\\[.*?\\]|\\*",
+    "whitelist": ["latin", "spanish", "cyrillic"],
+
+    "source_language": "es",
+    "target_language": "it",
+    "among_languages": ["en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh"]
+}
+```
