@@ -1,4 +1,4 @@
-import os, sys, argparse, json, pefile, shutil, re, time
+import os, sys, argparse, json, pefile, re, time
 from hashlib import md5
 
 
@@ -62,8 +62,8 @@ class Strindex():
 			"md5": None,
 			"whitelist": None,
 			"min_length": 0,
-			"prefix_bytes": [b''],
-			"suffix_bytes": [b''],
+			"prefix_bytes": [''],
+			"suffix_bytes": [''],
 			"patch_replace": {},
 			"clean_pattern": "",
 			"source_language": None,
@@ -141,6 +141,7 @@ class Strindex():
 					getattr(self, next_lst)[-1] += line
 
 		self.settings["prefix_bytes"] = [bytes.fromhex(prefix) for prefix in self.settings["prefix_bytes"]]
+		self.settings["suffix_bytes"] = [bytes.fromhex(suffix) for suffix in self.settings["suffix_bytes"]]
 		self.settings["whitelist"] = set(''.join([Strindex.CHARACTER_CLASSES.get(whitelist, whitelist) for whitelist in (self.settings["whitelist"] + ["default"])])) if self.settings["whitelist"] else None
 		self.rva_bytes_length = (-((len(hex(max([r for r in self.rvas if r is not None] + [0]))) - 2) // -8)) * 4
 
@@ -572,26 +573,16 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 		For "compatible" strindex files, the re-finding of strings works similarly to the "create" action.
 	"""
 
-	if file_patched_filepath:
-		file_source_filepath = file_filepath
-		file_target_filepath = file_patched_filepath
-	else:
-		file_source_filepath = file_filepath + '.bak'
-		file_target_filepath = file_filepath
-
-	if os.path.exists(file_source_filepath):
-		shutil.copy(file_source_filepath, file_target_filepath)
-		print("(1/4) Restored from backup.")
-	else:
-		shutil.copy(file_target_filepath, file_source_filepath)
-		print("(1/4) Created backup.")
-
+	file_filepath_bak = file_filepath + '.bak'
 
 	pefile.fast_load = True
-	pe = pefile.PE(file_source_filepath)
+	pe = pefile.PE(file_filepath_bak if os.path.exists(file_filepath_bak) else file_filepath)
 
 	if pe_section_exists(pe, SECTION_NAME):
 		raise ValueError(f"This file already contains a '{SECTION_NAME.decode('utf-8')}' section.")
+
+	if not file_patched_filepath and not os.path.exists(file_filepath_bak):
+		pe.write(file_filepath_bak)
 
 
 	BYTE_LENGTH = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
@@ -646,15 +637,15 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 				pe.set_bytes_at_offset(pointer, replaced_rva)
 			else:
 				print("No pointers found for string: " + STRINDEX.overwrite[strindex_index])
-	print("(2/4) Created section data & relocated pointers.")
+	print("(1/3) Created section data & relocated pointers.")
 
 
 	pe = pe_add_section(pe, Name=SECTION_NAME, Data=new_section_data, Characteristics=0xF0000040)
-	print(f"(3/4) Added '{SECTION_NAME.decode('utf-8')}' section.")
+	print(f"(2/3) Added '{SECTION_NAME.decode('utf-8')}' section.")
 
 
-	pe.write(file_target_filepath)
-	print("(4/4) File was patched successfully.")
+	pe.write(file_patched_filepath or file_filepath)
+	print("(3/3) File was patched successfully.")
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str):
 	"""
@@ -803,7 +794,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 
 def patch_gui():
 	try:
-		from PySide6 import QtCore, QtWidgets
+		from PySide6 import QtCore, QtWidgets, QtGui
 	except ImportError:
 		raise ImportError("Please install the 'PySide6' package (pip install PySide6) to use this feature.")
 
@@ -850,6 +841,12 @@ def patch_gui():
 			layout.setColumnMinimumWidth(0, 200)
 			layout.setSizeConstraint(QtWidgets.QLayout.SetMinAndMaxSize)
 			self.setLayout(layout)
+
+			self.resize(800, 0)
+			self.show()
+
+			resolution = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+			self.move((resolution.width() / 2) - (self.width() / 2), (resolution.height() / 2) - (self.height() / 2))
 
 		def browse(self, line: QtWidgets.QLineEdit, caption, filter):
 			if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:
@@ -940,11 +937,7 @@ def patch_gui():
 			return msg
 
 	app = QtWidgets.QApplication([])
-
-	widget = PatchGUI()
-	widget.resize(800, 0)
-	widget.show()
-
+	PatchGUI()
 	sys.exit(app.exec())
 
 
@@ -986,7 +979,7 @@ def cmd_main():
 
 def main():
 	try:
-		if getattr(sys, 'frozen', False):
+		if "__compiled__" in globals():
 			patch_gui()
 		else:
 			cmd_main()
