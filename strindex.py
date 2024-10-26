@@ -1,4 +1,4 @@
-import os, sys, argparse, json, pefile, re
+import os, sys, argparse, json, pefile, re, time
 from hashlib import md5
 
 
@@ -485,6 +485,7 @@ def truncate_prev_char(file):
 def copy_file(source_filepath: str, target_filepath: str):
 	""" Copies a file from source to target. """
 	if sys.platform == "win32":
+		source_filepath = source_filepath.replace("/", "\\")
 		os.system(f'copy "{source_filepath}" "{target_filepath}" > nul')
 	else:
 		os.system(f'cp "{source_filepath}" "{target_filepath}" > /dev/null')
@@ -843,26 +844,149 @@ def cmd_main():
 			spellcheck(*args.files, (args.output or "strindex_spellcheck.txt"))
 
 def gui_main():
-	from filedialpy import openFile
+	from PySide6 import QtCore, QtWidgets
 
-	NFS = "No file selected. Press enter to exit."
+	class PatchGUI(QtWidgets.QWidget):
+		def __init__(self):
+			super().__init__()
 
-	print("Select the file to patch.")
-	file_filepath = openFile(title="Select the file to patch", filter="*.exe")
+			self.setWindowTitle("Strindex Patch")
+			if sys.platform == "win32":
+				STYLESHEET = """QLineEdit{font-family: monospace;}"""
+			else:
+				STYLESHEET = """QLineEdit{font-family: monospace; color: white;}"""
 
-	if not file_filepath:
-		input(NFS)
-		return
+			# file selection
+			self.file_line = QtWidgets.QLineEdit()
+			self.file_line.setPlaceholderText("Select a PE file")
+			self.file_line.setStyleSheet(STYLESHEET)
+			self.file_line.textChanged.connect(self.update)
+			self.file_button = QtWidgets.QPushButton("Browse PE Files")
+			self.file_button.clicked.connect(lambda: self.browse(self.file_line, "Open File", "Executable Files (*.exe)"))
 
-	print("Select the strindex file.")
-	strindex_filepath = openFile(title="Select the strindex file", filter="*.txt")
+			# strindex selection
+			self.strindex_line = QtWidgets.QLineEdit()
+			self.strindex_line.setPlaceholderText("Select a Strindex file")
+			self.strindex_line.setStyleSheet(STYLESHEET)
+			self.strindex_line.textChanged.connect(self.update)
+			self.strindex_button = QtWidgets.QPushButton("Browse Strindex")
+			self.strindex_button.clicked.connect(lambda: self.browse(self.strindex_line, "Open Strindex", "Text Files (*.txt)"))
 
-	if not strindex_filepath:
-		input(NFS)
-		return
+			# patch button
+			self.patch_button = QtWidgets.QPushButton("Patch")
+			self.patch_button.clicked.connect(self.patch)
+			self.patch_button.setEnabled(False)
 
-	patch(file_filepath, strindex_filepath, None)
-	input("Press enter to exit.")
+			# add widgets to layout
+			layout = QtWidgets.QGridLayout()
+			layout.addWidget(self.file_line, 0, 0)
+			layout.addWidget(self.file_button, 0, 1)
+			layout.addWidget(self.strindex_line, 1, 0)
+			layout.addWidget(self.strindex_button, 1, 1)
+			layout.addWidget(self.patch_button, 2, 0, 1, 2)
+			layout.setSpacing(10)
+			layout.setColumnStretch(0, 1)
+			layout.setColumnMinimumWidth(0, 200)
+			layout.setSizeConstraint(QtWidgets.QLayout.SetMinAndMaxSize)
+			self.setLayout(layout)
+
+		def browse(self, line: QtWidgets.QLineEdit, caption, filter):
+			if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:
+				line.setText(filepath)
+
+		def update(self):
+			path_exists = os.path.exists(self.file_line.text()) and os.path.exists(self.strindex_line.text())
+			self.patch_button.setEnabled(path_exists)
+
+		def patch(self):
+			class PatchWorker(QtCore.QThread):
+				status = QtCore.Signal(int, str)
+
+				def __init__(self, file_filepath, strindex_filepath):
+					super().__init__()
+					self.file_filepath = file_filepath
+					self.strindex_filepath = strindex_filepath
+
+				def run(self):
+					self.status.emit(1, "")
+					try:
+						patch(self.file_filepath, self.strindex_filepath, None)
+					except BaseException as e:
+						print(e)
+						self.status.emit(3, str(e))
+					else:
+						self.status.emit(2, "")
+					finally:
+						self.status.emit(4, "")
+
+			class PendingWorker(QtCore.QThread):
+				status = QtCore.Signal(int)
+
+				def run(self):
+					while True:
+						self.status.emit(0)
+						time.sleep(0.4)
+
+			def on_status(status, message=None):
+				match status:
+					case 0: # pending
+						if (text := self.patch_button.text()).startswith("Patching"):
+							self.patch_button.setText("Patching" + "." * (text.count(".") % 3 + 1))
+					case 1: # start
+						self.patch_button.setEnabled(False)
+						self.patch_button.setText("Patching")
+						self.file_line.setSelection(0, 0) # deselect trickery
+					case 2: # success
+						self.message("File patched successfully.", QtWidgets.QMessageBox.Information)
+					case 3: # exception
+						self.message(message, QtWidgets.QMessageBox.Critical)
+					case 4: # finally
+						self.pending_worker.terminate()
+						self.patch_button.setText("Patch")
+						self.patch_button.setEnabled(True)
+
+			self.patch_button.setEnabled(False)
+			self.file_line.setSelection(0, 0)
+
+			try:
+				pefile.PE(self.file_line.text(), fast_load=True)
+			except:
+				self.message("The PE file is not valid.", QtWidgets.QMessageBox.Critical)
+				self.patch_button.setEnabled(True)
+				return
+
+			try:
+				Strindex(self.strindex_line.text())
+			except:
+				self.message("The strindex file is not valid.", QtWidgets.QMessageBox.Critical)
+				self.patch_button.setEnabled(True)
+				return
+
+			self.patch_worker = PatchWorker(self.file_line.text(), self.strindex_line.text())
+			self.patch_worker.status.connect(on_status)
+			self.patch_worker.start()
+
+			self.pending_worker = PendingWorker()
+			self.pending_worker.status.connect(on_status)
+			self.pending_worker.start()
+
+		@staticmethod
+		def message(text, icon):
+			msg = QtWidgets.QMessageBox()
+			msg.setWindowTitle("Strindex Patch")
+			msg.setIcon(icon)
+			msg.setText(text)
+			msg.setStandardButtons(QtWidgets.QMessageBox.Ok.Ok)
+			msg.exec()
+			return msg
+
+	app = QtWidgets.QApplication([])
+
+	widget = PatchGUI()
+	widget.resize(800, 0)
+	widget.show()
+
+	sys.exit(app.exec())
 
 def main():
 	try:
