@@ -1,4 +1,4 @@
-import os, sys, argparse, json, pefile, re, time
+import os, sys, argparse, json, pefile, shutil, re, time
 from hashlib import md5
 
 
@@ -92,8 +92,7 @@ class Strindex():
 						except json.JSONDecodeError as e:
 							line = f.readline()
 							if line.startswith(Strindex.DELIMITERS[0]):
-								print("Error parsing settings:", e)
-								exit(1)
+								raise ValueError("Error parsing Strindex settings.")
 							strindex_settings_lines += line
 							self.full_header += line
 						else:
@@ -482,14 +481,6 @@ def truncate_prev_char(file):
 	file.seek(file.tell() - 1)
 	file.truncate()
 
-def copy_file(source_filepath: str, target_filepath: str):
-	""" Copies a file from source to target. """
-	if sys.platform == "win32":
-		source_filepath = source_filepath.replace("/", "\\")
-		os.system(f'copy "{source_filepath}" "{target_filepath}" > nul')
-	else:
-		os.system(f'cp "{source_filepath}" "{target_filepath}" > /dev/null')
-
 
 
 def create(file_filepath: str, strindex_filepath: str, compatible: bool, min_length, prefixes: list[bytes]):
@@ -589,10 +580,10 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 		file_target_filepath = file_filepath
 
 	if os.path.exists(file_source_filepath):
-		copy_file(file_source_filepath, file_target_filepath)
+		shutil.copy(file_source_filepath, file_target_filepath)
 		print("(1/4) Restored from backup.")
 	else:
-		copy_file(file_target_filepath, file_source_filepath)
+		shutil.copy(file_target_filepath, file_source_filepath)
 		print("(1/4) Created backup.")
 
 
@@ -810,41 +801,11 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 
 
 
-def cmd_main():
-	args = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
-
-	args.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
-	args.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
-	args.add_argument("-o", "--output", type=str, help="Output file.")
-
-	# create arguments
-	args.add_argument("-c", "--compatible", action="store_true", help="Whether to create a strindex file compatible with the previous versions of a program.")
-	args.add_argument("-m", "--min-length", type=int, default=3, help="Minimum length of the strings to be included.")
-	args.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes to add to the rva in the strindex file.")
-
-	args = args.parse_args()
-
-	if not all([os.path.exists(file) for file in args.files]):
-		raise FileNotFoundError("One or more files do not exist.")
-
-	args.prefix_bytes = [bytes.fromhex(prefix) for prefix in (args.prefix_bytes or [''])]
-
-	match args.action:
-		case "create":
-			create(*args.files, (args.output or "strindex.txt"), args.compatible, args.min_length, args.prefix_bytes)
-		case "patch":
-			patch(*args.files, args.output)
-		case "filter":
-			filter(*args.files, (args.output or "strindex_filter.txt"))
-		case "update":
-			update(*args.files, (args.output or "strindex_update.txt"))
-		case "delta":
-			delta(*args.files, (args.output or "strindex_delta.txt"))
-		case "spellcheck":
-			spellcheck(*args.files, (args.output or "strindex_spellcheck.txt"))
-
-def gui_main():
-	from PySide6 import QtCore, QtWidgets
+def patch_gui():
+	try:
+		from PySide6 import QtCore, QtWidgets
+	except ImportError:
+		raise ImportError("Please install the 'PySide6' package (pip install PySide6) to use this feature.")
 
 	class PatchGUI(QtWidgets.QWidget):
 		def __init__(self):
@@ -895,7 +856,7 @@ def gui_main():
 				line.setText(filepath)
 
 		def update(self):
-			path_exists = os.path.exists(self.file_line.text()) and os.path.exists(self.strindex_line.text())
+			path_exists = os.path.isfile(self.file_line.text()) and os.path.isfile(self.strindex_line.text())
 			self.patch_button.setEnabled(path_exists)
 
 		def patch(self):
@@ -933,9 +894,8 @@ def gui_main():
 						if (text := self.patch_button.text()).startswith("Patching"):
 							self.patch_button.setText("Patching" + "." * (text.count(".") % 3 + 1))
 					case 1: # start
-						self.patch_button.setEnabled(False)
+						self.setEnabled(False)
 						self.patch_button.setText("Patching")
-						self.file_line.setSelection(0, 0) # deselect trickery
 					case 2: # success
 						self.message("File patched successfully.", QtWidgets.QMessageBox.Information)
 					case 3: # exception
@@ -943,23 +903,22 @@ def gui_main():
 					case 4: # finally
 						self.pending_worker.terminate()
 						self.patch_button.setText("Patch")
-						self.patch_button.setEnabled(True)
+						self.setEnabled(True)
 
-			self.patch_button.setEnabled(False)
-			self.file_line.setSelection(0, 0)
+			self.setEnabled(False)
 
 			try:
 				pefile.PE(self.file_line.text(), fast_load=True)
-			except:
-				self.message("The PE file is not valid.", QtWidgets.QMessageBox.Critical)
-				self.patch_button.setEnabled(True)
+			except BaseException as e:
+				self.message(str(e), QtWidgets.QMessageBox.Critical)
+				self.setEnabled(True)
 				return
 
 			try:
 				Strindex(self.strindex_line.text())
-			except:
-				self.message("The strindex file is not valid.", QtWidgets.QMessageBox.Critical)
-				self.patch_button.setEnabled(True)
+			except BaseException as e:
+				self.message(str(e), QtWidgets.QMessageBox.Critical)
+				self.setEnabled(True)
 				return
 
 			self.patch_worker = PatchWorker(self.file_line.text(), self.strindex_line.text())
@@ -988,10 +947,47 @@ def gui_main():
 
 	sys.exit(app.exec())
 
+
+
+def cmd_main():
+	args = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
+
+	args.add_argument("action", type=str, choices=["create", "patch", "patch_gui", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
+	args.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
+	args.add_argument("-o", "--output", type=str, help="Output file.")
+
+	# create arguments
+	args.add_argument("-c", "--compatible", action="store_true", help="Whether to create a strindex file compatible with the previous versions of a program.")
+	args.add_argument("-m", "--min-length", type=int, default=3, help="Minimum length of the strings to be included.")
+	args.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes to add to the rva in the strindex file.")
+
+	args = args.parse_args()
+
+	if not all([os.path.isfile(file) for file in args.files]):
+		raise FileNotFoundError("One or more files do not exist.")
+
+	args.prefix_bytes = [bytes.fromhex(prefix) for prefix in (args.prefix_bytes or [''])]
+
+	match args.action:
+		case "create":
+			create(*args.files, (args.output or "strindex.txt"), args.compatible, args.min_length, args.prefix_bytes)
+		case "patch":
+			patch(*args.files, args.output)
+		case "patch_gui":
+			patch_gui()
+		case "filter":
+			filter(*args.files, (args.output or "strindex_filter.txt"))
+		case "update":
+			update(*args.files, (args.output or "strindex_update.txt"))
+		case "delta":
+			delta(*args.files, (args.output or "strindex_delta.txt"))
+		case "spellcheck":
+			spellcheck(*args.files, (args.output or "strindex_spellcheck.txt"))
+
 def main():
 	try:
 		if getattr(sys, 'frozen', False):
-			gui_main()
+			patch_gui()
 		else:
 			cmd_main()
 	except (ValueError, AssertionError, FileNotFoundError, ImportError) as e:
