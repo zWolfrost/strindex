@@ -12,18 +12,36 @@ class PrintProgress():
 	or half of that if "iteration >= self.limit" is checked within the loop.
 	"""
 
+	total: int
+	limit: int
+	delta: int
+	round: int
+	percent: float
+	print_end: str
+
 	def __init__(self, total: int, round: int = 0):
+		global global_progress
+		global_progress = self
 		self.total = total
 		self.limit = 0
 		self.delta = total // (10 ** (round + 2))
 		self.round = None if round == 0 else round
+		self.percent = 0
 		self.print_end = "%" + " " * (round + 3) + "\r"
 		self(0)
 
 	def __call__(self, iteration: int):
 		if iteration >= self.limit:
 			self.limit += self.delta
-			print(round(iteration / self.total * 100, self.round), end=self.print_end)
+			self.percent = round(iteration / self.total * 100, self.round)
+			if callable(PrintProgress.callback):
+				PrintProgress.callback(self)
+			else:
+				print(self.percent, end=self.print_end)
+
+	@property
+	def callback():
+		return globals().get("__print_progress_callback__")
 
 class Strindex():
 	""" A class to parse and create strindex files. """
@@ -593,10 +611,10 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 		print("MD5 hash does not match the one the strindex was created for. You might encounter issues.")
 
 
-	new_section_data = b''
+	new_section_data = bytearray()
 	get_original_rva = lambda offset: (pe.get_rva_from_offset(offset) + pe.OPTIONAL_HEADER.ImageBase).to_bytes(BYTE_LENGTH, 'little')
 	get_replaced_rva = lambda: (STRDEX_SECTION_BASE_RVA + len(new_section_data)).to_bytes(BYTE_LENGTH, 'little')
-	new_section_string = lambda string: bytes(replace_with_table(string, STRINDEX.settings["patch_replace"]), 'utf-8') + b'\x00'
+	new_section_string = lambda string: bytearray(replace_with_table(string, STRINDEX.settings["patch_replace"]), 'utf-8') + b'\x00'
 
 	temp_strindex = {
 		"original_rva": [],
@@ -802,25 +820,21 @@ def patch_gui():
 		def __init__(self):
 			super().__init__()
 
-			self.setWindowTitle("Strindex Patch")
-			if sys.platform == "win32":
-				STYLESHEET = """QLineEdit{font-family: monospace;}"""
-			else:
-				STYLESHEET = """QLineEdit{font-family: monospace; color: white;}"""
-
 			# file selection
-			self.file_line = QtWidgets.QLineEdit()
-			self.file_line.setPlaceholderText("Select a PE file")
-			self.file_line.setStyleSheet(STYLESHEET)
-			self.file_line.textChanged.connect(self.update)
-			self.file_button = QtWidgets.QPushButton("Browse PE Files")
-			self.file_button.clicked.connect(lambda: self.browse(self.file_line, "Open File", "Executable Files (*.exe)"))
+			self.pefile_line = QtWidgets.QLineEdit()
+			self.pefile_line.setPlaceholderText("Select a PE file")
+			self.pefile_line.textChanged.connect(self.update)
+			self.pefile_line.textChanged.connect(lambda: self.pefile_line.setStyleSheet(self.pefile_line.styleSheet()))
+			self.pefile_line.setFont(QtGui.QFont("monospace"))
+			self.pefile_button = QtWidgets.QPushButton("Browse PE Files")
+			self.pefile_button.clicked.connect(lambda: self.browse(self.pefile_line, "Open File", "Executable Files (*.exe)"))
 
 			# strindex selection
 			self.strindex_line = QtWidgets.QLineEdit()
 			self.strindex_line.setPlaceholderText("Select a Strindex file")
-			self.strindex_line.setStyleSheet(STYLESHEET)
 			self.strindex_line.textChanged.connect(self.update)
+			self.strindex_line.textChanged.connect(lambda: self.strindex_line.setStyleSheet(self.strindex_line.styleSheet()))
+			self.strindex_line.setFont(QtGui.QFont("monospace"))
 			self.strindex_button = QtWidgets.QPushButton("Browse Strindex")
 			self.strindex_button.clicked.connect(lambda: self.browse(self.strindex_line, "Open Strindex", "Text Files (*.txt)"))
 
@@ -831,105 +845,64 @@ def patch_gui():
 
 			# add widgets to layout
 			layout = QtWidgets.QGridLayout()
-			layout.addWidget(self.file_line, 0, 0)
-			layout.addWidget(self.file_button, 0, 1)
+			layout.addWidget(self.pefile_line, 0, 0)
+			layout.addWidget(self.pefile_button, 0, 1)
 			layout.addWidget(self.strindex_line, 1, 0)
 			layout.addWidget(self.strindex_button, 1, 1)
 			layout.addWidget(self.patch_button, 2, 0, 1, 2)
 			layout.setSpacing(10)
 			layout.setColumnStretch(0, 1)
 			layout.setColumnMinimumWidth(0, 200)
-			layout.setSizeConstraint(QtWidgets.QLayout.SetMinAndMaxSize)
 			self.setLayout(layout)
 
+			# set window properties
+			WINDOWS_STYLESHEET = f""""""
+			UNIX_STYLESHEET = f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
+			self.setWindowTitle("Strindex Patch")
+			self.setStyleSheet(WINDOWS_STYLESHEET if sys.platform == "win32" else UNIX_STYLESHEET)
+			self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
+			self.setMaximumSize(1400, 0)
 			self.resize(800, 0)
-			self.show()
-
-			resolution = QtGui.QGuiApplication.primaryScreen().availableGeometry()
-			self.move((resolution.width() / 2) - (self.width() / 2), (resolution.height() / 2) - (self.height() / 2))
+			self.center()
 
 		def browse(self, line: QtWidgets.QLineEdit, caption, filter):
 			if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:
 				line.setText(filepath)
 
 		def update(self):
-			path_exists = os.path.isfile(self.file_line.text()) and os.path.isfile(self.strindex_line.text())
+			path_exists = os.path.isfile(self.pefile_line.text()) and os.path.isfile(self.strindex_line.text())
 			self.patch_button.setEnabled(path_exists)
 
 		def patch(self):
-			class PatchWorker(QtCore.QThread):
-				status = QtCore.Signal(int, str)
-
-				def __init__(self, file_filepath, strindex_filepath):
-					super().__init__()
-					self.file_filepath = file_filepath
-					self.strindex_filepath = strindex_filepath
-
-				def run(self):
-					self.status.emit(1, "")
-					try:
-						patch(self.file_filepath, self.strindex_filepath, None)
-					except BaseException as e:
-						print(e)
-						self.status.emit(3, str(e))
-					else:
-						self.status.emit(2, "")
-					finally:
-						self.status.emit(4, "")
-
-			class PendingWorker(QtCore.QThread):
-				status = QtCore.Signal(int)
-
-				def run(self):
-					while True:
-						self.status.emit(0)
-						time.sleep(0.4)
-
-			def on_status(status, message=None):
-				match status:
-					case 0: # pending
-						if (text := self.patch_button.text()).startswith("Patching"):
-							self.patch_button.setText("Patching" + "." * (text.count(".") % 3 + 1))
-					case 1: # start
-						self.setEnabled(False)
-						self.patch_button.setText("Patching")
-					case 2: # success
-						self.message("File patched successfully.", QtWidgets.QMessageBox.Information)
-					case 3: # exception
-						self.message(message, QtWidgets.QMessageBox.Critical)
-					case 4: # finally
-						self.pending_worker.terminate()
-						self.patch_button.setText("Patch")
-						self.setEnabled(True)
-
 			self.setEnabled(False)
 
-			try:
-				pefile.PE(self.file_line.text(), fast_load=True)
-			except BaseException as e:
-				self.message(str(e), QtWidgets.QMessageBox.Critical)
-				self.setEnabled(True)
-				return
+			def update(progress: PrintProgress):
+				self.patch_button.setText(f"Patching... {progress.percent}%")
+				QtWidgets.QApplication.processEvents()
+
+			self.patch_button.setText("Patching...")
+			QtWidgets.QApplication.processEvents()
+
+			PrintProgress.callback = update
 
 			try:
-				Strindex(self.strindex_line.text())
+				patch(self.pefile_line.text(), self.strindex_line.text(), None)
 			except BaseException as e:
 				self.message(str(e), QtWidgets.QMessageBox.Critical)
+			else:
+				self.message("File patched successfully.", QtWidgets.QMessageBox.Information)
+			finally:
+				del PrintProgress.callback
+				self.patch_button.setText("Patch")
 				self.setEnabled(True)
-				return
 
-			self.patch_worker = PatchWorker(self.file_line.text(), self.strindex_line.text())
-			self.patch_worker.status.connect(on_status)
-			self.patch_worker.start()
+		def center(self):
+			res = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+			self.move((res.width() - self.width()) // 2, (res.height() - self.height()) // 2)
 
-			self.pending_worker = PendingWorker()
-			self.pending_worker.status.connect(on_status)
-			self.pending_worker.start()
-
-		@staticmethod
-		def message(text, icon):
-			msg = QtWidgets.QMessageBox()
-			msg.setWindowTitle("Strindex Patch")
+		def message(self, text: str, icon):
+			msg = QtWidgets.QMessageBox(self)
+			msg.setWindowTitle(self.windowTitle())
 			msg.setIcon(icon)
 			msg.setText(text)
 			msg.setStandardButtons(QtWidgets.QMessageBox.Ok.Ok)
@@ -937,58 +910,55 @@ def patch_gui():
 			return msg
 
 	app = QtWidgets.QApplication([])
-	PatchGUI()
+	gui = PatchGUI()
+	gui.show()
 	sys.exit(app.exec())
 
 
 
-def cmd_main():
-	args = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
-
-	args.add_argument("action", type=str, choices=["create", "patch", "patch_gui", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
-	args.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
-	args.add_argument("-o", "--output", type=str, help="Output file.")
-
-	# create arguments
-	args.add_argument("-c", "--compatible", action="store_true", help="Whether to create a strindex file compatible with the previous versions of a program.")
-	args.add_argument("-m", "--min-length", type=int, default=3, help="Minimum length of the strings to be included.")
-	args.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes to add to the rva in the strindex file.")
-
-	args = args.parse_args()
-
-	if not all([os.path.isfile(file) for file in args.files]):
-		raise FileNotFoundError("One or more files do not exist.")
-
-	args.prefix_bytes = [bytes.fromhex(prefix) for prefix in (args.prefix_bytes or [''])]
-
-	match args.action:
-		case "create":
-			create(*args.files, (args.output or "strindex.txt"), args.compatible, args.min_length, args.prefix_bytes)
-		case "patch":
-			patch(*args.files, args.output)
-		case "patch_gui":
-			patch_gui()
-		case "filter":
-			filter(*args.files, (args.output or "strindex_filter.txt"))
-		case "update":
-			update(*args.files, (args.output or "strindex_update.txt"))
-		case "delta":
-			delta(*args.files, (args.output or "strindex_delta.txt"))
-		case "spellcheck":
-			spellcheck(*args.files, (args.output or "strindex_spellcheck.txt"))
-
 def main():
+	if "__compiled__" in globals():
+		patch_gui()
+		return
+
 	try:
-		if "__compiled__" in globals():
-			patch_gui()
-		else:
-			cmd_main()
-	except (ValueError, AssertionError, FileNotFoundError, ImportError) as e:
-		print(e)
-	except pefile.PEFormatError as e:
-		print("Error parsing the PE file:", e)
+		args = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
+
+		args.add_argument("action", type=str, choices=["create", "patch", "patch_gui", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
+		args.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
+		args.add_argument("-o", "--output", type=str, help="Output file.")
+
+		# create arguments
+		args.add_argument("-c", "--compatible", action="store_true", help="Whether to create a strindex file compatible with the previous versions of a program.")
+		args.add_argument("-m", "--min-length", type=int, default=3, help="Minimum length of the strings to be included.")
+		args.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes to add to the rva in the strindex file.")
+
+		args = args.parse_args()
+
+		if not all([os.path.isfile(file) for file in args.files]):
+			raise FileNotFoundError("One or more files do not exist.")
+
+		args.prefix_bytes = [bytes.fromhex(prefix) for prefix in (args.prefix_bytes or [''])]
+
+		match args.action:
+			case "create":
+				create(*args.files, (args.output or "strindex.txt"), args.compatible, args.min_length, args.prefix_bytes)
+			case "patch":
+				patch(*args.files, args.output)
+			case "patch_gui":
+				patch_gui()
+			case "filter":
+				filter(*args.files, (args.output or "strindex_filter.txt"))
+			case "update":
+				update(*args.files, (args.output or "strindex_update.txt"))
+			case "delta":
+				delta(*args.files, (args.output or "strindex_delta.txt"))
+			case "spellcheck":
+				spellcheck(*args.files, (args.output or "strindex_spellcheck.txt"))
 	except KeyboardInterrupt:
 		print("Interrupted by user.")
+	except BaseException as e:
+		print(e)
 
 if __name__ == "__main__":
 	main()
