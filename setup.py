@@ -8,6 +8,7 @@ setup(
 	author_email = "zwolfrost@gmail.com",
 	description = "A command line utility to view, edit and patch strings in PE files, with a focus on compatibility and translation.",
 	long_description = open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
+	long_description_content_type = 'text/markdown',
 	license = "MIT",
 	keywords = "PE strings patching translation",
 	url = "https://github.com/zWolfrost/strindex",
