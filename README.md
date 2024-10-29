@@ -1,7 +1,7 @@
 # strindex
-A program to view, edit and patch strings in PE files, with a focus on compatibility and translation.
+A command line utility to view, edit and patch strings in PE files, with a focus on compatibility and translation.
 
-This program will allow you to replace strings in PE files (".exe", ".dll" etc.) with other strings. It is useful for changing the text of a program without having to recompile it, for example, to translate a program into another language.
+This script will allow you to replace strings in PE files (".exe", ".dll" etc.) with other strings. It is useful for changing the text of a program without having to recompile it, for example, to translate a program into another language.
 
 Apart from using offsets to replace strings, it also has an option to use the original string itself to ensure compatibility with different versions of the same program.
 
