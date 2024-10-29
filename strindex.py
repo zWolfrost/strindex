@@ -843,17 +843,24 @@ def patch_gui():
 			self.patch_button.clicked.connect(self.patch)
 			self.patch_button.setEnabled(False)
 
+			# progress bar
+			self.progress_bar = QtWidgets.QProgressBar()
+			self.progress_bar.setRange(0, 100)
+			self.progress_bar.setFormat("Patching... %p%")
+			self.progress_bar.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+			PrintProgress.callback = lambda progress: self.progress_bar.setValue(progress.percent)
+
 			# add widgets to layout
-			layout = QtWidgets.QGridLayout()
-			layout.addWidget(self.pefile_line, 0, 0)
-			layout.addWidget(self.pefile_button, 0, 1)
-			layout.addWidget(self.strindex_line, 1, 0)
-			layout.addWidget(self.strindex_button, 1, 1)
-			layout.addWidget(self.patch_button, 2, 0, 1, 2)
-			layout.setSpacing(10)
-			layout.setColumnStretch(0, 1)
-			layout.setColumnMinimumWidth(0, 200)
-			self.setLayout(layout)
+			self.grid_layout = QtWidgets.QGridLayout()
+			self.grid_layout.addWidget(self.pefile_line, 0, 0)
+			self.grid_layout.addWidget(self.pefile_button, 0, 1)
+			self.grid_layout.addWidget(self.strindex_line, 1, 0)
+			self.grid_layout.addWidget(self.strindex_button, 1, 1)
+			self.grid_layout.addWidget(self.patch_button, 2, 0, 1, 2)
+			self.grid_layout.setSpacing(10)
+			self.grid_layout.setColumnStretch(0, 1)
+			self.grid_layout.setColumnMinimumWidth(0, 200)
+			self.setLayout(self.grid_layout)
 
 			# set window properties
 			WINDOWS_STYLESHEET = f""""""
@@ -861,7 +868,7 @@ def patch_gui():
 			self.setWindowTitle("Strindex Patch")
 			self.setStyleSheet(WINDOWS_STYLESHEET if sys.platform == "win32" else UNIX_STYLESHEET)
 			self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
-			self.setMaximumSize(1400, 0)
+			self.setMaximumSize(1600, 0)
 			self.resize(800, 0)
 			self.center()
 
@@ -875,33 +882,30 @@ def patch_gui():
 
 		def patch(self):
 			self.setEnabled(False)
-
-			def update(progress: PrintProgress):
-				self.patch_button.setText(f"Patching... {progress.percent}%")
-				QtWidgets.QApplication.processEvents()
-
-			self.patch_button.setText("Patching...")
+			self.progress_bar.setValue(0)
+			self.grid_layout.replaceWidget(self.patch_button, self.progress_bar)
+			self.patch_button.setParent(None)
 			QtWidgets.QApplication.processEvents()
-
-			PrintProgress.callback = update
 
 			try:
 				patch(self.pefile_line.text(), self.strindex_line.text(), None)
+				self.progress_bar.setValue(100)
 			except BaseException as e:
 				self.message(str(e), QtWidgets.QMessageBox.Critical)
 			else:
 				self.message("File patched successfully.", QtWidgets.QMessageBox.Information)
 			finally:
-				del PrintProgress.callback
-				self.patch_button.setText("Patch")
+				self.grid_layout.replaceWidget(self.progress_bar, self.patch_button)
+				self.progress_bar.setParent(None)
 				self.setEnabled(True)
+				QtWidgets.QApplication.processEvents()
 
 		def center(self):
 			res = QtGui.QGuiApplication.primaryScreen().availableGeometry()
 			self.move((res.width() - self.width()) // 2, (res.height() - self.height()) // 2)
 
 		def message(self, text: str, icon):
-			msg = QtWidgets.QMessageBox(self)
+			msg = QtWidgets.QMessageBox()
 			msg.setWindowTitle(self.windowTitle())
 			msg.setIcon(icon)
 			msg.setText(text)
@@ -922,18 +926,18 @@ def main():
 		return
 
 	try:
-		args = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
+		parser = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
 
-		args.add_argument("action", type=str, choices=["create", "patch", "patch_gui", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
-		args.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
-		args.add_argument("-o", "--output", type=str, help="Output file.")
+		parser.add_argument("action", type=str, choices=["create", "patch", "patch_gui", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
+		parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
+		parser.add_argument("-o", "--output", type=str, help="Output file.")
 
 		# create arguments
-		args.add_argument("-c", "--compatible", action="store_true", help="Whether to create a strindex file compatible with the previous versions of a program.")
-		args.add_argument("-m", "--min-length", type=int, default=3, help="Minimum length of the strings to be included.")
-		args.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes to add to the rva in the strindex file.")
+		parser.add_argument("-c", "--compatible", action="store_true", help="Whether to create a strindex file compatible with the previous versions of a program.")
+		parser.add_argument("-m", "--min-length", type=int, default=3, help="Minimum length of the strings to be included.")
+		parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes to add to the rva in the strindex file.")
 
-		args = args.parse_args()
+		args = parser.parse_args()
 
 		if not all([os.path.isfile(file) for file in args.files]):
 			raise FileNotFoundError("One or more files do not exist.")
