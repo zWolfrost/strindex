@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
 	name = "strindex",
-	version = "3.1.3",
+	version = "3.2.0",
 	author = "zWolfrost",
 	author_email = "zwolfrost@gmail.com",
 	description = "A command line utility to view, edit and patch strings in PE files, with a focus on compatibility and translation.",
