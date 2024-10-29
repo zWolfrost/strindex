@@ -306,7 +306,7 @@ def pe_add_header_space(pe: pefile.PE) -> pefile.PE:
 	# accessbile in pe __data__ has to be parsed again. Since a new pefile is parsed during
 	# the init method, the easiest way is to replace pe with a new pefile based on __data__
 	# of the old pe.
-	pe = pefile.PE(data=pe.__data__)
+	pe = pefile.PE(data=pe.__data__, fast_load=True)
 
 	return pe
 
@@ -512,8 +512,7 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, min_len
 		for the rvas in the dictionary, by only looping the file once.
 	"""
 
-	pefile.fast_load = True
-	pe = pefile.PE(file_filepath)
+	pe = pefile.PE(file_filepath, fast_load=True)
 
 	if pe_section_exists(pe, SECTION_NAME):
 		print(f"This file contains a '{SECTION_NAME.decode('utf-8')}' section. You might not want this.")
@@ -593,8 +592,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	file_filepath_bak = file_filepath + '.bak'
 
-	pefile.fast_load = True
-	pe = pefile.PE(file_filepath_bak if os.path.exists(file_filepath_bak) else file_filepath)
+	pe = pefile.PE(file_filepath_bak if os.path.exists(file_filepath_bak) else file_filepath, fast_load=True)
 
 	if pe_section_exists(pe, SECTION_NAME):
 		raise ValueError(f"This file already contains a '{SECTION_NAME.decode('utf-8')}' section.")
@@ -713,8 +711,7 @@ def update(file_filepath: str, strindex_filepath: str, strindex_update_filepath:
 		Updates a compatible strindex file with the new pointers numbers.
 	"""
 
-	pefile.fast_load = True
-	pe = pefile.PE(file_filepath)
+	pe = pefile.PE(file_filepath, fast_load=True)
 
 	if pe_section_exists(pe, SECTION_NAME):
 		print(f"This file contains a '{SECTION_NAME.decode('utf-8')}' section. You might not want this.")
@@ -814,7 +811,7 @@ def patch_gui():
 	try:
 		from PySide6 import QtCore, QtWidgets, QtGui
 	except ImportError:
-		raise ImportError("Please install the 'PySide6' package (pip install PySide6) to use this feature.")
+		raise ImportError("Please install the 'PySide6' package (pip install pyside6) to use this feature.")
 
 	class PatchGUI(QtWidgets.QWidget):
 		def __init__(self):

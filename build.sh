@@ -1,5 +1,5 @@
-python3 -m nuitka strindex.py \
-	--standalone --onefile \
+python3 -m nuitka strindex/strindex.py \
+	--follow-imports --standalone --onefile \
 	--windows-console-mode=disable \
 	--enable-plugin=pyside6 \
 	--nofollow-import-to=lingua \
