@@ -1,4 +1,4 @@
-import os, sys, argparse, json, pefile, re, time
+import os, sys, argparse, json, pefile, re
 from hashlib import md5
 
 
