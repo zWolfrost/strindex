@@ -7,11 +7,11 @@ setup(
 	author = "zWolfrost",
 	author_email = "zwolfrost@gmail.com",
 	description = "A command line utility to view, edit and patch strings in PE files, with a focus on compatibility and translation.",
-	long_description=open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
+	long_description = open(os.path.join(os.path.dirname(__file__), 'README.md')).read(),
 	license = "MIT",
 	keywords = "PE strings patching translation",
 	url = "https://github.com/zWolfrost/strindex",
-	packages=['strindex'],
+	packages = ['strindex'],
 	install_requires=[
 		'pefile>=2024.8.26',
 	],
@@ -20,7 +20,7 @@ setup(
 		'spellcheck': ['language-tool-python'],
 		'patch_gui': ['pyside6'],
 	},
-	classifiers=[
+	classifiers = [
 		"Development Status :: 4 - Beta",
 		"Topic :: Utilities",
 		"License :: OSI Approved :: MIT License",
