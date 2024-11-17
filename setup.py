@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
 	name = "strindex",
-	version = "3.3.0",
+	version = "3.3.1",
 	author = "zWolfrost",
 	author_email = "zwolfrost@gmail.com",
 	description = "A command line utility to extract and patch strings of various filetypes, with a focus on compatibility and translation.",
@@ -12,7 +12,7 @@ setup(
 	license = "MIT",
 	keywords = "PE strings patching translation",
 	url = "https://github.com/zWolfrost/strindex",
-	packages = ['strindex'],
+	packages = ['strindex', 'strindex.filetypes'],
 	install_requires=[
 		'pefile>=2024.8.26',
 	],
