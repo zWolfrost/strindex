@@ -50,7 +50,7 @@ class Strindex():
 
 	DELIMITERS = (f"{'=' * 80}", f"{'-' * 80}", f'/', f'-')
 	HEADER = f"You can freely delete informational lines in the header like this one.\n\n{{}}\n\n"
-	INFO = f"#{'=' * 79}/ offset /  rva   / offset(s)-of-rva-pointer(s) /\n"
+	INFO = f"#{'=' * 79}/ offset / offset(s)-of-rva-pointer(s) /\n"
 	COMPATIBLE_INFO = f"#{'=' * 79}[reallocate pointer(s) if 1]\n# replace this string...\n#{'-' * 79}\n# ...with this string!\n"
 
 	full_header: str
@@ -60,7 +60,6 @@ class Strindex():
 
 	overwrite: list[str]
 	pointers: list[list[int]]
-	rvas: list[int]
 	offsets: list[int]
 
 	original: list[str]

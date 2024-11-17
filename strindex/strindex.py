@@ -1,7 +1,7 @@
 import os, sys, argparse, re
 from hashlib import md5
-from importlib import import_module
-from .utils import PrintProgress, Strindex, FileBytearray, truncate_prev_char
+from strindex.utils import PrintProgress, Strindex, FileBytearray, truncate_prev_char
+from strindex.filetypes import pefile, datawin
 
 
 def get_module_methods(data: FileBytearray, action: str) -> dict:
@@ -9,17 +9,11 @@ def get_module_methods(data: FileBytearray, action: str) -> dict:
 		Returns the methods of the module associated with the file type.
 	"""
 
-	for file in os.listdir(os.path.join(os.path.dirname(__file__), "filetypes")):
-		if file.endswith(".py") and file != "__init__.py":
-			try:
-				module = import_module(".filetypes." + file.rstrip('.py'), __package__)
-			except ImportError:
-				continue
-
-			if module.is_valid(data):
-				print(f'Detected filetype: "{file.rstrip(".py")}"')
-				assert action in module.__dict__, f"Action '{action}' is not available for this file type."
-				return module.__dict__[action]
+	for module in [pefile, datawin]:
+		if module.is_valid(data):
+			print(f'Detected filetype: "{module.__name__.split(".")[-1]}".')
+			assert action in module.__dict__, f"Action '{action}' is not available for this file type."
+			return module.__dict__[action]
 
 	raise ValueError("This file type has no associated module, or the required libraries to handle it are not installed.")
 

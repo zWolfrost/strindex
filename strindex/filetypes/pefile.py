@@ -1,4 +1,4 @@
-from ..utils import Strindex, FileBytearray
+from strindex.utils import Strindex, FileBytearray
 import pefile
 pefile.fast_load = True
 

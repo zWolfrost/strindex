@@ -1,4 +1,4 @@
-from ..utils import Strindex, FileBytearray
+from strindex.utils import Strindex, FileBytearray
 
 
 def get_last_chunk_pointer(data: FileBytearray) -> int:
