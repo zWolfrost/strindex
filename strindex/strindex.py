@@ -1,7 +1,7 @@
 import os, sys, argparse, re
 from hashlib import md5
 from strindex.utils import PrintProgress, Strindex, FileBytearray, truncate_prev_char
-from strindex.filetypes import pefile, datawin
+from strindex.filetypes import MODULES
 
 
 def get_module_methods(data: FileBytearray, action: str) -> dict:
@@ -9,7 +9,7 @@ def get_module_methods(data: FileBytearray, action: str) -> dict:
 		Returns the methods of the module associated with the file type.
 	"""
 
-	for module in [pefile, datawin]:
+	for module in MODULES:
 		if module.is_valid(data):
 			print(f'Detected filetype: "{module.__name__.split(".")[-1]}".')
 			assert action in module.__dict__, f"Action '{action}' is not available for this file type."

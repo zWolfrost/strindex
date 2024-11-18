@@ -1,4 +1,4 @@
-from strindex.utils import Strindex, FileBytearray
+from ..utils import Strindex, FileBytearray
 
 
 def get_last_chunk_pointer(data: FileBytearray) -> int:
@@ -12,6 +12,7 @@ def get_last_chunk_pointer(data: FileBytearray) -> int:
 
 
 def is_valid(data: FileBytearray) -> bool:
+	""" Checks if the file is a data.win file. """
 	return data[0:4] == b"FORM"
 
 def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strindex:

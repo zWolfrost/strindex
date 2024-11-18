@@ -1,0 +1,89 @@
+This strindex contains the translation for the first lines of the videogame "Katana ZERO"
+from the Spanish language, to Italian, specifically for its ".exe" file.
+
+{
+    // The md5 hash of the file this strindex was created with.
+    // Useful for many reasons, such as debugging.
+    "md5": "29ed1f9e450d43815c2d1a0cab168da3",
+
+    // A list of prefix bytes that can prefix a pointer. These MUST BE of the same length.
+    // If the pointers for the strings you want to patch always have those,
+    // This can help identifying them better and avoiding relocating "false pointers"
+    // (sequence of bytes that are the same as a pointer but that aren't one).
+    // When relocating false pointers, there's a high chance of the program crashing.
+    // You can also give those in the "create" action arguments, as it follows:
+    // -p "24c7442404" -p "ec04c70424"
+    "prefix_bytes": ["24c7442404", "ec04c70424"],
+
+    // A table which replaces characters (or other sequences of letters) in strings to patch.
+    // Useful for when the program doesn't support some characters (in this case, "ìÌòÒ")
+    // and you still want to be grammatically correct.
+    "patch_replace": {
+        "ì": "í",
+        "Ì": "Í",
+        "ò": "ó",
+        "Ò": "Ó"
+    },
+
+    // Pattern used by the "spellcheck" action, which removes trash characters to spellcheck correctly.
+    // In this case, this removes characters used to handle the game dialog boxes color, speed etc.
+    "clean_pattern": "\\[.*?\\]|\\*",
+
+    // Used by the "filter" action to whitelist specific language character lists.
+    // You can see those in the "utils.py" file, in the Strindex class.
+    "whitelist": ["latin", "spanish", "cyrillic"],
+
+    // Used in the "filter" action to filter a Strindex by detected language.
+    "source_language": "es",
+
+    // Used in the "spellcheck" action to define which language are the Strindex lines translating to.
+    "target_language": "it",
+
+    // Used in the "filter" action to help identifying the languages better, giving it fewer choice.
+    "among_languages": ["en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh"]
+}
+
+//==============================================================================[reallocate pointer(s) if 1]
+// replace this string...
+//------------------------------------------------------------------------------
+// ...with this string!
+================================================================================11
+A ver...* Háblame de nuevo de los [r]tipos enmascarados...
+--------------------------------------------------------------------------------
+Vediamo...* Parlami di nuovo di quei [r]tipi mascherati...
+================================================================================1
+Entiendo...* Entonces comencemos por el principio.
+--------------------------------------------------------------------------------
+Capisco...* Allora cominciamo dall'inizio.
+================================================================================1
+¿Has llegado ya?
+--------------------------------------------------------------------------------
+Sei arrivato?
+================================================================================1111111111111111111
+*Colgar*
+--------------------------------------------------------------------------------
+*Riaggancia*
+================================================================================11
+Ya casi estoy.
+--------------------------------------------------------------------------------
+Ci sono quasi.
+================================================================================1
+Aún no.
+--------------------------------------------------------------------------------
+Non ancora.
+================================================================================1
+[r]No vuelvas a colgarme.[/]* Necesito detalles de tu ubicación.
+--------------------------------------------------------------------------------
+[r]Non riattaccare più.[/]* Ho bisogno di dettagli sulla tua posizione.
+================================================================================1
+Ya estoy casi.
+--------------------------------------------------------------------------------
+Sono quasi dentro.
+================================================================================1
+Estou entrando.
+--------------------------------------------------------------------------------
+Sto entrando.
+================================================================================11
+Llegaré pronto.
+--------------------------------------------------------------------------------
+Arriverò presto.

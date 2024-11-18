@@ -41,7 +41,8 @@ class PrintProgress():
 class Strindex():
 	""" A class to parse and create strindex files. """
 
-	CHARACTER_CLASSES = { # Please add your language's characters here and open a pull request <3
+	# These are really limited, so I would really like if you added your language's characters here and open a pull request <3
+	CHARACTER_CLASSES = {
 		"default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\]^_`{|}~… """,
 		"latin": """ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz""",
 		"spanish": """¡¿ÁÉÍÓÚÜÑáéíóúüñã""",
@@ -50,8 +51,8 @@ class Strindex():
 
 	DELIMITERS = (f"{'=' * 80}", f"{'-' * 80}", f'/', f'-')
 	HEADER = f"You can freely delete informational lines in the header like this one.\n\n{{}}\n\n"
-	INFO = f"#{'=' * 79}/ offset / offset(s)-of-rva-pointer(s) /\n"
-	COMPATIBLE_INFO = f"#{'=' * 79}[reallocate pointer(s) if 1]\n# replace this string...\n#{'-' * 79}\n# ...with this string!\n"
+	INFO = f"//{'=' * 78}/ offset / offset(s)-of-rva-pointer(s) /\n"
+	COMPATIBLE_INFO = f"//{'=' * 78}[reallocate pointer(s) if 1]\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
 
 	full_header: str
 	settings: dict
@@ -108,8 +109,10 @@ class Strindex():
 							strindex.settings |= json.loads(strindex_settings_lines)
 						except json.JSONDecodeError as e:
 							line = f.readline()
+							if line.lstrip().startswith("//"):
+								continue
 							if line.startswith(Strindex.DELIMITERS[0]):
-								raise ValueError("Error parsing Strindex settings.")
+								raise ValueError("Error parsing Strindex settings: " + str(e))
 							strindex_settings_lines += line
 							strindex.full_header += line
 						else:

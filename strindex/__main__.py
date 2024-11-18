@@ -1,4 +1,4 @@
-from .strindex import main
+from strindex.strindex import main
 
 if __name__ == "__main__":
    main()

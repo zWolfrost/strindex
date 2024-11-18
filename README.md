@@ -43,25 +43,5 @@ These are the available actions:
   strindex patch program.exe strindex.txt
   ```
 
-## Strindex Settings example
-```json
-{
-    "md5": "29ed1f9e450d43815c2d1a0cab168da3",
-
-    "prefix_bytes": ["24c7442404", "ec04c70424"],
-
-    "patch_replace": {
-        "ì": "í",
-        "Ì": "Í",
-        "ò": "ó",
-        "Ò": "Ó"
-    },
-
-    "clean_pattern": "\\[.*?\\]|\\*",
-    "whitelist": ["latin", "spanish", "cyrillic"],
-
-    "source_language": "es",
-    "target_language": "it",
-    "among_languages": ["en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh"]
-}
-```
+## Strindex Example
+You can find an example of a strindex file and an explanation of its settings [here](strindex_example.txt).
