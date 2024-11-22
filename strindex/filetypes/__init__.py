@@ -1,6 +1,6 @@
-from strindex.filetypes import pefile, datawin
+from strindex.filetypes import pe, iff
 
 MODULES = [
-	pefile,
-	datawin
+	pe,
+	iff
 ]

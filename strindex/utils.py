@@ -93,8 +93,9 @@ class Strindex():
 		self.replace = []
 		self.pointers_switches = []
 
+
 	@staticmethod
-	def from_file(filepath: str):
+	def read(filepath: str):
 		""" Parses a strindex file and returns a dictionary with the data. """
 
 		strindex = Strindex()
@@ -109,12 +110,12 @@ class Strindex():
 							strindex.settings |= json.loads(strindex_settings_lines)
 						except json.JSONDecodeError as e:
 							line = f.readline()
+							strindex.full_header += line
 							if line.lstrip().startswith("//"):
 								continue
 							if line.startswith(Strindex.DELIMITERS[0]):
 								raise ValueError("Error parsing Strindex settings: " + str(e))
 							strindex_settings_lines += line
-							strindex.full_header += line
 						else:
 							break
 				elif line.startswith(Strindex.DELIMITERS[0]):
@@ -140,7 +141,7 @@ class Strindex():
 						strindex.overwrite.append('')
 
 						needles = [[int(p, 16) if p else None for p in hex.split(Strindex.DELIMITERS[3])] for hex in line.split(Strindex.DELIMITERS[2])[1:-1]]
-						strindex.pointers.append(needles[-1] if any(needles[-1]) else [])
+						strindex.pointers.append(needles[-1] if len(needles) >= 1 and any(needles[-1]) else [])
 						strindex.offsets.append(needles[-2][0] if len(needles) >= 2 else None)
 					else:
 						next_lst = "original"
@@ -167,24 +168,58 @@ class Strindex():
 
 		return strindex
 
-	def save(self, filepath: str):
+	def write(self, filepath: str):
 		""" Saves the strindex data to a file. """
 		self.assert_data()
 
 		diff_settings = {k: v for k, v in self.settings.items() if Strindex().settings.get(k) != v}
 
 		with open(filepath, 'w', encoding='utf-8') as f:
-			f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4)))
-			f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
+			if self.full_header:
+				f.write(self.full_header)
+			else:
+				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4)))
+				f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
 
-			for index, type_wanted in enumerate(self.type_order):
-				if type_wanted == "compatible":
-					f.write(Strindex.create_compatible_raw_from_args(self.original[index], self.replace[index], self.pointers_switches[index]))
+			for index, type in self.iterate_type_count():
+				if type == "compatible":
+					f.write(
+						Strindex.DELIMITERS[0] +
+						"".join([str(int(bool(p))) for p in self.pointers_switches[index]]) + "\n" +
+						self.original[index] + "\n" +
+						Strindex.DELIMITERS[1] + "\n" +
+						self.replace[index] + "\n"
+					)
 				else:
-					f.write(Strindex.create_raw_from_args(self.overwrite[index], self.offsets[index], self.pointers[index]))
+					f.write(
+						Strindex.DELIMITERS[0] + Strindex.DELIMITERS[2] +
+						hex(self.offsets[index] or 0).lstrip("0x").rjust(8, '0') + Strindex.DELIMITERS[2] +
+						Strindex.DELIMITERS[3].join([hex(p or 0).lstrip("0x").rjust(8, '0') for p in self.pointers[index]]) +
+						Strindex.DELIMITERS[2] + "\n" +
+						self.overwrite[index] + "\n"
+					)
 
-			truncate_prev_char(f)
+			f.seek(f.tell() - 1)
+			f.truncate()
 
+
+	def iterate_type_count(self):
+		types = {}
+		for type in self.type_order:
+			types[type] = (types[type] + 1) if type in types else 0
+			yield types[type], type
+
+	def append_to_strindex(self, strindex, type: str, index: int):
+		if type == "compatible":
+			strindex.original.append(self.original[index])
+			strindex.replace.append(self.replace[index])
+			strindex.pointers_switches.append(self.pointers_switches[index])
+		else:
+			strindex.overwrite.append(self.overwrite[index])
+			strindex.pointers.append(self.pointers[index])
+			strindex.offsets.append(self.offsets[index])
+
+		strindex.type_order.append(type)
 
 	def patch_replace_string(self, string: str) -> str:
 		""" Replaces the strings in the patch with the new strings. """
@@ -192,59 +227,10 @@ class Strindex():
 			string = string.replace(key, value)
 		return string
 
-
-	def get_ordered_strings(self, override=None) -> list[str]:
-		ordered_strings = []
-		types = {}
-		for type in self.type_order:
-			if override:
-				type = override(type)
-			types[type] = (types[type] + 1) if type in types else 0
-			ordered_strings.append(getattr(self, type)[types[type]])
-		return ordered_strings
-
-	def create_raw_from_index(self, index: int) -> str:
-		type_wanted = self.type_order[index]
-		type_index = self.type_order[:index].count(type_wanted)
-
-		if type_wanted == "overwrite":
-			return Strindex.create_raw_from_args(
-				self.overwrite[type_index],
-				self.offsets[type_index],
-				self.pointers[type_index]
-			)
-		elif type_wanted == "compatible":
-			return Strindex.create_compatible_raw_from_args(
-				self.original[type_index],
-				self.replace[type_index],
-				self.pointers_switches[type_index]
-			)
-
-	@staticmethod
-	def create_raw_from_args(overwrite, offset, pointers) -> str:
-		return (
-			Strindex.DELIMITERS[0] + Strindex.DELIMITERS[2] +
-			hex(offset or 0).lstrip("0x").rjust(8, '0') + Strindex.DELIMITERS[2] +
-			Strindex.DELIMITERS[3].join([hex(p or 0).lstrip("0x").rjust(8, '0') for p in pointers]) +
-			Strindex.DELIMITERS[2] + "\n" +
-			overwrite + "\n"
-		)
-
-	@staticmethod
-	def create_compatible_raw_from_args(original, replace, pointers_switches) -> str:
-		return (
-			Strindex.DELIMITERS[0] +
-			"".join([str(int(bool(p))) for p in pointers_switches]) + "\n" +
-			original + "\n" +
-			Strindex.DELIMITERS[1] + "\n" +
-			replace + "\n"
-		)
-
-
 	def assert_data(self):
-		assert len(self.overwrite) == len(self.pointers), "Overwrite and pointers lists are not the same length."
-		assert len(self.original) == len(self.replace) == len(self.pointers_switches), "Original, replace and pointers_switches lists are not the same length."
-		assert len(self.type_order) <= len(self.overwrite) + len(self.original), "Type order list is not the same length."
+		assert len(self.overwrite) == len(self.pointers), f"Overwrite and pointers lists are not the same length ({len(self.overwrite)} != {len(self.pointers)})."
+		assert len(self.original) == len(self.replace) == len(self.pointers_switches), f"Original, replace and pointers_switches lists are not the same length ({len(self.original)} != {len(self.replace)} != {len(self.pointers_switches)})."
+		assert len(self.type_order) == len(self.overwrite) + len(self.original), f"Type order list is not the same length ({len(self.type_order)} != {len(self.overwrite) + len(self.original)})."
 
 class FileBytearray(bytearray):
 	""" A class to handle bytearrays with additional methods. """
@@ -299,7 +285,6 @@ class FileBytearray(bytearray):
 		assert all(len(search) == len(search_lst_safe[0]) for search in search_lst_safe), "Search list is not fixed length."
 		assert all(len(prefix) == len(prefixes[0]) for prefix in prefixes), "Prefix list is not fixed length."
 
-		print_progress = PrintProgress(len(self))
 		fixed_prefix_length = len(prefixes[0])
 		fixed_length = fixed_prefix_length + len(search_lst_safe[0]) + len(suffixes[0])
 
@@ -310,6 +295,7 @@ class FileBytearray(bytearray):
 				for suffix in suffixes:
 					indices_dict[prefix + search_string + suffix] = lst
 
+		print_progress = PrintProgress(len(self))
 		for offset in range(len(self)):
 			cur_bytes = bytes(self[offset:offset + fixed_length])
 			if cur_bytes in indices_dict:
@@ -323,9 +309,3 @@ class FileBytearray(bytearray):
 				indices.insert(search_index, search_string)
 
 		return indices
-
-
-def truncate_prev_char(file):
-	""" Truncates the last character of a file. """
-	file.seek(file.tell() - 1)
-	file.truncate()

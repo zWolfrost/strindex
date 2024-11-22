@@ -1,6 +1,6 @@
 import os, sys, argparse, re
 from hashlib import md5
-from strindex.utils import PrintProgress, Strindex, FileBytearray, truncate_prev_char
+from strindex.utils import PrintProgress, Strindex, FileBytearray
 from strindex.filetypes import MODULES
 
 
@@ -27,16 +27,19 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, min_len
 
 	STRINDEX: Strindex = get_module_methods(data, "create")(data, min_length, prefixes)
 
-	STRINDEX.original = STRINDEX.overwrite
-	STRINDEX.replace = STRINDEX.overwrite
-	STRINDEX.pointers_switches = STRINDEX.pointers
-	STRINDEX.type_order = ["compatible" if compatible else "original"] * len(STRINDEX.overwrite)
+	if compatible:
+		STRINDEX.type_order = ["compatible"] * len(STRINDEX.overwrite)
+		STRINDEX.original = STRINDEX.overwrite
+		STRINDEX.replace = STRINDEX.overwrite
+		STRINDEX.pointers_switches = STRINDEX.pointers
+	else:
+		STRINDEX.type_order = ["overwrite"] * len(STRINDEX.overwrite)
 
 	STRINDEX.settings["md5"] = md5(data).hexdigest()
-	if prefixes != [b'']:
-		STRINDEX.settings["prefix_bytes"] = [prefix.hex() for prefix in prefixes]
+	STRINDEX.settings["min_length"] = min_length
+	STRINDEX.settings["prefix_bytes"] = [prefix.hex() for prefix in prefixes]
 
-	STRINDEX.save(strindex_filepath)
+	STRINDEX.write(strindex_filepath)
 
 	print("Created strindex file.")
 
@@ -49,10 +52,10 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	data = FileBytearray(open(file_filepath_bak if os.path.exists(file_filepath_bak) else file_filepath, 'rb').read())
 
-	STRINDEX: Strindex = Strindex.from_file(strindex_filepath)
+	STRINDEX = Strindex.read(strindex_filepath)
 
 	if STRINDEX.settings["md5"] and STRINDEX.settings["md5"] != md5(data).hexdigest():
-		print("MD5 hash does not match the one the strindex was created for. You might encounter issues.")
+		print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
 
 	if not file_patched_filepath:
 		if not os.path.exists(file_filepath_bak):
@@ -63,108 +66,6 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	open(file_patched_filepath, 'wb').write(data)
 
 	print("File was patched successfully.")
-
-def filter(strindex_filepath: str, strindex_filter_filepath: str):
-	"""
-		Filters a strindex file with another with respect to length, whitelist and source language.
-	"""
-
-	STRINDEX = Strindex.from_file(strindex_filepath)
-	STRINDEX_LINES = STRINDEX.get_ordered_strings(lambda t: "original" if t == "compatible" else t)
-
-	if STRINDEX.settings["source_language"]:
-		try:
-			from lingua import IsoCode639_1, LanguageDetectorBuilder
-		except ImportError:
-			raise ImportError(
-				"Please install the 'lingua' package (pip install lingua) to filter by language."
-			)
-
-		ALL_LANGUAGES = [code for code in IsoCode639_1.__dict__.values() if isinstance(code, IsoCode639_1)]
-		SETTINGS_LANGUAGES = [getattr(IsoCode639_1, code.upper()) for code in STRINDEX.settings["among_languages"]]
-
-		detector = LanguageDetectorBuilder.from_iso_codes_639_1(*(SETTINGS_LANGUAGES or ALL_LANGUAGES)).build()
-
-	def is_source_language(string: str) -> bool:
-		line_clean = re.sub(STRINDEX.settings["clean_pattern"], "", string)
-		confidence = detector.compute_language_confidence_values(line_clean)[0]
-		return confidence.language.iso_code_639_1 == getattr(IsoCode639_1, STRINDEX.settings["source_language"].upper()) and confidence.value > 0.5
-
-	print_progress = PrintProgress(len(STRINDEX_LINES))
-	with open(strindex_filter_filepath, 'w', encoding='utf-8') as f:
-		f.write(STRINDEX.full_header)
-
-		for strindex_index, line in enumerate(STRINDEX_LINES):
-			if (
-				(not STRINDEX.settings["source_language"] or is_source_language(line)) and
-				(len(line) >= STRINDEX.settings["min_length"]) and
-				(not STRINDEX.settings.get("whitelist") or not any(ch not in STRINDEX.settings["whitelist"] for ch in line))
-			):
-				f.write(STRINDEX.create_raw_from_index(strindex_index))
-
-			print_progress(strindex_index)
-
-		truncate_prev_char(f)
-	print("Created filtered strindex file.")
-
-def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str, reverse: bool = False):
-	"""
-		Filters a full strindex file with a delta strindex file, or intersects them.
-	"""
-
-	STRINDEX_1 = Strindex.from_file(strindex_full_filepath)
-	STRINDEX_2 = Strindex.from_file(strindex_diff_filepath)
-
-	STRINDEX_1_LINES = STRINDEX_1.get_ordered_strings(lambda t: "original" if t == "compatible" else t)
-	STRINDEX_2_LINES = STRINDEX_2.get_ordered_strings(lambda t: "original" if t == "compatible" else t)
-
-	with open(strindex_delta_filepath, 'w', encoding='utf-8') as f:
-		f.write(STRINDEX_1.full_header)
-
-		index_2 = 0
-		for full_index in range(len(STRINDEX_1.type_order)):
-			try:
-				index_2 = STRINDEX_2_LINES.index(STRINDEX_1_LINES[full_index], index_2)
-			except ValueError:
-				if not reverse:
-					f.write(STRINDEX_1.create_raw_from_index(full_index))
-			else:
-				if reverse:
-					f.write(STRINDEX_1.create_raw_from_index(full_index))
-
-		truncate_prev_char(f)
-
-	print("Created delta strindex file.")
-
-def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
-	"""
-		Creates a spellcheck file from a strindex file, for the specified language.
-	"""
-
-	try:
-		from language_tool_python import LanguageTool
-	except ImportError:
-		raise ImportError("Please install the 'language-tool-python' package (pip install language-tool-python) to use this feature.")
-
-	STRINDEX = Strindex.from_file(strindex_filepath)
-	STRINDEX_LINES = STRINDEX.get_ordered_strings(lambda t: "replace" if t == "compatible" else t)
-
-	if not STRINDEX.settings["target_language"]:
-		raise ValueError("Please specify the target language to spellcheck in the strindex file ('target_language').")
-
-	lang = LanguageTool(STRINDEX.settings["target_language"])
-	print("Created language tool.")
-
-	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
-		print_progress = PrintProgress(len(STRINDEX_LINES))
-		for strindex_index, line in enumerate(STRINDEX_LINES):
-			line_clean = re.sub(STRINDEX.settings["clean_pattern"], "", line)
-			for error in lang.check(line_clean):
-				f.write('\n'.join(str(error).split('\n')[-3:]) + '\n')
-
-			print_progress(strindex_index)
-	print("Spellchecked strindex file.")
-
 
 def patch_gui():
 	try:
@@ -274,6 +175,127 @@ def patch_gui():
 	gui.show()
 	sys.exit(app.exec())
 
+def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str):
+	"""
+		Update a strindex file with newly created pointers.
+	"""
+
+	data = FileBytearray(open(file_filepath, 'rb').read())
+
+	STRINDEX = Strindex.read(strindex_filepath)
+	STRINDEX_UPDATED: Strindex = get_module_methods(data, "create")(data, STRINDEX.settings["min_length"], STRINDEX.settings["prefix_bytes"])
+
+	STRINDEX_LINES = [STRINDEX.original[i] if t == "compatible" else STRINDEX.overwrite[i] for i, t in STRINDEX.iterate_type_count()]
+
+	search_index = 0
+	for full_index, (type_index, type) in enumerate(STRINDEX.iterate_type_count()):
+		try:
+			search_index = STRINDEX_UPDATED.overwrite.index(STRINDEX_LINES[full_index], search_index)
+		except ValueError:
+			pass
+		else:
+			if type == "compatible":
+				STRINDEX.pointers_switches[type_index] = STRINDEX_UPDATED.pointers[search_index]
+			else:
+				STRINDEX.pointers[type_index] = STRINDEX_UPDATED.pointers[search_index]
+
+	STRINDEX.write(file_updated_filepath)
+
+	print("Updated strindex file.")
+
+def filter(strindex_filepath: str, strindex_filter_filepath: str):
+	"""
+		Filters a strindex file with another with respect to length, whitelist and source language.
+	"""
+
+	STRINDEX = Strindex.read(strindex_filepath)
+	STRINDEX_FILTER = Strindex()
+	STRINDEX_FILTER.full_header = STRINDEX.full_header
+
+	if STRINDEX.settings["source_language"]:
+		try:
+			from lingua import LanguageDetectorBuilder, IsoCode639_1
+		except ImportError:
+			raise ImportError("Please install the 'lingua' package (pip install lingua-language-detector) to filter by language.")
+
+		ALL_LANGUAGES = [code for code in IsoCode639_1.__dict__.values() if isinstance(code, IsoCode639_1)]
+		SETTINGS_LANGUAGES = [getattr(IsoCode639_1, code.upper()) for code in STRINDEX.settings["among_languages"]]
+
+		detector = LanguageDetectorBuilder.from_iso_codes_639_1(*(SETTINGS_LANGUAGES or ALL_LANGUAGES)).build()
+
+	def is_source_language(string: str) -> bool:
+		line_clean = re.sub(STRINDEX.settings["clean_pattern"], "", string)
+		confidence = detector.compute_language_confidence_values(line_clean)[0]
+		return confidence.language.iso_code_639_1 == getattr(IsoCode639_1, STRINDEX.settings["source_language"].upper()) and confidence.value > 0.5
+
+	print_progress = PrintProgress(len(STRINDEX.type_order))
+	for strindex_index, (type_index, type) in enumerate(STRINDEX.iterate_type_count()):
+		line = STRINDEX.original[type_index] if type == "compatible" else STRINDEX.overwrite[type_index]
+		valid_language = not STRINDEX.settings["source_language"] or is_source_language(line)
+		valid_length = len(line) >= STRINDEX.settings["min_length"]
+		valid_whitelist = not STRINDEX.settings.get("whitelist") or not any(ch not in STRINDEX.settings["whitelist"] for ch in line)
+
+		if all([valid_language, valid_length, valid_whitelist]):
+			STRINDEX.append_to_strindex(STRINDEX_FILTER, type, type_index)
+
+		print_progress(strindex_index)
+
+	STRINDEX_FILTER.write(strindex_filter_filepath)
+	print("Created filtered strindex file.")
+
+def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str):
+	"""
+		Filters a full strindex file with a delta strindex file, or intersects them.
+	"""
+
+	STRINDEX_1 = Strindex.read(strindex_full_filepath)
+	STRINDEX_2 = Strindex.read(strindex_diff_filepath)
+
+	STRINDEX_1_LINES = [STRINDEX_1.original[i] if t == "compatible" else STRINDEX_1.overwrite[i] for i, t in STRINDEX_1.iterate_type_count()]
+	STRINDEX_2_LINES = [STRINDEX_2.original[i] if t == "compatible" else STRINDEX_2.overwrite[i] for i, t in STRINDEX_2.iterate_type_count()]
+
+	STRINDEX_DELTA = Strindex()
+	STRINDEX_DELTA.full_header = STRINDEX_1.full_header
+
+	index_2 = 0
+	for full_index, (type_index, type) in enumerate(STRINDEX_1.iterate_type_count()):
+		try:
+			index_2 = STRINDEX_2_LINES.index(STRINDEX_1_LINES[full_index], index_2)
+		except ValueError:
+			STRINDEX_1.append_to_strindex(STRINDEX_DELTA, type, type_index)
+
+	STRINDEX_DELTA.write(strindex_delta_filepath)
+	print("Created delta strindex file.")
+
+def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
+	"""
+		Creates a spellcheck file from a strindex file, for the specified language.
+	"""
+
+	try:
+		from language_tool_python import LanguageTool
+	except ImportError:
+		raise ImportError("Please install the 'language-tool-python' package (pip install language-tool-python) to use this feature.")
+
+	STRINDEX = Strindex.read(strindex_filepath)
+	STRINDEX_LINES = [STRINDEX.replace[i] if t == "compatible" else STRINDEX.overwrite[i] for i, t in STRINDEX.iterate_type_count()]
+
+	if not STRINDEX.settings["target_language"]:
+		raise ValueError("Please specify the target language to spellcheck in the strindex file ('target_language').")
+
+	lang = LanguageTool(STRINDEX.settings["target_language"])
+	print("Created language tool.")
+
+	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
+		print_progress = PrintProgress(len(STRINDEX_LINES))
+		for strindex_index, line in enumerate(STRINDEX_LINES):
+			line_clean = re.sub(STRINDEX.settings["clean_pattern"], "", line)
+			for error in lang.check(line_clean):
+				f.write('\n'.join(str(error).split('\n')[-3:]) + '\n')
+
+			print_progress(strindex_index)
+	print("Spellchecked strindex file.")
+
 
 def main():
 	if "__compiled__" in globals():
@@ -282,7 +304,7 @@ def main():
 		try:
 			parser = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
 
-			parser.add_argument("action", type=str, choices=["create", "patch", "patch_gui", "filter", "delta", "spellcheck"], help="Action to perform.")
+			parser.add_argument("action", type=str, choices=["create", "patch", "patch_gui", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
 			parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 			parser.add_argument("-o", "--output", type=str, help="Output file.")
 
@@ -290,9 +312,6 @@ def main():
 			parser.add_argument("-c", "--compatible", action="store_true", help="Whether to create a strindex file compatible with the previous versions of a program.")
 			parser.add_argument("-m", "--min-length", type=int, default=3, help="Minimum length of the strings to be included.")
 			parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes to add to the rva in the strindex file.")
-
-			# delta arguments
-			parser.add_argument("-r", "--reverse-delta", action="store_true", help="Whether to reverse the delta operation and intersect the files.")
 
 			args = parser.parse_args()
 
@@ -308,16 +327,18 @@ def main():
 					patch(*args.files, args.output)
 				case "patch_gui":
 					patch_gui()
+				case "update":
+					update(*args.files, (args.output or "strindex_updated.txt"))
 				case "filter":
 					filter(*args.files, (args.output or "strindex_filter.txt"))
 				case "delta":
-					delta(*args.files, (args.output or "strindex_delta.txt"), args.reverse_delta)
+					delta(*args.files, (args.output or "strindex_delta.txt"))
 				case "spellcheck":
 					spellcheck(*args.files, (args.output or "strindex_spellcheck.txt"))
 		except KeyboardInterrupt:
 			print("Interrupted by user.")
-		except BaseException as e:
-			print(e)
+		#except BaseException as e:
+		#	print(f"Error: {e}")
 
 if __name__ == "__main__":
 	main()

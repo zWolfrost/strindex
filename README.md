@@ -17,7 +17,7 @@ The release includes a precompiled version of the program, which ONLY does the p
 ## Supported filetypes
 *Support for more types won't be added unless I find some motivation to...*
 - PE files (".exe, ".dll"...)
-- Gamemaker data file ("data.win")
+- Gamemaker data files ("data.win")
 
 ## Installation
 You can install the program with the command `pip install strindex`.
@@ -29,6 +29,7 @@ These are the available actions:
 - `create`: Create a list of strings from a PE file (a strindex). Use `-c` to create a strindex that uses the original strings as references.
 - `patch`: Patch a PE file with a strindex.
 - `patch_gui`: Patch a PE file with a strindex using a GUI.
+- `update` Update a strindex pointers' with the updated version of a file.
 - `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
 - `delta`: Create a delta file between two strindexes, that only contains the lines of the first strindex missing in the second one.
 - `spellcheck`: Spellcheck a strindex. You can specify the target language in the strindex settings as an ISO 639-1 code.

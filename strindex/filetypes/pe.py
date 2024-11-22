@@ -230,7 +230,7 @@ def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strin
 	pe = pefile.PE(data=bytes(data))
 
 	if pe_section_exists(pe, SECTION_NAME):
-		print(f"This file contains a '{SECTION_NAME.decode('utf-8')}' section. You might not want this.")
+		print(f"Warning: this file already contains a '{SECTION_NAME.decode('utf-8')}' section.")
 
 	BYTE_LENGTH = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
 
@@ -257,7 +257,6 @@ def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strin
 	print(f"(1/2) Created search dictionary with {len(temp_strindex['original'])} strings.")
 
 	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["rva_bytes"], prefixes)
-	print(f"(2/2) Found pointers for {len([p for p in temp_strindex['pointers'] if p])} / {len(temp_strindex['original'])} strings.")
 
 	STRINDEX = Strindex()
 	for string, offset, rva, _, pointers in zip(*temp_strindex.values()):
@@ -266,12 +265,14 @@ def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strin
 			STRINDEX.offsets.append(offset)
 			STRINDEX.pointers.append(pointers)
 
+	print(f"(2/2) Found pointers for {len(STRINDEX.overwrite)} / {len(temp_strindex['original'])} strings.")
+
 	return STRINDEX
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	"""
 		The patching is done by adding a new section to the PE file, containing the new data.
-		The pointers are changed to reference the new data.
+		The pointers are changed to reference the new data RVAs'.
 	"""
 
 	pe = pefile.PE(data=bytes(data))

@@ -12,7 +12,7 @@ def get_last_chunk_pointer(data: FileBytearray) -> int:
 
 
 def is_valid(data: FileBytearray) -> bool:
-	""" Checks if the file is a data.win file. """
+	""" Checks if the file is an IFF file. """
 	return data[0:4] == b"FORM"
 
 def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strindex:
@@ -37,7 +37,6 @@ def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strin
 	print(f"(1/2) Created search dictionary with {len(temp_strindex['original'])} strings.")
 
 	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["offset_bytes"], prefixes)
-	print(f"(2/2) Found pointers for {len([p for p in temp_strindex['pointers'] if p])} / {len(temp_strindex['original'])} strings.")
 
 	STRINDEX = Strindex()
 	for original, offset, _, pointers in zip(*temp_strindex.values()):
@@ -46,14 +45,19 @@ def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strin
 			STRINDEX.offsets.append(offset)
 			STRINDEX.pointers.append(pointers)
 
+	print(f"(2/2) Found pointers for {len(STRINDEX.overwrite)} / {len(temp_strindex['original'])} strings.")
+
 	return STRINDEX
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	"""
 		The patching is done by increasing both
 		the "FORM" chunk size and the last chunk size to fit the new data.
-		The data is thus contained in the last chunk of the file.
+		The data is thus contained in the last chunk of the file,
+		to avoid having to change the pointers of the other chunks as well.
 		The pointers are changed to reference the new data.
+		This works fine with gamemaker "data.win" files,
+		and might also work with IFF files in general, but I haven't tested it.
 	"""
 
 	BYTE_LENGTH = 4
