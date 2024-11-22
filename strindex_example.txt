@@ -6,7 +6,11 @@ from the Spanish language, to Italian, specifically for its ".exe" file.
     // Useful for many reasons, such as debugging.
     "md5": "29ed1f9e450d43815c2d1a0cab168da3",
 
-    // A list of prefix bytes that can prefix a pointer. These MUST BE of the same length.
+    // The minimum length of strings that should be considered when creating or updating the strindex.
+    "min_length": 3,
+
+    // A list of prefix/suffix bytes that can prefix a pointer.
+    // Bytes strings of the same list MUST BE of the same length.
     // If the pointers for the strings you want to patch always have those,
     // This can help identifying them better and avoiding relocating "false pointers"
     // (sequence of bytes that are the same as a pointer but that aren't one).
@@ -14,6 +18,7 @@ from the Spanish language, to Italian, specifically for its ".exe" file.
     // You can also give those in the "create" action arguments, as it follows:
     // -p "24c7442404" -p "ec04c70424"
     "prefix_bytes": ["24c7442404", "ec04c70424"],
+    "suffix_bytes": [],
 
     // A table which replaces characters (or other sequences of letters) in strings to patch.
     // Useful for when the program doesn't support some characters (in this case, "ìÌòÒ")

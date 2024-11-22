@@ -1,4 +1,4 @@
-import json
+import json, re
 from typing import Generator
 
 
@@ -38,9 +38,7 @@ class PrintProgress():
 	def callback():
 		return globals().get("__print_progress_callback__")
 
-class Strindex():
-	""" A class to parse and create strindex files. """
-
+class StrindexSettings():
 	# These are really limited, so I would really like if you added your language's characters here and open a pull request <3
 	CHARACTER_CLASSES = {
 		"default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\]^_`{|}~… """,
@@ -49,13 +47,56 @@ class Strindex():
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""",
 	}
 
+	md5: str
+	whitelist: set[str]
+	min_length: int
+	prefix_bytes: list[bytes]
+	suffix_bytes: list[bytes]
+	patch_replace: dict[str, str]
+	clean_pattern: str
+	source_language: str
+	target_language: str
+	among_languages: list[str]
+
+	def __init__(self, **kwargs):
+		self.md5 = kwargs.get("md5")
+		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist"))
+		self.min_length = kwargs.get("min_length") or 1
+		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes"))
+		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes"))
+		self.patch_replace = kwargs.get("patch_replace") or {}
+		self.clean_pattern = kwargs.get("clean_pattern") or ""
+		self.source_language = kwargs.get("source_language")
+		self.target_language = kwargs.get("target_language")
+		self.among_languages = kwargs.get("among_languages") or []
+
+	@staticmethod
+	def handle_whitelist(whitelist: str):
+		return set(''.join([StrindexSettings.CHARACTER_CLASSES.get(whitelist, whitelist) for whitelist in (whitelist + ["default"])])) if whitelist else None
+
+	@staticmethod
+	def handle_bytes_list(bytes_list: list[bytes]):
+		return [bytes.fromhex(prefix) for prefix in (bytes_list or [''])]
+
+	def clean_string(self, string: str) -> str:
+		return re.sub(self.clean_pattern, "", string)
+
+	def patch_replace_string(self, string: str) -> str:
+		""" Replaces the strings in the patch with the new strings. """
+		for key, value in self.patch_replace.items():
+			string = string.replace(key, value)
+		return string
+
+class Strindex():
+	""" A class to parse and create strindex files. """
+
 	DELIMITERS = (f"{'=' * 80}", f"{'-' * 80}", f'/', f'-')
 	HEADER = f"You can freely delete informational lines in the header like this one.\n\n{{}}\n\n"
 	INFO = f"//{'=' * 78}/ offset / offset(s)-of-rva-pointer(s) /\n"
 	COMPATIBLE_INFO = f"//{'=' * 78}[reallocate pointer(s) if 1]\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
 
 	full_header: str
-	settings: dict
+	settings: StrindexSettings
 	type_order: list[str]
 	rva_bytes_length: int
 
@@ -71,18 +112,7 @@ class Strindex():
 		""" Parses a strindex file and returns a dictionary with the data. """
 
 		self.full_header = ""
-		self.settings = {
-			"md5": None,
-			"whitelist": None,
-			"min_length": 0,
-			"prefix_bytes": [''],
-			"suffix_bytes": [''],
-			"patch_replace": {},
-			"clean_pattern": "",
-			"source_language": None,
-			"target_language": None,
-			"among_languages": [],
-		}
+		self.settings = StrindexSettings()
 		self.type_order = []
 
 		self.overwrite = []
@@ -107,7 +137,7 @@ class Strindex():
 					strindex.full_header += line
 					while True:
 						try:
-							strindex.settings |= json.loads(strindex_settings_lines)
+							strindex.settings = StrindexSettings(**json.loads(strindex_settings_lines))
 						except json.JSONDecodeError as e:
 							line = f.readline()
 							strindex.full_header += line
@@ -160,10 +190,6 @@ class Strindex():
 
 					getattr(strindex, next_lst)[-1] += line
 
-		strindex.settings["prefix_bytes"] = [bytes.fromhex(prefix) for prefix in strindex.settings["prefix_bytes"]]
-		strindex.settings["suffix_bytes"] = [bytes.fromhex(suffix) for suffix in strindex.settings["suffix_bytes"]]
-		strindex.settings["whitelist"] = set(''.join([Strindex.CHARACTER_CLASSES.get(whitelist, whitelist) for whitelist in (strindex.settings["whitelist"] + ["default"])])) if strindex.settings["whitelist"] else None
-
 		strindex.assert_data()
 
 		return strindex
@@ -172,13 +198,13 @@ class Strindex():
 		""" Saves the strindex data to a file. """
 		self.assert_data()
 
-		diff_settings = {k: v for k, v in self.settings.items() if Strindex().settings.get(k) != v}
+		diff_settings = {k: v for k, v in self.settings.__dict__.items() if Strindex().settings.__dict__.get(k) != v}
 
 		with open(filepath, 'w', encoding='utf-8') as f:
 			if self.full_header:
 				f.write(self.full_header)
 			else:
-				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4)))
+				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4, default=lambda x: x.hex() if isinstance(x, bytes) else str(x))))
 				f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
 
 			for index, type in self.iterate_type_count():
@@ -221,11 +247,6 @@ class Strindex():
 
 		strindex.type_order.append(type)
 
-	def patch_replace_string(self, string: str) -> str:
-		""" Replaces the strings in the patch with the new strings. """
-		for key, value in self.settings["patch_replace"].items():
-			string = string.replace(key, value)
-		return string
 
 	def assert_data(self):
 		assert len(self.overwrite) == len(self.pointers), f"Overwrite and pointers lists are not the same length ({len(self.overwrite)} != {len(self.pointers)})."

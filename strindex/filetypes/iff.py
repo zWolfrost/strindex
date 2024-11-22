@@ -1,4 +1,4 @@
-from ..utils import Strindex, FileBytearray
+from ..utils import Strindex, StrindexSettings, FileBytearray
 
 
 def get_last_chunk_pointer(data: FileBytearray) -> int:
@@ -15,7 +15,7 @@ def is_valid(data: FileBytearray) -> bool:
 	""" Checks if the file is an IFF file. """
 	return data[0:4] == b"FORM"
 
-def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strindex:
+def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	BYTE_LENGTH = 4
 
 	temp_strindex = {
@@ -26,7 +26,7 @@ def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strin
 	}
 
 	for string, offset in data.yield_strings():
-		if len(string) >= min_length:
+		if len(string) >= settings.min_length:
 			offset -= BYTE_LENGTH
 			temp_strindex["original"].append(string)
 			temp_strindex["offsets"].append(offset)
@@ -36,7 +36,7 @@ def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strin
 		raise ValueError("No strings found in the file.")
 	print(f"(1/2) Created search dictionary with {len(temp_strindex['original'])} strings.")
 
-	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["offset_bytes"], prefixes)
+	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["offset_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
 	STRINDEX = Strindex()
 	for original, offset, _, pointers in zip(*temp_strindex.values()):
@@ -70,7 +70,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	def get_replaced_offset() -> bytes:
 		return (DATA_LEN + len(new_section_data)).to_bytes(BYTE_LENGTH, 'little')
 	def new_section_string(string: str) -> bytes:
-		return len(string).to_bytes(BYTE_LENGTH, 'little') + bytearray(strindex.patch_replace_string(string), 'utf-8') + b'\x00'
+		return len(string).to_bytes(BYTE_LENGTH, 'little') + bytearray(strindex.settings.patch_replace_string(string), 'utf-8') + b'\x00'
 
 	temp_strindex = {
 		"original_offset": [],
@@ -93,7 +93,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 		new_section_data += new_section_string(strindex.replace[strindex_index])
 
-	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["original_offset"], strindex.settings["prefix_bytes"], strindex.settings["suffix_bytes"])
+	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["original_offset"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
 
 	for original_offset, replaced_offset, pointers, pointers_switches in zip(*temp_strindex.values()):
 		if pointers:

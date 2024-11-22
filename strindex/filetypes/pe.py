@@ -1,4 +1,4 @@
-from ..utils import Strindex, FileBytearray
+from ..utils import Strindex, StrindexSettings, FileBytearray
 import pefile
 pefile.fast_load = True
 
@@ -226,7 +226,7 @@ def is_valid(data: FileBytearray) -> bool:
 		return False
 	return pe.DOS_HEADER.e_magic == 0x5A4D
 
-def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strindex:
+def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	pe = pefile.PE(data=bytes(data))
 
 	if pe_section_exists(pe, SECTION_NAME):
@@ -243,7 +243,7 @@ def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strin
 	}
 
 	for string, offset in data.yield_strings():
-		if len(string) >= min_length:
+		if len(string) >= settings.min_length:
 			rva = pe.get_rva_from_offset(offset)
 			if rva:
 				rva += pe.OPTIONAL_HEADER.ImageBase
@@ -256,7 +256,7 @@ def create(data: FileBytearray, min_length: int, prefixes: list[bytes]) -> Strin
 		raise ValueError("No strings found in the file.")
 	print(f"(1/2) Created search dictionary with {len(temp_strindex['original'])} strings.")
 
-	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["rva_bytes"], prefixes)
+	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["rva_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
 	STRINDEX = Strindex()
 	for string, offset, rva, _, pointers in zip(*temp_strindex.values()):
@@ -290,7 +290,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	def get_replaced_rva() -> bytes:
 		return (STRDEX_SECTION_BASE_RVA + len(new_section_data)).to_bytes(BYTE_LENGTH, 'little')
 	def new_section_string(string: str) -> bytes:
-		return bytearray(strindex.patch_replace_string(string), 'utf-8') + b'\x00'
+		return bytearray(strindex.settings.patch_replace_string(string), 'utf-8') + b'\x00'
 
 	temp_strindex = {
 		"original_rva": [],
@@ -311,7 +311,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 		new_section_data += new_section_string(strindex.replace[strindex_index])
 
-	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["original_rva"], strindex.settings["prefix_bytes"], strindex.settings["suffix_bytes"])
+	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["original_rva"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
 
 	for original_rva, replaced_rva, pointers, pointers_switches in zip(*temp_strindex.values()):
 		if pointers:
