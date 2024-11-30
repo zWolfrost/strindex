@@ -4,7 +4,7 @@
 [![GitHub downloads](https://img.shields.io/github/downloads/zWolfrost/strindex/total?label=GitHub%20downloads)](https://github.com/zWolfrost/strindex/releases/latest)
 [![license](https://img.shields.io/github/license/zWolfrost/strindex)](LICENSE)
 
-A command line utility to extract and patch strings of various filetypes, with a focus on compatibility and translation.
+A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.
 
 This utility will allow you to replace strings in supported filetypes with other strings. It's useful to change the text of a program without having to recompile it, for example, to translate a program into another language.
 
@@ -15,7 +15,7 @@ There are a lot of features to help with translation, such as spellchecking & fi
 The release includes a precompiled version of the program, which ONLY does the patching. If you want to use the other features, you will need to install Python 3.6 or later and the required libraries.
 
 ## Supported filetypes
-*Support for more types won't be added unless I find some motivation to...*
+*Support for more types is not planned.*
 - PE files (".exe, ".dll"...)
 - Gamemaker data files ("data.win")
 

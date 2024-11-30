@@ -212,7 +212,7 @@ def create_gui():
 			self.create_lineedit("Prefix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
 			self.create_padding(1)
 
-			self.create_lineedit("Suffix bytes hex (comma-separated)")
+			self.create_lineedit("Suffix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
 			self.create_padding(1)
 
 			self.create_checkbox("Compatible Mode")
@@ -260,7 +260,7 @@ def patch_gui():
 def main(sysargs=None):
 	parser = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
 
-	parser.add_argument("-v", "--version", action="version", version="3.5.0")
+	parser.add_argument("-v", "--version", action="version", version="3.5.1")
 	parser.add_argument("-d", "--debug", action="store_true", help="Print full error messages.")
 
 	parser.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
@@ -331,7 +331,4 @@ def main(sysargs=None):
 			print(f"{type(e).__name__}: {e}")
 
 if __name__ == "__main__":
-	if "__compiled__" in globals():
-		main(["patch", "-g", "-d"])
-	else:
-		main()
+	main()
