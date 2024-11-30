@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
 	name = "strindex",
-	version = "3.4.0",
+	version = "3.5.0",
 	author = "zWolfrost",
 	author_email = "zwolfrost@gmail.com",
 	description = "A command line utility to extract and patch strings of various filetypes, with a focus on compatibility and translation.",

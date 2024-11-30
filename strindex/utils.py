@@ -1,4 +1,4 @@
-import json, re
+import json, re, gzip, sys, os
 from typing import Generator
 
 
@@ -61,7 +61,7 @@ class StrindexSettings():
 	def __init__(self, **kwargs):
 		self.md5 = kwargs.get("md5")
 		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist"))
-		self.min_length = kwargs.get("min_length") or 1
+		self.min_length = int(kwargs.get("min_length") or 1)
 		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes"))
 		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes"))
 		self.patch_replace = kwargs.get("patch_replace") or {}
@@ -98,7 +98,6 @@ class Strindex():
 	full_header: str
 	settings: StrindexSettings
 	type_order: list[str]
-	rva_bytes_length: int
 
 	overwrite: list[str]
 	pointers: list[list[int]]
@@ -130,7 +129,12 @@ class Strindex():
 
 		strindex = Strindex()
 
-		with open(filepath, 'r', encoding='utf-8') as f:
+		if filepath.endswith(".gz"):
+			stream = gzip.open(filepath, 'rt', encoding='utf-8')
+		else:
+			stream = open(filepath, 'r', encoding='utf-8')
+
+		with stream as f:
 			while line := f.readline():
 				if line.startswith("{"):
 					strindex_settings_lines = line
@@ -196,6 +200,8 @@ class Strindex():
 
 	def write(self, filepath: str):
 		""" Saves the strindex data to a file. """
+		HEX_RJUST = 8
+
 		self.assert_data()
 
 		diff_settings = {k: v for k, v in self.settings.__dict__.items() if Strindex().settings.__dict__.get(k) != v}
@@ -219,8 +225,8 @@ class Strindex():
 				else:
 					f.write(
 						Strindex.DELIMITERS[0] + Strindex.DELIMITERS[2] +
-						hex(self.offsets[index] or 0).lstrip("0x").rjust(8, '0') + Strindex.DELIMITERS[2] +
-						Strindex.DELIMITERS[3].join([hex(p or 0).lstrip("0x").rjust(8, '0') for p in self.pointers[index]]) +
+						hex(self.offsets[index] or 0).lstrip("0x").rjust(HEX_RJUST, '0') + Strindex.DELIMITERS[2] +
+						Strindex.DELIMITERS[3].join([hex(p or 0).lstrip("0x").rjust(HEX_RJUST, '0') for p in self.pointers[index]]) +
 						Strindex.DELIMITERS[2] + "\n" +
 						self.overwrite[index] + "\n"
 					)
@@ -330,3 +336,178 @@ class FileBytearray(bytearray):
 				indices.insert(search_index, search_string)
 
 		return indices
+
+try:
+	from PySide6 import QtWidgets, QtGui, QtCore
+except ImportError:
+	pass
+else:
+	class StrindexGUI(QtWidgets.QWidget):
+		__required__: list[QtWidgets.QWidget]
+		__widgets__: list[QtWidgets.QWidget]
+		__grid__: QtWidgets.QGridLayout
+
+		def __init__(self):
+			super().__init__()
+			self.__required__ = []
+			self.__widgets__ = []
+
+		@staticmethod
+		def execute(gui_cls):
+			app = QtWidgets.QApplication([])
+			gui = gui_cls()
+			gui.setup()
+			gui.show()
+			sys.exit(app.exec())
+
+		@staticmethod
+		def parse_widgets(args):
+			parsed_args = []
+			for arg in args:
+				if isinstance(arg, QtWidgets.QLineEdit):
+					parsed_args.append(arg.text())
+				elif isinstance(arg, QtWidgets.QCheckBox):
+					parsed_args.append(arg.isChecked())
+			return parsed_args
+
+
+		def create_file_selection(self, line_text: str, button_text: str = "Browse Files"):
+			file_select = self.create_lineedit(line_text)
+			file_browse = self.create_button(button_text, lambda: self.browse_files(file_select, "Select File", "All Files (*)"))
+
+			self.__required__.append(file_select)
+
+			return file_select, file_browse
+
+		def create_strindex_selection(self, line_text: str, button_text: str = "Browse strindex"):
+			strindex_select = self.create_lineedit(line_text)
+			strindex_browse = self.create_button(button_text, lambda: self.browse_files(strindex_select, "Select Strindex", "Strindex Files (*.txt *.gz)"))
+
+			self.__required__.append(strindex_select)
+
+			return strindex_select, strindex_browse
+
+		def create_action_button(self, text: str, progress_text: str, complete_text: str, callback):
+			action_button = QtWidgets.QPushButton(text)
+			action_button.setEnabled(False)
+
+			progress_bar = QtWidgets.QProgressBar()
+			progress_bar.setRange(0, 100)
+			progress_bar.setFormat(progress_text)
+			progress_bar.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+			PrintProgress.callback = lambda progress: progress_bar.setValue(progress.percent)
+
+			def callback_wrapper():
+				self.setEnabled(False)
+				progress_bar.setValue(0)
+				self.__grid__.replaceWidget(action_button, progress_bar)
+				action_button.setParent(None)
+				QtWidgets.QApplication.processEvents()
+
+				try:
+					callback(*self.parse_widgets(self.__widgets__))
+					progress_bar.setValue(100)
+				except BaseException as e:
+					self.show_message(str(e), QtWidgets.QMessageBox.Critical)
+				else:
+					self.show_message(complete_text, QtWidgets.QMessageBox.Information)
+
+				self.__grid__.replaceWidget(progress_bar, action_button)
+				progress_bar.setParent(None)
+				self.setEnabled(True)
+				QtWidgets.QApplication.processEvents()
+
+			action_button.clicked.connect(callback_wrapper)
+
+			self.__widgets__.append(action_button)
+
+			return action_button
+
+		def update_action_button(self):
+			self.__widgets__[-1].setEnabled(all([os.path.isfile(file_select.text()) for file_select in self.__required__]))
+
+
+		def create_lineedit(self, text: str):
+			line_edit = QtWidgets.QLineEdit()
+			line_edit.setPlaceholderText(text)
+			line_edit.textChanged.connect(self.update_action_button)
+			line_edit.textChanged.connect(lambda: line_edit.setStyleSheet(line_edit.styleSheet()))
+			line_edit.setFont(QtGui.QFont("monospace"))
+
+			self.__widgets__.append(line_edit)
+
+			return line_edit
+
+		def create_button(self, text: str, callback):
+			button = QtWidgets.QPushButton(text)
+			button.clicked.connect(callback)
+
+			self.__widgets__.append(button)
+
+			return button
+
+		def create_checkbox(self, text: str):
+			checkbox = QtWidgets.QCheckBox(text)
+
+			self.__widgets__.append(checkbox)
+
+			return checkbox
+
+		def create_grid_layout(self, columns: int):
+			widget_col_span = []
+			index = 0
+			while index < len(self.__widgets__):
+				if self.__widgets__[index] is None:
+					self.__widgets__.pop(index)
+					widget_col_span[-1] += 1
+				else:
+					widget_col_span.append(1)
+					index += 1
+
+			index = 0
+			grid_layout = QtWidgets.QGridLayout()
+			for widget, col_span in zip(self.__widgets__, widget_col_span):
+				if widget is not None:
+					grid_layout.addWidget(widget, index // columns, index % columns, 1, col_span)
+					index += col_span
+
+			grid_layout.setSpacing(10)
+			for i in range(columns):
+				grid_layout.setColumnMinimumWidth(i, 125)
+			self.setLayout(grid_layout)
+
+			self.__grid__ = grid_layout
+
+			return grid_layout
+
+		def create_padding(self, padding: int):
+			self.__widgets__ += [None] * padding
+
+
+		def set_window_properties(self, title: str):
+			WINDOWS_STYLESHEET = f""""""
+			UNIX_STYLESHEET = f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
+			self.setWindowTitle(title)
+			self.setStyleSheet(WINDOWS_STYLESHEET if sys.platform == "win32" else UNIX_STYLESHEET)
+			self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
+			self.setMaximumSize(1600, 0)
+			self.resize(800, 0)
+			self.center_window()
+
+
+		def browse_files(self, line: QtWidgets.QLineEdit, caption, filter):
+			if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:
+				line.setText(filepath)
+
+		def center_window(self):
+			res = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+			self.move((res.width() - self.width()) // 2, (res.height() - self.height()) // 2)
+
+		def show_message(self, text: str, icon):
+			msg = QtWidgets.QMessageBox()
+			msg.setWindowTitle(self.windowTitle())
+			msg.setIcon(icon)
+			msg.setText(text)
+			msg.setStandardButtons(QtWidgets.QMessageBox.Ok.Ok)
+			msg.exec()
+			return msg

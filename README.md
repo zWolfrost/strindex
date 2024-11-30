@@ -25,10 +25,11 @@ You can install the program with the command `pip install strindex`.
 ## Usage
 You can run the program with the command `strindex <action> <input file(s)> [options]`.
 
+You can run `strindex -h` to see the available arguments.
+
 These are the available actions:
 - `create`: Create a list of strings from a PE file (a strindex). Use `-c` to create a strindex that uses the original strings as references.
-- `patch`: Patch a PE file with a strindex.
-- `patch_gui`: Patch a PE file with a strindex using a GUI.
+- `patch`: Patch a PE file with a strindex. Strindexes compressed with gzip are also supported for all actions.
 - `update` Update a strindex pointers' with the updated version of a file.
 - `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
 - `delta`: Create a delta file between two strindexes, that only contains the lines of the first strindex missing in the second one.
