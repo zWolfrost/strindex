@@ -36,7 +36,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 		raise ValueError("No strings found in the file.")
 	print(f"(1/2) Created search dictionary with {len(temp_strindex['original'])} strings.")
 
-	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["offset_bytes"], settings.prefix_bytes, settings.suffix_bytes)
+	temp_strindex["pointers"] = data.indices_fixed(temp_strindex["offset_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
 	STRINDEX = Strindex()
 	for original, offset, _, pointers in zip(*temp_strindex.values()):
@@ -80,7 +80,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	}
 
 	# Deal with compatible strings
-	for strindex_index, offset in enumerate(data.get_indices_ordered(strindex.original, b"\x00", b"\x00")):
+	for strindex_index, offset in enumerate(data.indices_ordered(strindex.original, b"\x00", b"\x00")):
 		if offset is None:
 			print(f'String not found: "{strindex.original[strindex_index]}"')
 			continue
@@ -93,7 +93,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 		new_section_data += new_section_string(strindex.replace[strindex_index])
 
-	temp_strindex["pointers"] = data.get_indices_fixed(temp_strindex["original_offset"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
+	temp_strindex["pointers"] = data.indices_fixed(temp_strindex["original_offset"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
 
 	for original_offset, replaced_offset, pointers, pointers_switches in zip(*temp_strindex.values()):
 		if pointers:

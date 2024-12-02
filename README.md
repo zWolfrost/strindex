@@ -12,7 +12,7 @@ Apart from using offsets to replace strings, there's also an option to use the o
 
 There are a lot of features to help with translation, such as spellchecking & filtering strings by length and character set.
 
-The release includes a precompiled version of the program, which ONLY does the patching. If you want to use the other features, you will need to install Python 3.6 or later and the required libraries.
+The release includes a precompiled version of the program, which by default does the patching (unless executed with arguments). Warning: the precompiled version has a high chance of being detected as a false positive by antivirus software. You can compile the program yourself to avoid this.
 
 ## Supported filetypes
 *Support for more types is not planned.*

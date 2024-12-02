@@ -1,4 +1,4 @@
-import json, re, gzip, sys, os
+import os, sys, json, re, gzip, hashlib
 from typing import Generator
 
 
@@ -280,7 +280,7 @@ class FileBytearray(bytearray):
 			else:
 				byte_string += char
 
-	def get_indices_ordered(self, search_lst: list[bytes], prefix: bytes = b"", suffix: bytes = b"") -> list[int]:
+	def indices_ordered(self, search_lst: list[bytes], prefix: bytes = b"", suffix: bytes = b"") -> list[int]:
 		"""
 		Returns the index of the first occurrence of every search list string in a bytearray.
 		Extremely fast, but can only can work for search lists that are ordered by occurrence order.
@@ -298,7 +298,7 @@ class FileBytearray(bytearray):
 			indices.append(index + prefix_length)
 		return indices
 
-	def get_indices_fixed(self, search_lst: list[bytes], prefixes: list[bytes] = [b""], suffixes: list[bytes] = [b""]) -> list[list[int]]:
+	def indices_fixed(self, search_lst: list[bytes], prefixes: list[bytes] = [b""], suffixes: list[bytes] = [b""]) -> list[list[int]]:
 		"""
 		Returns a list containing the indexes of each occurrence of every search list string in a bytearray.
 		Extremely fast, but can only can work for unique search strings of fixed length (length is taken from 1st element).
@@ -336,6 +336,10 @@ class FileBytearray(bytearray):
 				indices.insert(search_index, search_string)
 
 		return indices
+
+	def md5(self) -> str:
+		""" Returns the md5 hash of a bytearray slice. """
+		return hashlib.md5(self).hexdigest()
 
 try:
 	from PySide6 import QtWidgets, QtGui, QtCore
@@ -493,7 +497,6 @@ else:
 			self.setMaximumSize(1600, 0)
 			self.resize(800, 0)
 			self.center_window()
-
 
 		def browse_files(self, line: QtWidgets.QLineEdit, caption, filter):
 			if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:

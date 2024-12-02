@@ -1,5 +1,4 @@
 import os, argparse
-from hashlib import md5
 from strindex.utils import PrintProgress, Strindex, StrindexSettings, FileBytearray
 from strindex.filetypes import MODULES
 
@@ -40,7 +39,7 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, setting
 		STRINDEX.type_order = ["overwrite"] * len(STRINDEX.overwrite)
 
 	STRINDEX.settings = settings
-	STRINDEX.settings.md5 = md5(data).hexdigest()
+	STRINDEX.settings.md5 = data.md5()
 
 	STRINDEX.write(strindex_filepath)
 
@@ -57,7 +56,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	STRINDEX = Strindex.read(strindex_filepath)
 
-	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != md5(data).hexdigest():
+	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5():
 		print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
 
 	data = get_module_methods(data, "patch")(data, STRINDEX)
