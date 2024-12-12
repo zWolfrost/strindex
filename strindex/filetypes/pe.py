@@ -217,14 +217,19 @@ def pe_section_exists(pe: pefile.PE, section_name: str) -> bool:
 
 SECTION_NAME = b".strdex"
 
-
 def is_valid(data: FileBytearray) -> bool:
 	""" Checks if the file is a valid PE file. """
 	try:
 		pe = pefile.PE(data=bytes(data))
 	except pefile.PEFormatError:
 		return False
-	return pe.DOS_HEADER.e_magic == 0x5A4D
+
+	if pe.DOS_HEADER.e_magic == 0x5A4D:
+		if b"\0Cabinet.dll\0" in data:
+			print("Warning: This PE file is likely a self-extracting CAB file. The strings might be compressed.")
+		return True
+
+	return False
 
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	pe = pefile.PE(data=bytes(data))
@@ -338,4 +343,4 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	print(f"(2/2) Added '{SECTION_NAME.decode('utf-8')}' section.")
 
 
-	return bytearray(pe.write())
+	return FileBytearray(pe.write())

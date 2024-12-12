@@ -59,7 +59,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5():
 		print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
 
-	data = get_module_methods(data, "patch")(data, STRINDEX)
+	data: FileBytearray = get_module_methods(data, "patch")(data, STRINDEX)
 
 	if not file_patched_filepath:
 		if not os.path.exists(file_filepath_bak):
@@ -259,9 +259,6 @@ def patch_gui():
 def main(sysargs=None):
 	parser = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
 
-	parser.add_argument("-v", "--version", action="version", version="3.5.1")
-	parser.add_argument("-d", "--debug", action="store_true", help="Print full error messages.")
-
 	parser.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
@@ -272,6 +269,9 @@ def main(sysargs=None):
 	parser.add_argument("-m", "--min-length", type=int, help="Minimum length of the strings to be included.")
 	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes that can prefix a pointer.")
 	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[], help="Suffix bytes that can suffix a pointer.")
+
+	parser.add_argument("-v", "--version", action="version", version="3.5.1")
+	parser.add_argument("-d", "--debug", action="store_true", help="Print full error messages.")
 
 	args = parser.parse_args(sysargs)
 

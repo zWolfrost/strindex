@@ -44,6 +44,7 @@ class StrindexSettings():
 		"default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\]^_`{|}~… """,
 		"latin": """ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz""",
 		"spanish": """¡¿ÁÉÍÓÚÜÑáéíóúüñã""",
+		"italian": """ÀÈÉÌÒÓÙàèéìòóù""",
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""",
 	}
 
@@ -92,7 +93,7 @@ class Strindex():
 
 	DELIMITERS = (f"{'=' * 80}", f"{'-' * 80}", f'/', f'-')
 	HEADER = f"You can freely delete informational lines in the header like this one.\n\n{{}}\n\n"
-	INFO = f"//{'=' * 78}/ offset / offset(s)-of-rva-pointer(s) /\n"
+	INFO = f"//{'=' * 78}/ offset / offset-of-pointer(s) /\n"
 	COMPATIBLE_INFO = f"//{'=' * 78}[reallocate pointer(s) if 1]\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
 
 	full_header: str
@@ -123,11 +124,11 @@ class Strindex():
 		self.pointers_switches = []
 
 
-	@staticmethod
-	def read(filepath: str):
+	@classmethod
+	def read(cls, filepath: str):
 		""" Parses a strindex file and returns a dictionary with the data. """
 
-		strindex = Strindex()
+		strindex = cls()
 
 		if filepath.endswith(".gz"):
 			stream = gzip.open(filepath, 'rt', encoding='utf-8')
@@ -136,7 +137,7 @@ class Strindex():
 
 		with stream as f:
 			while line := f.readline():
-				if line.startswith("{"):
+				if line.lstrip().startswith("{"):
 					strindex_settings_lines = line
 					strindex.full_header += line
 					while True:
@@ -411,15 +412,15 @@ else:
 				try:
 					callback(*self.parse_widgets(self.__widgets__))
 					progress_bar.setValue(100)
-				except BaseException as e:
+				except Exception as e:
 					self.show_message(str(e), QtWidgets.QMessageBox.Critical)
 				else:
 					self.show_message(complete_text, QtWidgets.QMessageBox.Information)
-
-				self.__grid__.replaceWidget(progress_bar, action_button)
-				progress_bar.setParent(None)
-				self.setEnabled(True)
-				QtWidgets.QApplication.processEvents()
+				finally:
+					self.__grid__.replaceWidget(progress_bar, action_button)
+					progress_bar.setParent(None)
+					self.setEnabled(True)
+					QtWidgets.QApplication.processEvents()
 
 			action_button.clicked.connect(callback_wrapper)
 
