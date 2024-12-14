@@ -128,6 +128,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str):
 	print_progress = PrintProgress(len(STRINDEX.type_order))
 	for strindex_index, (type_index, type) in enumerate(STRINDEX.iterate_type_count()):
 		string = STRINDEX.original[type_index] if type == "compatible" else STRINDEX.overwrite[type_index]
+
 		valid_language = not STRINDEX.settings.source_language or is_source_language(string)
 		valid_length = len(string) >= STRINDEX.settings.min_length
 		valid_whitelist = not STRINDEX.settings.whitelist or not any(ch not in STRINDEX.settings.whitelist for ch in string)
@@ -270,8 +271,8 @@ def main(sysargs=None):
 	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes that can prefix a pointer.")
 	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[], help="Suffix bytes that can suffix a pointer.")
 
-	parser.add_argument("-v", "--version", action="version", version="3.5.1")
-	parser.add_argument("-d", "--debug", action="store_true", help="Print full error messages.")
+	parser.add_argument("--version", action="version", version="3.6.0")
+	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
 
 	args = parser.parse_args(sysargs)
 
@@ -324,7 +325,7 @@ def main(sysargs=None):
 	except KeyboardInterrupt:
 		print("Interrupted by user.")
 	except Exception as e:
-		if args.debug:
+		if args.verbose:
 			raise
 		else:
 			print(f"{type(e).__name__}: {e}")

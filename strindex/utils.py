@@ -72,11 +72,11 @@ class StrindexSettings():
 		self.among_languages = kwargs.get("among_languages") or []
 
 	@staticmethod
-	def handle_whitelist(whitelist: str):
+	def handle_whitelist(whitelist: str) -> set[str]:
 		return set(''.join([StrindexSettings.CHARACTER_CLASSES.get(whitelist, whitelist) for whitelist in (whitelist + ["default"])])) if whitelist else None
 
 	@staticmethod
-	def handle_bytes_list(bytes_list: list[bytes]):
+	def handle_bytes_list(bytes_list: list[bytes]) -> list[bytes]:
 		return [bytes.fromhex(prefix) for prefix in (bytes_list or [''])]
 
 	def clean_string(self, string: str) -> str:
@@ -125,7 +125,7 @@ class Strindex():
 
 
 	@classmethod
-	def read(cls, filepath: str):
+	def read(cls, filepath: str) -> "Strindex":
 		""" Parses a strindex file and returns a dictionary with the data. """
 
 		strindex = cls()
@@ -236,13 +236,13 @@ class Strindex():
 			f.truncate()
 
 
-	def iterate_type_count(self):
-		types = {}
+	def iterate_type_count(self) -> Generator[tuple[int, str], None, None]:
+		types_dict = {}
 		for type in self.type_order:
-			types[type] = (types[type] + 1) if type in types else 0
-			yield types[type], type
+			types_dict[type] = (types_dict[type] + 1) if type in types_dict else 0
+			yield types_dict[type], type
 
-	def append_to_strindex(self, strindex, type: str, index: int):
+	def append_to_strindex(self, strindex: "Strindex", type: str, index: int):
 		if type == "compatible":
 			strindex.original.append(self.original[index])
 			strindex.replace.append(self.replace[index])
@@ -410,6 +410,7 @@ else:
 				QtWidgets.QApplication.processEvents()
 
 				try:
+					# TODO: do this in a separate thread
 					callback(*self.parse_widgets(self.__widgets__))
 					progress_bar.setValue(100)
 				except Exception as e:
