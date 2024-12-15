@@ -237,25 +237,22 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	if pe_section_exists(pe, SECTION_NAME):
 		print(f"Warning: this file already contains a '{SECTION_NAME.decode('utf-8')}' section.")
 
-	BYTE_LENGTH = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
+	data.byte_length = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
+	data.byte_order = 'little'
 
 	temp_strindex = {
 		"original": [],
 		"offsets": [],
-		"rva": [],
 		"rva_bytes": [],
 		"pointers": []
 	}
 
 	for string, offset in data.yield_strings():
-		if len(string) >= settings.min_length:
-			rva = pe.get_rva_from_offset(offset)
-			if rva:
-				rva += pe.OPTIONAL_HEADER.ImageBase
-				temp_strindex["original"].append(string)
-				temp_strindex["offsets"].append(offset)
-				temp_strindex["rva"].append(rva)
-				temp_strindex["rva_bytes"].append(rva.to_bytes(BYTE_LENGTH, 'little'))
+		if len(string) >= settings.min_length and (rva := pe.get_rva_from_offset(offset)):
+			rva += pe.OPTIONAL_HEADER.ImageBase
+			temp_strindex["original"].append(string)
+			temp_strindex["offsets"].append(offset)
+			temp_strindex["rva_bytes"].append(data.int_to_bytes(rva))
 
 	if not temp_strindex["original"]:
 		raise ValueError("No strings found in the file.")
@@ -264,7 +261,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	temp_strindex["pointers"] = data.indices_fixed(temp_strindex["rva_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
 	STRINDEX = Strindex()
-	for string, offset, rva, _, pointers in zip(*temp_strindex.values()):
+	for string, offset, _, pointers in zip(*temp_strindex.values()):
 		if pointers:
 			STRINDEX.overwrite.append(string)
 			STRINDEX.offsets.append(offset)
@@ -286,14 +283,16 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		raise ValueError(f"This file already contains a '{SECTION_NAME.decode('utf-8')}' section.")
 
 
-	BYTE_LENGTH = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
-	STRDEX_SECTION_BASE_RVA = pe_get_new_section_base_rva(pe)
-
+	data.byte_length = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
+	data.byte_order = 'little'
 
 	new_section_data = bytearray()
 
+
+	STRDEX_SECTION_BASE_RVA = pe_get_new_section_base_rva(pe)
+
 	def get_replaced_rva() -> bytes:
-		return (STRDEX_SECTION_BASE_RVA + len(new_section_data)).to_bytes(BYTE_LENGTH, 'little')
+		return data.int_to_bytes(STRDEX_SECTION_BASE_RVA + len(new_section_data))
 	def new_section_string(string: str) -> bytes:
 		return bytearray(strindex.settings.patch_replace_string(string), 'utf-8') + b'\x00'
 
@@ -310,7 +309,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 			print(f'String not found: "{strindex.original[strindex_index]}"')
 			continue
 
-		temp_strindex["original_rva"].append((pe.get_rva_from_offset(offset) + pe.OPTIONAL_HEADER.ImageBase).to_bytes(BYTE_LENGTH, 'little'))
+		temp_strindex["original_rva"].append(data.int_to_bytes(pe.get_rva_from_offset(offset) + pe.OPTIONAL_HEADER.ImageBase))
 		temp_strindex["replaced_rva"].append(get_replaced_rva())
 		temp_strindex["pointers_switches"].append(strindex.pointers_switches[strindex_index])
 

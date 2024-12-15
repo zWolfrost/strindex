@@ -4,7 +4,7 @@ from ..utils import Strindex, StrindexSettings, FileBytearray
 def get_last_chunk_pointer(data: FileBytearray) -> int:
 	offset = 12
 	while offset < len(data):
-		size = int.from_bytes(data[offset:offset+4], 'little')
+		size = data.int_at(offset)
 		if size != 0:
 			prev_offset = offset
 		offset += size + 8
@@ -16,7 +16,8 @@ def is_valid(data: FileBytearray) -> bool:
 	return data[0:4] == b"FORM"
 
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
-	BYTE_LENGTH = 4
+	data.byte_length = 4
+	data.byte_order = 'little'
 
 	temp_strindex = {
 		"original": [],
@@ -27,10 +28,10 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 	for string, offset in data.yield_strings():
 		if len(string) >= settings.min_length:
-			offset -= BYTE_LENGTH
+			offset -= data.byte_length
 			temp_strindex["original"].append(string)
 			temp_strindex["offsets"].append(offset)
-			temp_strindex["offset_bytes"].append(offset.to_bytes(BYTE_LENGTH, 'little'))
+			temp_strindex["offset_bytes"].append(data.int_to_bytes(offset))
 
 	if not temp_strindex["original"]:
 		raise ValueError("No strings found in the file.")
@@ -60,17 +61,15 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		and might also work with IFF files in general, but I haven't tested it.
 	"""
 
-	BYTE_LENGTH = 4
-	DATA_LEN = len(data)
+	data.byte_length = 4
+	data.byte_order = 'little'
 
 	new_section_data = bytearray()
 
-	def increase_bytes(pointer: int, increase: int):
-		data[pointer:pointer+BYTE_LENGTH] = (int.from_bytes(data[pointer:pointer+BYTE_LENGTH], 'little') + increase).to_bytes(BYTE_LENGTH, 'little')
 	def get_replaced_offset() -> bytes:
-		return (DATA_LEN + len(new_section_data)).to_bytes(BYTE_LENGTH, 'little')
+		return data.int_to_bytes(len(data) + len(new_section_data))
 	def new_section_string(string: str) -> bytes:
-		return len(string).to_bytes(BYTE_LENGTH, 'little') + bytearray(strindex.settings.patch_replace_string(string), 'utf-8') + b'\x00'
+		return data.int_to_bytes(len(string)) + bytearray(strindex.settings.patch_replace_string(string), 'utf-8') + b'\x00'
 
 	temp_strindex = {
 		"original_offset": [],
@@ -85,9 +84,9 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 			print(f'String not found: "{strindex.original[strindex_index]}"')
 			continue
 
-		offset -= BYTE_LENGTH
+		offset -= data.byte_length
 
-		temp_strindex["original_offset"].append(offset.to_bytes(BYTE_LENGTH, 'little'))
+		temp_strindex["original_offset"].append(data.int_to_bytes(offset))
 		temp_strindex["replaced_offset"].append(get_replaced_offset())
 		temp_strindex["pointers_switches"].append(strindex.pointers_switches[strindex_index])
 
@@ -99,7 +98,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		if pointers:
 			for pointer, switch in zip(pointers, pointers_switches):
 				if switch:
-					data[pointer:pointer+BYTE_LENGTH] = replaced_offset
+					data[pointer:pointer+data.byte_length] = replaced_offset
 		else:
 			print("No pointers found for rva: " + original_offset.hex())
 
@@ -110,14 +109,14 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 		for pointer in strindex.pointers[strindex_index]:
 			if pointer:
-				data[pointer:pointer+BYTE_LENGTH] = replaced_offset
+				data[pointer:pointer+data.byte_length] = replaced_offset
 			else:
 				print("No pointers found for string: " + strindex.overwrite[strindex_index])
 	print("(1/1) Created chunk data & relocated pointers.")
 
 	# Increase the "FORM" chunk size and the last chunk size
-	increase_bytes(4, len(new_section_data))
-	increase_bytes(get_last_chunk_pointer(data), len(new_section_data))
+	data.delta_int_at(4, len(new_section_data))
+	data.delta_int_at(get_last_chunk_pointer(data), len(new_section_data))
 
 	data += new_section_data
 

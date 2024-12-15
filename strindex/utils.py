@@ -261,7 +261,10 @@ class Strindex():
 		assert len(self.type_order) == len(self.overwrite) + len(self.original), f"Type order list is not the same length ({len(self.type_order)} != {len(self.overwrite) + len(self.original)})."
 
 class FileBytearray(bytearray):
-	""" A class to handle bytearrays with additional methods. """
+	""" A class to handle bytearrays with additional methods and shorthands focused on file manipulation. """
+	byte_length: int
+	byte_order: str
+
 
 	def yield_strings(self, sep=b'\x00') -> Generator[tuple[str, int], None, None]:
 		print_progress = PrintProgress(len(self))
@@ -338,9 +341,21 @@ class FileBytearray(bytearray):
 
 		return indices
 
+
+	def int_to_bytes(self, value: int) -> bytes:
+		return value.to_bytes(self.byte_length, self.byte_order)
+
+	def int_at(self, offset: bytes) -> int:
+		return int.from_bytes(self[offset:offset + self.byte_length], self.byte_order)
+
+	def delta_int_at(self, offset: int, delta: int):
+		self[offset:offset + self.byte_length] = self.int_to_bytes(self.int_at(offset) + delta)
+
+
+	@property
 	def md5(self) -> str:
-		""" Returns the md5 hash of a bytearray slice. """
 		return hashlib.md5(self).hexdigest()
+
 
 try:
 	from PySide6 import QtWidgets, QtGui, QtCore
