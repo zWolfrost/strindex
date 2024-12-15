@@ -266,6 +266,7 @@ class FileBytearray(bytearray):
 	byte_order: str
 
 
+	# Algorithms
 	def yield_strings(self, sep=b'\x00') -> Generator[tuple[str, int], None, None]:
 		print_progress = PrintProgress(len(self))
 		byte_string = b''
@@ -342,6 +343,7 @@ class FileBytearray(bytearray):
 		return indices
 
 
+	# Shorthands
 	def int_to_bytes(self, value: int) -> bytes:
 		return value.to_bytes(self.byte_length, self.byte_order)
 
@@ -350,6 +352,97 @@ class FileBytearray(bytearray):
 
 	def delta_int_at(self, offset: int, delta: int):
 		self[offset:offset + self.byte_length] = self.int_to_bytes(self.int_at(offset) + delta)
+
+
+	# Macros
+	def create_macro(self, settings: StrindexSettings, original_bytes_from_offset: callable) -> Strindex:
+		def original_bytes_from_offset_wrapper(offset: int) -> bytes:
+			return self.int_to_bytes(original_bytes_from_offset(offset))
+
+		temp_strindex = {
+			"original": [],
+			"offsets": [],
+			"pointers": [],
+			"original_bytes": []
+		}
+
+		for string, offset in self.yield_strings():
+			if len(string) >= settings.min_length and (original_bytes := original_bytes_from_offset_wrapper(offset)):
+				temp_strindex["original"].append(string)
+				temp_strindex["offsets"].append(offset)
+				temp_strindex["original_bytes"].append(original_bytes)
+
+		if not temp_strindex["original"]:
+			raise ValueError("No strings found in the file.")
+		print(f"(1/2) Created search dictionary with {len(temp_strindex['original'])} strings.")
+
+		temp_strindex["pointers"] = self.indices_fixed(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
+
+		strindex = Strindex()
+		for string, offset, pointers in zip(temp_strindex["original"], temp_strindex["offsets"], temp_strindex["pointers"]):
+			if pointers:
+				strindex.overwrite.append(string)
+				strindex.offsets.append(offset)
+				strindex.pointers.append(pointers)
+
+		print(f"(2/2) Found pointers for {len(strindex.overwrite)} / {len(temp_strindex['original'])} strings.")
+
+		return strindex
+
+	def patch_macro(self, strindex: Strindex, original_bytes_from_offset: callable, replaced_bytes_from_offset: callable, data_from_string: callable) -> bytearray:
+		def original_bytes_from_offset_wrapper(offset: int) -> bytes:
+			return self.int_to_bytes(original_bytes_from_offset(offset))
+		def replaced_bytes_from_offset_wrapper(offset: int) -> bytes:
+			return self.int_to_bytes(replaced_bytes_from_offset(offset))
+		def data_from_string_wrapper(string: str) -> bytearray:
+			return data_from_string(strindex.settings.patch_replace_string(string))
+
+		new_data = bytearray()
+
+		update_dict = {
+			"original_bytes": [],
+			"replaced_bytes": [],
+			"pointers": [],
+			"switches": []
+		}
+
+		for strindex_index, offset in enumerate(self.indices_ordered(strindex.original, b"\x00", b"\x00")):
+			if offset is None:
+				print(f'String not found: "{strindex.original[strindex_index]}"')
+				continue
+
+			update_dict["original_bytes"].append(original_bytes_from_offset_wrapper(offset))
+			update_dict["replaced_bytes"].append(replaced_bytes_from_offset_wrapper(len(new_data)))
+			update_dict["switches"].append(strindex.pointers_switches[strindex_index])
+			new_data += data_from_string_wrapper(strindex.replace[strindex_index])
+
+		update_dict["pointers"] = self.indices_fixed(update_dict["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
+
+		self.update_references(update_dict["pointers"], update_dict["replaced_bytes"], update_dict["switches"])
+
+		update_dict = {
+			"replaced_bytes": []
+		}
+
+		for strindex_index in range(len(strindex.overwrite)):
+			update_dict["replaced_bytes"].append(replaced_bytes_from_offset_wrapper(len(new_data)))
+			new_data += data_from_string_wrapper(strindex.overwrite[strindex_index])
+
+		self.update_references(strindex.pointers, update_dict["replaced_bytes"])
+
+		return new_data
+
+	def update_references(self, pointers: list[list[int]], replaced_bytes: list[bytes], switches: list[list[bool]] = None):
+		if	switches is None:
+			switches = [[True] * len(pointer) for pointer in pointers]
+
+		for i, (pointers, replaced_bytes, switches) in enumerate(zip(pointers, replaced_bytes, switches)):
+			if pointers:
+				for pointer, switch in zip(pointers, switches):
+					if switch:
+						self[pointer:pointer+self.byte_length] = replaced_bytes
+			else:
+				print(f"No pointers found for line n.{i + 1}")
 
 
 	@property

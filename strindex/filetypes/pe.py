@@ -202,6 +202,7 @@ def pe_add_section(pe: pefile.PE, Name: str, Data: str, Characteristics=0xE00000
 
 	return pe
 
+
 def pe_get_new_section_base_rva(pe: pefile.PE) -> int:
 	""" Returns the base rva for a possibly new PE section. """
 	new_section_base_rva = pe.sections[-1].VirtualAddress + pe.sections[-1].Misc_VirtualSize
@@ -214,10 +215,19 @@ def pe_section_exists(pe: pefile.PE, section_name: str) -> bool:
 	""" Checks if a section with the specified name exists. """
 	return any(sect.Name == section_name.ljust(8, b'\x00') for sect in pe.sections)
 
+def pe_get_rva_from_offset(pe: pefile.PE, offset: int) -> int:
+	""" Returns the RVA of the specified offset. """
+	rva = pe.get_rva_from_offset(offset)
+	return rva + pe.OPTIONAL_HEADER.ImageBase if rva else None
+
+def pe_initialize_data(pe: pefile.PE, data: FileBytearray):
+	data.byte_length = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
+	data.byte_order = 'little'
+
 
 SECTION_NAME = b".strdex"
 
-def is_valid(data: FileBytearray) -> bool:
+def validate(data: FileBytearray) -> bool:
 	""" Checks if the file is a valid PE file. """
 	try:
 		pe = pefile.PE(data=bytes(data))
@@ -237,39 +247,9 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	if pe_section_exists(pe, SECTION_NAME):
 		print(f"Warning: this file already contains a '{SECTION_NAME.decode('utf-8')}' section.")
 
-	data.byte_length = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
-	data.byte_order = 'little'
+	pe_initialize_data(pe, data)
 
-	temp_strindex = {
-		"original": [],
-		"offsets": [],
-		"rva_bytes": [],
-		"pointers": []
-	}
-
-	for string, offset in data.yield_strings():
-		if len(string) >= settings.min_length and (rva := pe.get_rva_from_offset(offset)):
-			rva += pe.OPTIONAL_HEADER.ImageBase
-			temp_strindex["original"].append(string)
-			temp_strindex["offsets"].append(offset)
-			temp_strindex["rva_bytes"].append(data.int_to_bytes(rva))
-
-	if not temp_strindex["original"]:
-		raise ValueError("No strings found in the file.")
-	print(f"(1/2) Created search dictionary with {len(temp_strindex['original'])} strings.")
-
-	temp_strindex["pointers"] = data.indices_fixed(temp_strindex["rva_bytes"], settings.prefix_bytes, settings.suffix_bytes)
-
-	STRINDEX = Strindex()
-	for string, offset, _, pointers in zip(*temp_strindex.values()):
-		if pointers:
-			STRINDEX.overwrite.append(string)
-			STRINDEX.offsets.append(offset)
-			STRINDEX.pointers.append(pointers)
-
-	print(f"(2/2) Found pointers for {len(STRINDEX.overwrite)} / {len(temp_strindex['original'])} strings.")
-
-	return STRINDEX
+	return data.create_macro(settings, lambda offset: pe_get_rva_from_offset(pe, offset))
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	"""
@@ -282,64 +262,17 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	if pe_section_exists(pe, SECTION_NAME):
 		raise ValueError(f"This file already contains a '{SECTION_NAME.decode('utf-8')}' section.")
 
-
-	data.byte_length = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
-	data.byte_order = 'little'
-
-	new_section_data = bytearray()
-
+	pe_initialize_data(pe, data)
 
 	STRDEX_SECTION_BASE_RVA = pe_get_new_section_base_rva(pe)
 
-	def get_replaced_rva() -> bytes:
-		return data.int_to_bytes(STRDEX_SECTION_BASE_RVA + len(new_section_data))
-	def new_section_string(string: str) -> bytes:
-		return bytearray(strindex.settings.patch_replace_string(string), 'utf-8') + b'\x00'
+	new_data = data.patch_macro(strindex,
+		lambda offset: pe_get_rva_from_offset(pe, offset),
+		lambda offset: STRDEX_SECTION_BASE_RVA + offset,
+		lambda string: bytearray(string, 'utf-8') + b'\x00'
+	)
 
-	temp_strindex = {
-		"original_rva": [],
-		"replaced_rva": [],
-		"pointers": [],
-		"pointers_switches": []
-	}
-
-	# Deal with compatible strings
-	for strindex_index, offset in enumerate(data.indices_ordered(strindex.original, b"\x00", b"\x00")):
-		if offset is None:
-			print(f'String not found: "{strindex.original[strindex_index]}"')
-			continue
-
-		temp_strindex["original_rva"].append(data.int_to_bytes(pe.get_rva_from_offset(offset) + pe.OPTIONAL_HEADER.ImageBase))
-		temp_strindex["replaced_rva"].append(get_replaced_rva())
-		temp_strindex["pointers_switches"].append(strindex.pointers_switches[strindex_index])
-
-		new_section_data += new_section_string(strindex.replace[strindex_index])
-
-	temp_strindex["pointers"] = data.indices_fixed(temp_strindex["original_rva"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
-
-	for original_rva, replaced_rva, pointers, pointers_switches in zip(*temp_strindex.values()):
-		if pointers:
-			for pointer, switch in zip(pointers, pointers_switches):
-				if switch:
-					pe.set_bytes_at_offset(pointer, replaced_rva)
-		else:
-			print("No pointers found for rva: " + original_rva.hex())
-
-	# Deal with overwrite strings
-	for strindex_index in range(len(strindex.overwrite)):
-		replaced_rva = get_replaced_rva()
-		new_section_data += new_section_string(strindex.overwrite[strindex_index])
-
-		for pointer in strindex.pointers[strindex_index]:
-			if pointer:
-				pe.set_bytes_at_offset(pointer, replaced_rva)
-			else:
-				print("No pointers found for string: " + strindex.overwrite[strindex_index])
-	print("(1/2) Created section data & relocated pointers.")
-
-
-	pe = pe_add_section(pe, Name=SECTION_NAME, Data=new_section_data, Characteristics=0xF0000040)
-	print(f"(2/2) Added '{SECTION_NAME.decode('utf-8')}' section.")
-
+	pe = pe_add_section(pefile.PE(data=bytes(data)), Name=SECTION_NAME, Data=new_data, Characteristics=0xF0000040)
+	print(f"Added '{SECTION_NAME.decode('utf-8')}' section.")
 
 	return FileBytearray(pe.write())

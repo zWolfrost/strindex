@@ -10,45 +10,19 @@ def get_last_chunk_pointer(data: FileBytearray) -> int:
 		offset += size + 8
 	return prev_offset
 
+def initialize_data(data: FileBytearray):
+	data.byte_length = 4
+	data.byte_order = 'little'
 
-def is_valid(data: FileBytearray) -> bool:
+
+def validate(data: FileBytearray) -> bool:
 	""" Checks if the file is an IFF file. """
 	return data[0:4] == b"FORM"
 
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
-	data.byte_length = 4
-	data.byte_order = 'little'
+	initialize_data(data)
 
-	temp_strindex = {
-		"original": [],
-		"offsets": [],
-		"offset_bytes": [],
-		"pointers": []
-	}
-
-	for string, offset in data.yield_strings():
-		if len(string) >= settings.min_length:
-			offset -= data.byte_length
-			temp_strindex["original"].append(string)
-			temp_strindex["offsets"].append(offset)
-			temp_strindex["offset_bytes"].append(data.int_to_bytes(offset))
-
-	if not temp_strindex["original"]:
-		raise ValueError("No strings found in the file.")
-	print(f"(1/2) Created search dictionary with {len(temp_strindex['original'])} strings.")
-
-	temp_strindex["pointers"] = data.indices_fixed(temp_strindex["offset_bytes"], settings.prefix_bytes, settings.suffix_bytes)
-
-	STRINDEX = Strindex()
-	for original, offset, _, pointers in zip(*temp_strindex.values()):
-		if pointers:
-			STRINDEX.overwrite.append(original)
-			STRINDEX.offsets.append(offset)
-			STRINDEX.pointers.append(pointers)
-
-	print(f"(2/2) Found pointers for {len(STRINDEX.overwrite)} / {len(temp_strindex['original'])} strings.")
-
-	return STRINDEX
+	return data.create_macro(settings, lambda offset: offset - data.byte_length)
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	"""
@@ -61,63 +35,17 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		and might also work with IFF files in general, but I haven't tested it.
 	"""
 
-	data.byte_length = 4
-	data.byte_order = 'little'
+	initialize_data(data)
 
-	new_section_data = bytearray()
+	new_data = data.patch_macro(strindex,
+		lambda offset: offset - data.byte_length,
+		lambda offset: len(data) + offset,
+		lambda string: data.int_to_bytes(len(string)) + bytearray(string, 'utf-8') + b'\x00'
+	)
 
-	def get_replaced_offset() -> bytes:
-		return data.int_to_bytes(len(data) + len(new_section_data))
-	def new_section_string(string: str) -> bytes:
-		return data.int_to_bytes(len(string)) + bytearray(strindex.settings.patch_replace_string(string), 'utf-8') + b'\x00'
+	data.delta_int_at(4, len(new_data))
+	data.delta_int_at(get_last_chunk_pointer(data), len(new_data))
 
-	temp_strindex = {
-		"original_offset": [],
-		"replaced_offset": [],
-		"pointers": [],
-		"pointers_switches": []
-	}
-
-	# Deal with compatible strings
-	for strindex_index, offset in enumerate(data.indices_ordered(strindex.original, b"\x00", b"\x00")):
-		if offset is None:
-			print(f'String not found: "{strindex.original[strindex_index]}"')
-			continue
-
-		offset -= data.byte_length
-
-		temp_strindex["original_offset"].append(data.int_to_bytes(offset))
-		temp_strindex["replaced_offset"].append(get_replaced_offset())
-		temp_strindex["pointers_switches"].append(strindex.pointers_switches[strindex_index])
-
-		new_section_data += new_section_string(strindex.replace[strindex_index])
-
-	temp_strindex["pointers"] = data.indices_fixed(temp_strindex["original_offset"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
-
-	for original_offset, replaced_offset, pointers, pointers_switches in zip(*temp_strindex.values()):
-		if pointers:
-			for pointer, switch in zip(pointers, pointers_switches):
-				if switch:
-					data[pointer:pointer+data.byte_length] = replaced_offset
-		else:
-			print("No pointers found for rva: " + original_offset.hex())
-
-	# Deal with overwrite strings
-	for strindex_index in range(len(strindex.overwrite)):
-		replaced_offset = get_replaced_offset()
-		new_section_data += new_section_string(strindex.overwrite[strindex_index])
-
-		for pointer in strindex.pointers[strindex_index]:
-			if pointer:
-				data[pointer:pointer+data.byte_length] = replaced_offset
-			else:
-				print("No pointers found for string: " + strindex.overwrite[strindex_index])
-	print("(1/1) Created chunk data & relocated pointers.")
-
-	# Increase the "FORM" chunk size and the last chunk size
-	data.delta_int_at(4, len(new_section_data))
-	data.delta_int_at(get_last_chunk_pointer(data), len(new_section_data))
-
-	data += new_section_data
+	data += new_data
 
 	return data

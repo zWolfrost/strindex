@@ -9,7 +9,7 @@ def get_module_methods(data: FileBytearray, action: str) -> dict:
 	"""
 
 	for module in MODULES:
-		if module.is_valid(data):
+		if module.validate(data):
 			print(f'Detected filetype: "{module.__name__.split(".")[-1]}".')
 			assert action in module.__dict__, f"Action '{action}' is not available for this file type."
 			return module.__dict__[action]
