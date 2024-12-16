@@ -218,7 +218,7 @@ def pe_section_exists(pe: pefile.PE, section_name: str) -> bool:
 def pe_get_rva_from_offset(pe: pefile.PE, offset: int) -> int:
 	""" Returns the RVA of the specified offset. """
 	rva = pe.get_rva_from_offset(offset)
-	return rva + pe.OPTIONAL_HEADER.ImageBase if rva else None
+	return rva + pe.OPTIONAL_HEADER.ImageBase if rva is not None else None
 
 def pe_initialize_data(pe: pefile.PE, data: FileBytearray):
 	data.byte_length = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
@@ -230,16 +230,14 @@ SECTION_NAME = b".strdex"
 def validate(data: FileBytearray) -> bool:
 	""" Checks if the file is a valid PE file. """
 	try:
-		pe = pefile.PE(data=bytes(data))
+		pefile.PE(data=bytes(data))
 	except pefile.PEFormatError:
 		return False
 
-	if pe.DOS_HEADER.e_magic == 0x5A4D:
-		if b"\0Cabinet.dll\0" in data:
-			print("Warning: This PE file is likely a self-extracting CAB file. The strings might be compressed.")
-		return True
+	if b"\0Cabinet.dll\0" in data:
+		print("Warning: This PE file is likely a self-extracting CAB file. You might want to extract the embedded files first.")
 
-	return False
+	return True
 
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	pe = pefile.PE(data=bytes(data))

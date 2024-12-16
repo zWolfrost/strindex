@@ -1,5 +1,5 @@
 import os, sys, json, re, gzip, hashlib
-from typing import Generator
+from typing import Generator, Callable
 
 
 class PrintProgress():
@@ -35,7 +35,7 @@ class PrintProgress():
 				print(self.percent, end=self.print_end)
 
 	@property
-	def callback():
+	def callback() -> Callable[["PrintProgress"], None]:
 		return globals().get("__print_progress_callback__")
 
 class StrindexSettings():
@@ -355,9 +355,10 @@ class FileBytearray(bytearray):
 
 
 	# Macros
-	def create_macro(self, settings: StrindexSettings, original_bytes_from_offset: callable) -> Strindex:
+	def create_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], int]) -> Strindex:
 		def original_bytes_from_offset_wrapper(offset: int) -> bytes:
-			return self.int_to_bytes(original_bytes_from_offset(offset))
+			original_bytes = original_bytes_from_offset(offset)
+			return self.int_to_bytes(original_bytes) if original_bytes is not None else None
 
 		temp_strindex = {
 			"original": [],
@@ -374,7 +375,7 @@ class FileBytearray(bytearray):
 
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
-		print(f"(1/2) Created search dictionary with {len(temp_strindex['original'])} strings.")
+		print(f"(1/2) Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
 
 		temp_strindex["pointers"] = self.indices_fixed(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
@@ -389,9 +390,10 @@ class FileBytearray(bytearray):
 
 		return strindex
 
-	def patch_macro(self, strindex: Strindex, original_bytes_from_offset: callable, replaced_bytes_from_offset: callable, data_from_string: callable) -> bytearray:
+	def patch_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], int], replaced_bytes_from_offset: Callable[[int], int], data_from_string: Callable[[str], bytearray]) -> bytearray:
 		def original_bytes_from_offset_wrapper(offset: int) -> bytes:
-			return self.int_to_bytes(original_bytes_from_offset(offset))
+			original_bytes = original_bytes_from_offset(offset)
+			return self.int_to_bytes(original_bytes) if original_bytes is not None else None
 		def replaced_bytes_from_offset_wrapper(offset: int) -> bytes:
 			return self.int_to_bytes(replaced_bytes_from_offset(offset))
 		def data_from_string_wrapper(string: str) -> bytearray:

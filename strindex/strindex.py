@@ -258,7 +258,7 @@ def patch_gui():
 
 
 def main(sysargs=None):
-	parser = argparse.ArgumentParser(prog="strindex", description="Command line string replacement tool for games.")
+	parser = argparse.ArgumentParser(prog="strindex", description="A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.")
 
 	parser.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
