@@ -22,7 +22,7 @@ def validate(data: FileBytearray) -> bool:
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	initialize_data(data)
 
-	return data.create_macro(settings, lambda offset: offset - data.byte_length)
+	return data.create_pointers_macro(settings, lambda offset: offset - data.byte_length)
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	"""
@@ -37,7 +37,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 	initialize_data(data)
 
-	new_data = data.patch_macro(strindex,
+	new_data = data.patch_pointers_macro(strindex,
 		lambda offset: offset - data.byte_length,
 		lambda offset: len(data) + offset,
 		lambda string: data.int_to_bytes(len(string)) + bytearray(string, 'utf-8') + b'\x00'

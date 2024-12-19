@@ -355,7 +355,7 @@ class FileBytearray(bytearray):
 
 
 	# Macros
-	def create_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], int]) -> Strindex:
+	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], int]) -> Strindex:
 		def original_bytes_from_offset_wrapper(offset: int) -> bytes:
 			original_bytes = original_bytes_from_offset(offset)
 			return self.int_to_bytes(original_bytes) if original_bytes is not None else None
@@ -390,7 +390,7 @@ class FileBytearray(bytearray):
 
 		return strindex
 
-	def patch_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], int], replaced_bytes_from_offset: Callable[[int], int], data_from_string: Callable[[str], bytearray]) -> bytearray:
+	def patch_pointers_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], int], replaced_bytes_from_offset: Callable[[int], int], data_from_string: Callable[[str], bytearray]) -> bytearray:
 		def original_bytes_from_offset_wrapper(offset: int) -> bytes:
 			original_bytes = original_bytes_from_offset(offset)
 			return self.int_to_bytes(original_bytes) if original_bytes is not None else None
