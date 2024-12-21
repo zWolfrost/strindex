@@ -28,15 +28,13 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, setting
 
 	STRINDEX: Strindex = get_module_methods(data, "create")(data, settings)
 
-	if compatible:
-		STRINDEX.type_order = ["compatible"] * len(STRINDEX.overwrite)
-		STRINDEX.original = STRINDEX.overwrite
-		STRINDEX.replace = STRINDEX.overwrite
+	if compatible or STRINDEX.original:
+		STRINDEX.type_order = ["compatible"] * len(STRINDEX.original)
+		STRINDEX.original = STRINDEX.original or STRINDEX.overwrite
+		STRINDEX.replace = STRINDEX.original or STRINDEX.overwrite
+		STRINDEX.pointers_switches = STRINDEX.pointers_switches or STRINDEX.pointers
 		STRINDEX.overwrite = []
-		STRINDEX.pointers_switches = STRINDEX.pointers
 		STRINDEX.pointers = []
-	else:
-		STRINDEX.type_order = ["overwrite"] * len(STRINDEX.overwrite)
 
 	STRINDEX.settings = settings
 	STRINDEX.settings.md5 = data.md5

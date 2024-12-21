@@ -93,7 +93,7 @@ class Strindex():
 
 	DELIMITERS = (f"{'=' * 80}", f"{'-' * 80}", f'/', f'-')
 	HEADER = f"You can freely delete informational lines in the header like this one.\n\n{{}}\n\n"
-	INFO = f"//{'=' * 78}/ offset / offset-of-pointer(s) /\n"
+	INFO = f"//{'=' * 78}/pointer(s)/\n"
 	COMPATIBLE_INFO = f"//{'=' * 78}[reallocate pointer(s) if 1]\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
 
 	full_header: str
@@ -102,7 +102,6 @@ class Strindex():
 
 	overwrite: list[str]
 	pointers: list[list[int]]
-	offsets: list[int]
 
 	original: list[str]
 	replace: list[str]
@@ -117,7 +116,6 @@ class Strindex():
 
 		self.overwrite = []
 		self.pointers = []
-		self.offsets = []
 
 		self.original = []
 		self.replace = []
@@ -174,16 +172,12 @@ class Strindex():
 						next_lst = "overwrite"
 						strindex.type_order.append("overwrite")
 						strindex.overwrite.append('')
-
-						needles = [[int(p, 16) if p else None for p in hex.split(Strindex.DELIMITERS[3])] for hex in line.split(Strindex.DELIMITERS[2])[1:-1]]
-						strindex.pointers.append(needles[-1] if len(needles) >= 1 and any(needles[-1]) else [])
-						strindex.offsets.append(needles[-2][0] if len(needles) >= 2 else None)
+						strindex.pointers.append([int(p, 16) for p in line.split(Strindex.DELIMITERS[2])[-2].split(Strindex.DELIMITERS[3]) if p])
 					else:
 						next_lst = "original"
 						strindex.type_order.append("compatible")
 						strindex.original.append('')
 						strindex.replace.append('')
-
 						strindex.pointers_switches.append([bool(int(p)) for p in line])
 				elif line == Strindex.DELIMITERS[1] and next_lst == "original":
 					is_start = True
@@ -226,7 +220,6 @@ class Strindex():
 				else:
 					f.write(
 						Strindex.DELIMITERS[0] + Strindex.DELIMITERS[2] +
-						hex(self.offsets[index] or 0).lstrip("0x").rjust(HEX_RJUST, '0') + Strindex.DELIMITERS[2] +
 						Strindex.DELIMITERS[3].join([hex(p or 0).lstrip("0x").rjust(HEX_RJUST, '0') for p in self.pointers[index]]) +
 						Strindex.DELIMITERS[2] + "\n" +
 						self.overwrite[index] + "\n"
@@ -250,7 +243,6 @@ class Strindex():
 		else:
 			strindex.overwrite.append(self.overwrite[index])
 			strindex.pointers.append(self.pointers[index])
-			strindex.offsets.append(self.offsets[index])
 
 		strindex.type_order.append(type)
 
@@ -262,6 +254,7 @@ class Strindex():
 
 class FileBytearray(bytearray):
 	""" A class to handle bytearrays with additional methods and shorthands focused on file manipulation. """
+	cursor: int = 0
 	byte_length: int
 	byte_order: str
 
@@ -285,7 +278,7 @@ class FileBytearray(bytearray):
 			else:
 				byte_string += char
 
-	def indices_ordered(self, search_lst: list[bytes], prefix: bytes = b"", suffix: bytes = b"") -> list[int]:
+	def indices_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
 		Returns the index of the first occurrence of every search list string in a bytearray.
 		Extremely fast, but can only can work for search lists that are ordered by occurrence order.
@@ -344,22 +337,44 @@ class FileBytearray(bytearray):
 
 
 	# Shorthands
-	def int_to_bytes(self, value: int) -> bytes:
-		return value.to_bytes(self.byte_length, self.byte_order)
+	def get(self, byte_length: int = None) -> bytes:
+		byte_slice = self[self.cursor:self.cursor + (byte_length or self.byte_length)]
+		self.cursor += byte_length or self.byte_length
+		return bytes(byte_slice)
 
-	def int_at(self, offset: bytes) -> int:
-		return int.from_bytes(self[offset:offset + self.byte_length], self.byte_order)
+	def get_del(self, delimiter: bytes = b'\x00') -> bytes:
+		byte_string = b''
+		while (char := self.get(1)) != delimiter:
+			byte_string += char
+		return byte_string
 
-	def delta_int_at(self, offset: int, delta: int):
-		self[offset:offset + self.byte_length] = self.int_to_bytes(self.int_at(offset) + delta)
+	def put(self, value: bytes, byte_length: int = None) -> bytes:
+		if not isinstance(value, bytes):
+			value = bytes(value, 'utf-8')
+		if byte_length is None:
+			byte_length = len(value)
+		self[self.cursor:self.cursor + byte_length] = value
+		self.cursor += byte_length
+		return value
+
+	def get_int(self, byte_length: int = None, byte_order: str = None) -> int:
+		return int.from_bytes(self.get(byte_length), byte_order or self.byte_order)
+
+	def put_int(self, value: int, byte_length: int = None, byte_order: str = None) -> bytes:
+		self[self.cursor:self.cursor + (byte_length or self.byte_length)] = self.from_int(value, byte_length, byte_order)
+		return self.get(byte_length)
+
+	def from_int(self, value: int, byte_length: int = None, byte_order: str = None) -> bytes:
+		return value.to_bytes(byte_length or self.byte_length, byte_order or self.byte_order)
+
+	def add_int(self, delta: int, byte_length: int = None, byte_order: str = None) -> bytes:
+		value = self.get_int(byte_length, byte_order)
+		self.cursor -= byte_length or self.byte_length
+		return self.put_int(value + delta, byte_length, byte_order)
 
 
 	# Macros
-	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], int]) -> Strindex:
-		def original_bytes_from_offset_wrapper(offset: int) -> bytes:
-			original_bytes = original_bytes_from_offset(offset)
-			return self.int_to_bytes(original_bytes) if original_bytes is not None else None
-
+	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], bytes]) -> Strindex:
 		temp_strindex = {
 			"original": [],
 			"offsets": [],
@@ -368,7 +383,7 @@ class FileBytearray(bytearray):
 		}
 
 		for string, offset in self.yield_strings():
-			if len(string) >= settings.min_length and (original_bytes := original_bytes_from_offset_wrapper(offset)):
+			if len(string) >= settings.min_length and (original_bytes := original_bytes_from_offset(offset)):
 				temp_strindex["original"].append(string)
 				temp_strindex["offsets"].append(offset)
 				temp_strindex["original_bytes"].append(original_bytes)
@@ -382,20 +397,15 @@ class FileBytearray(bytearray):
 		strindex = Strindex()
 		for string, offset, pointers in zip(temp_strindex["original"], temp_strindex["offsets"], temp_strindex["pointers"]):
 			if pointers:
+				strindex.type_order.append("overwrite")
 				strindex.overwrite.append(string)
-				strindex.offsets.append(offset)
 				strindex.pointers.append(pointers)
 
 		print(f"(2/2) Found pointers for {len(strindex.overwrite)} / {len(temp_strindex['original'])} strings.")
 
 		return strindex
 
-	def patch_pointers_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], int], replaced_bytes_from_offset: Callable[[int], int], data_from_string: Callable[[str], bytearray]) -> bytearray:
-		def original_bytes_from_offset_wrapper(offset: int) -> bytes:
-			original_bytes = original_bytes_from_offset(offset)
-			return self.int_to_bytes(original_bytes) if original_bytes is not None else None
-		def replaced_bytes_from_offset_wrapper(offset: int) -> bytes:
-			return self.int_to_bytes(replaced_bytes_from_offset(offset))
+	def patch_pointers_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], bytes], replaced_bytes_from_offset: Callable[[int], bytes], data_from_string: Callable[[str], bytearray]) -> bytearray:
 		def data_from_string_wrapper(string: str) -> bytearray:
 			return data_from_string(strindex.settings.patch_replace_string(string))
 
@@ -408,13 +418,13 @@ class FileBytearray(bytearray):
 			"switches": []
 		}
 
-		for strindex_index, offset in enumerate(self.indices_ordered(strindex.original, b"\x00", b"\x00")):
+		for strindex_index, offset in enumerate(self.indices_ordered(strindex.original)):
 			if offset is None:
 				print(f'String not found: "{strindex.original[strindex_index]}"')
 				continue
 
-			update_dict["original_bytes"].append(original_bytes_from_offset_wrapper(offset))
-			update_dict["replaced_bytes"].append(replaced_bytes_from_offset_wrapper(len(new_data)))
+			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
+			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
 			update_dict["switches"].append(strindex.pointers_switches[strindex_index])
 			new_data += data_from_string_wrapper(strindex.replace[strindex_index])
 
@@ -427,7 +437,7 @@ class FileBytearray(bytearray):
 		}
 
 		for strindex_index in range(len(strindex.overwrite)):
-			update_dict["replaced_bytes"].append(replaced_bytes_from_offset_wrapper(len(new_data)))
+			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
 			new_data += data_from_string_wrapper(strindex.overwrite[strindex_index])
 
 		self.update_references(strindex.pointers, update_dict["replaced_bytes"])

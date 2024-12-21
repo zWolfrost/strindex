@@ -195,7 +195,9 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 	pe_initialize_data(pe, data)
 
-	return data.create_pointers_macro(settings, lambda offset: pe_get_rva_from_offset(pe, offset))
+	return data.create_pointers_macro(settings,
+		lambda offset: data.from_int(pe_get_rva_from_offset(pe, offset))
+	)
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	"""
@@ -213,8 +215,8 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	STRDEX_SECTION_BASE_RVA = pe_new_section_rva(pe) + pe.OPTIONAL_HEADER.ImageBase
 
 	new_data = data.patch_pointers_macro(strindex,
-		lambda offset: pe_get_rva_from_offset(pe, offset),
-		lambda offset: STRDEX_SECTION_BASE_RVA + offset,
+		lambda offset: data.from_int(pe_get_rva_from_offset(pe, offset)),
+		lambda offset: data.from_int(STRDEX_SECTION_BASE_RVA + offset),
 		lambda string: bytearray(string, 'utf-8') + b'\x00'
 	)
 
