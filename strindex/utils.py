@@ -91,10 +91,13 @@ class StrindexSettings():
 class Strindex():
 	""" A class to parse and create strindex files. """
 
-	DELIMITERS = (f"{'=' * 80}", f"{'-' * 80}", f'/', f'-')
 	HEADER = f"You can freely delete informational lines in the header like this one.\n\n{{}}\n\n"
 	INFO = f"//{'=' * 78}/pointer(s)/\n"
-	COMPATIBLE_INFO = f"//{'=' * 78}[reallocate pointer(s) if 1]\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
+	COMPATIBLE_INFO = f"//{'=' * 78}% reallocate pointer(s) if 1 %\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
+	ORIGINAL_DEL = f"{'=' * 80}"
+	REPLACE_DEL = f"{'-' * 80}"
+	POINTERS_DEL = f'/'
+	POINTERS_SWITCHES_DEL = f'%'
 
 	full_header: str
 	settings: StrindexSettings
@@ -146,12 +149,12 @@ class Strindex():
 							strindex.full_header += line
 							if line.lstrip().startswith("//"):
 								continue
-							if line.startswith(Strindex.DELIMITERS[0]):
+							if line.startswith(Strindex.ORIGINAL_DEL):
 								raise ValueError("Error parsing Strindex settings: " + str(e))
 							strindex_settings_lines += line
 						else:
 							break
-				elif line.startswith(Strindex.DELIMITERS[0]):
+				elif line.startswith(Strindex.ORIGINAL_DEL):
 					f.seek(f.tell() - len(line))
 					break
 				else:
@@ -161,25 +164,25 @@ class Strindex():
 			is_start = True
 			while line := f.readline():
 				line = line.rstrip('\n')
-				if line.startswith(Strindex.DELIMITERS[0]):
+				if line.startswith(Strindex.ORIGINAL_DEL):
 					is_start = True
-					line = line.lstrip(Strindex.DELIMITERS[0])
+					line = line.lstrip(Strindex.ORIGINAL_DEL)
 
 					if next_lst == "original":
 						strindex.replace[-1] = strindex.original[-1]
 
-					if Strindex.DELIMITERS[2] in line:
+					if Strindex.POINTERS_DEL in line:
 						next_lst = "overwrite"
 						strindex.type_order.append("overwrite")
 						strindex.overwrite.append('')
-						strindex.pointers.append([int(p, 16) for p in line.split(Strindex.DELIMITERS[2])[-2].split(Strindex.DELIMITERS[3]) if p])
+						strindex.pointers.append([int(p, 16) for p in line.split(Strindex.POINTERS_DEL)[1:-1] if p])
 					else:
 						next_lst = "original"
 						strindex.type_order.append("compatible")
 						strindex.original.append('')
 						strindex.replace.append('')
-						strindex.pointers_switches.append([bool(int(p)) for p in line])
-				elif line == Strindex.DELIMITERS[1] and next_lst == "original":
+						strindex.pointers_switches.append([bool(int(p)) for p in line.split(Strindex.POINTERS_SWITCHES_DEL)[1:-1][0] if p])
+				elif line == Strindex.REPLACE_DEL and next_lst == "original":
 					is_start = True
 					next_lst = "replace"
 				else:
@@ -190,6 +193,8 @@ class Strindex():
 					getattr(strindex, next_lst)[-1] += line
 
 		strindex.assert_data()
+
+		print(strindex.__dict__)
 
 		return strindex
 
@@ -211,17 +216,18 @@ class Strindex():
 			for index, type in self.iterate_type_count():
 				if type == "compatible":
 					f.write(
-						Strindex.DELIMITERS[0] +
-						"".join([str(int(bool(p))) for p in self.pointers_switches[index]]) + "\n" +
+						Strindex.ORIGINAL_DEL + Strindex.POINTERS_SWITCHES_DEL +
+						"".join([str(int(bool(p))) for p in self.pointers_switches[index]]) +
+						Strindex.POINTERS_SWITCHES_DEL + "\n" +
 						self.original[index] + "\n" +
-						Strindex.DELIMITERS[1] + "\n" +
+						Strindex.REPLACE_DEL + "\n" +
 						self.replace[index] + "\n"
 					)
 				else:
 					f.write(
-						Strindex.DELIMITERS[0] + Strindex.DELIMITERS[2] +
-						Strindex.DELIMITERS[3].join([hex(p or 0).lstrip("0x").rjust(HEX_RJUST, '0') for p in self.pointers[index]]) +
-						Strindex.DELIMITERS[2] + "\n" +
+						Strindex.ORIGINAL_DEL + Strindex.POINTERS_DEL +
+						Strindex.POINTERS_DEL.join([hex(p or 0).lstrip("0x").rjust(HEX_RJUST, '0') for p in self.pointers[index]]) +
+						Strindex.POINTERS_DEL + "\n" +
 						self.overwrite[index] + "\n"
 					)
 
@@ -470,7 +476,6 @@ else:
 	class StrindexGUI(QtWidgets.QWidget):
 		__required__: list[QtWidgets.QWidget]
 		__widgets__: list[QtWidgets.QWidget]
-		__grid__: QtWidgets.QGridLayout
 
 		def __init__(self):
 			super().__init__()
@@ -525,7 +530,7 @@ else:
 			def callback_wrapper():
 				self.setEnabled(False)
 				progress_bar.setValue(0)
-				self.__grid__.replaceWidget(action_button, progress_bar)
+				self.layout().replaceWidget(action_button, progress_bar)
 				action_button.setParent(None)
 				QtWidgets.QApplication.processEvents()
 
@@ -538,7 +543,7 @@ else:
 				else:
 					self.show_message(complete_text, QtWidgets.QMessageBox.Information)
 				finally:
-					self.__grid__.replaceWidget(progress_bar, action_button)
+					self.layout().replaceWidget(progress_bar, action_button)
 					progress_bar.setParent(None)
 					self.setEnabled(True)
 					QtWidgets.QApplication.processEvents()
@@ -601,8 +606,6 @@ else:
 			for i in range(columns):
 				grid_layout.setColumnMinimumWidth(i, 125)
 			self.setLayout(grid_layout)
-
-			self.__grid__ = grid_layout
 
 			return grid_layout
 
