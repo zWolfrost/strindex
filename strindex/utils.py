@@ -194,8 +194,6 @@ class Strindex():
 
 		strindex.assert_data()
 
-		print(strindex.__dict__)
-
 		return strindex
 
 	def write(self, filepath: str):
