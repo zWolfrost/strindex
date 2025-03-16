@@ -29,14 +29,9 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, setting
 	STRINDEX: Strindex = get_module_methods(data, "create")(data, settings)
 
 	if compatible:
-		STRINDEX.type_order = ["compatible"] * len(STRINDEX.overwrite)
-		STRINDEX.original = STRINDEX.overwrite
-		STRINDEX.replace = STRINDEX.overwrite
-		STRINDEX.pointers_switches = STRINDEX.pointers
-		STRINDEX.overwrite = []
-		STRINDEX.pointers = []
-	else:
-		STRINDEX.type_order = ["overwrite"] * len(STRINDEX.overwrite)
+		STRINDEX.type_order = ["compatible"] * len(STRINDEX.strings)
+		for i in range(len(STRINDEX.strings)):
+			STRINDEX.strings[i] = [STRINDEX.strings[i], STRINDEX.strings[i]]
 
 	STRINDEX.settings = settings
 	STRINDEX.settings.md5 = data.md5
@@ -82,17 +77,19 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 	STRINDEX = Strindex.read(strindex_filepath)
 	STRINDEX_UPDATED: Strindex = get_module_methods(data, "create")(data, STRINDEX.settings)
 
+	STRINDEX_STRINGS_FLAT_ORIGINAL = STRINDEX.get_strings_flat_original
+
 	updated_pointers = 0
 	search_index = 0
-	for strindex_index in range(len(STRINDEX.original)):
+	for index in range(len(STRINDEX.strings)):
 		try:
-			search_index = STRINDEX_UPDATED.overwrite.index(STRINDEX.original[strindex_index], search_index)
+			search_index = STRINDEX_UPDATED.strings.index(STRINDEX_STRINGS_FLAT_ORIGINAL[index], search_index)
 		except ValueError:
 			pass
 		else:
-			if len(STRINDEX.pointers_switches[strindex_index]) != len(STRINDEX_UPDATED.pointers[search_index]):
+			if len(STRINDEX.pointers[index]) != len(STRINDEX_UPDATED.pointers[search_index]):
 				updated_pointers += 1
-			STRINDEX.pointers_switches[strindex_index] = STRINDEX_UPDATED.pointers[search_index]
+				STRINDEX.pointers[index] = STRINDEX_UPDATED.pointers[search_index]
 
 	STRINDEX.write(file_updated_filepath)
 
@@ -100,7 +97,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str):
 	"""
-		Filters a strindex file with another with respect to length, whitelist and source language.
+		Filters a strindex file with respect to length, whitelist and source language.
 	"""
 
 	strindex_filter_filepath = strindex_filter_filepath or (os.path.splitext(strindex_filepath)[0] + "_filtered.txt")
@@ -125,21 +122,22 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str):
 		confidence = detector.compute_language_confidence_values(string_clean)[0]
 		return confidence.language.iso_code_639_1 == getattr(IsoCode639_1, STRINDEX.settings.source_language.upper()) and confidence.value > 0.5
 
-	print_progress = PrintProgress(len(STRINDEX.type_order))
-	for strindex_index, (type_index, type) in enumerate(STRINDEX.iterate_type_count()):
-		string = STRINDEX.original[type_index] if type == "compatible" else STRINDEX.overwrite[type_index]
+	print_progress = PrintProgress(len(STRINDEX.strings))
+	for index, string, type in enumerate(zip(STRINDEX.strings, STRINDEX.type_order)):
+		actual_string = string[0] if type == "compatible" else string
 
-		valid_language = not STRINDEX.settings.source_language or is_source_language(string)
-		valid_length = len(string) >= STRINDEX.settings.min_length
-		valid_whitelist = not STRINDEX.settings.whitelist or not any(ch not in STRINDEX.settings.whitelist for ch in string)
+		valid_language = not STRINDEX.settings.source_language or is_source_language(actual_string)
+		valid_length = len(actual_string) >= STRINDEX.settings.min_length
+		valid_whitelist = not STRINDEX.settings.whitelist or not any(ch not in STRINDEX.settings.whitelist for ch in actual_string)
 
 		if all([valid_language, valid_length, valid_whitelist]):
-			STRINDEX.append_to_strindex(STRINDEX_FILTER, type, type_index)
+			STRINDEX_FILTER.strings.append(string)
+			STRINDEX_FILTER.type_order.append(type)
 
-		print_progress(strindex_index)
+		print_progress(index)
 
 	STRINDEX_FILTER.write(strindex_filter_filepath)
-	print(f"Created strindex file with {len(STRINDEX_FILTER.type_order)} / {len(STRINDEX.type_order)} strings.")
+	print(f"Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings.")
 
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str):
 	"""
@@ -151,21 +149,23 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 	STRINDEX_1 = Strindex.read(strindex_full_filepath)
 	STRINDEX_2 = Strindex.read(strindex_diff_filepath)
 
-	STRINDEX_1_FULL = [STRINDEX_1.original[i] if t == "compatible" else STRINDEX_1.overwrite[i] for i, t in STRINDEX_1.iterate_type_count()]
-	STRINDEX_2_FULL = [STRINDEX_2.original[i] if t == "compatible" else STRINDEX_2.overwrite[i] for i, t in STRINDEX_2.iterate_type_count()]
+	STRINDEX_1_FLAT_ORIGINAL = STRINDEX_1.get_strings_flat_original
+	STRINDEX_2_FLAT_ORIGINAL = STRINDEX_2.get_strings_flat_original
 
 	STRINDEX_DELTA = Strindex()
 	STRINDEX_DELTA.full_header = STRINDEX_1.full_header
 
-	index_2 = 0
-	for full_index, (type_index, type) in enumerate(STRINDEX_1.iterate_type_count()):
+	search_index = 0
+	for index in range(len(STRINDEX_1.strings)):
 		try:
-			index_2 = STRINDEX_2_FULL.index(STRINDEX_1_FULL[full_index], index_2)
+			search_index = STRINDEX_2_FLAT_ORIGINAL.index(STRINDEX_1_FLAT_ORIGINAL[index], search_index)
 		except ValueError:
-			STRINDEX_1.append_to_strindex(STRINDEX_DELTA, type, type_index)
+			STRINDEX_DELTA.strings.append(STRINDEX_1.strings[index])
+			STRINDEX_DELTA.pointers.append(STRINDEX_1.pointers[index])
+			STRINDEX_DELTA.type_order.append(STRINDEX_1.type_order[index])
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
-	print(f"Created delta strindex file with {len(STRINDEX_DELTA.type_order)} / {len(STRINDEX_1.type_order)} strings.")
+	print(f"Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings.")
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 	"""
@@ -180,7 +180,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 		raise ImportError("Please install the 'language-tool-python' package (pip install language-tool-python) to use this feature.")
 
 	STRINDEX = Strindex.read(strindex_filepath)
-	STRINDEX_FULL = [STRINDEX.replace[i] if t == "compatible" else STRINDEX.overwrite[i] for i, t in STRINDEX.iterate_type_count()]
+	STRINDEX_FLAT_REPLACE = STRINDEX.get_strings_flat_replace
 
 	if not STRINDEX.settings.target_language:
 		raise ValueError("Please specify the target language to spellcheck in the strindex file ('target_language').")
@@ -189,13 +189,13 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 	print("Created language tool.")
 
 	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
-		print_progress = PrintProgress(len(STRINDEX_FULL))
-		for strindex_index, string in enumerate(STRINDEX_FULL):
+		print_progress = PrintProgress(len(STRINDEX_FLAT_REPLACE))
+		for index, string in enumerate(STRINDEX_FLAT_REPLACE):
 			string_clean = STRINDEX.settings.clean_string(string)
 			for error in lang.check(string_clean):
 				f.write('\n'.join(str(error).split('\n')[-3:]) + '\n')
 
-			print_progress(strindex_index)
+			print_progress(index)
 	print("Spellchecked strindex file.")
 
 

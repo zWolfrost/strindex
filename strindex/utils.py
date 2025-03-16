@@ -97,32 +97,48 @@ class Strindex():
 	ORIGINAL_DEL = f"{'=' * 80}"
 	REPLACE_DEL = f"{'-' * 80}"
 	POINTERS_DEL = f'/'
-	POINTERS_SWITCHES_DEL = f'%'
+	POINTERS_SWITCHES_DEL = f'|'
 
 	full_header: str
 	settings: StrindexSettings
+
+	strings: list[str | list[str, str]]
+	pointers: list[list[int | bool]]
 	type_order: list[str]
 
-	overwrite: list[str]
-	pointers: list[list[int]]
+	@property
+	def get_overwrite(self) -> list[str]:
+		return [string for string, type in zip(self.strings, self.type_order) if type == "overwrite"]
+	@property
+	def get_original(self) -> list[str]:
+		return [string[0] for string, type in zip(self.strings, self.type_order) if type == "compatible"]
+	@property
+	def get_replace(self) -> list[str]:
+		return [string[1] for string, type in zip(self.strings, self.type_order) if type == "compatible"]
+	@property
+	def get_offsets(self) -> list[list[int]]:
+		return [pointers for pointers, type in zip(self.pointers, self.type_order) if type == "overwrite"]
+	@property
+	def get_switches(self) -> list[list[bool]]:
+		return [pointers for pointers, type in zip(self.pointers, self.type_order) if type == "compatible"]
 
-	original: list[str]
-	replace: list[str]
-	pointers_switches: list[list[bool]]
+	@property
+	def get_strings_flat_original(self) -> list[str]:
+		return [(string[0] if type == "compatible" else string) for string, type in zip(self.strings, self.type_order)]
+	@property
+	def get_strings_flat_replace(self) -> list[str]:
+		return [(string[1] if type == "compatible" else string) for string, type in zip(self.strings, self.type_order)]
+
 
 	def __init__(self):
 		""" Parses a strindex file and returns a dictionary with the data. """
 
 		self.full_header = ""
 		self.settings = StrindexSettings()
-		self.type_order = []
 
-		self.overwrite = []
+		self.strings = []
 		self.pointers = []
-
-		self.original = []
-		self.replace = []
-		self.pointers_switches = []
+		self.type_order = []
 
 
 	@classmethod
@@ -160,7 +176,7 @@ class Strindex():
 				else:
 					strindex.full_header += line
 
-			next_lst = ""
+			next_str_type = ""
 			is_start = True
 			while line := f.readline():
 				line = line.rstrip('\n')
@@ -168,29 +184,36 @@ class Strindex():
 					is_start = True
 					line = line.lstrip(Strindex.ORIGINAL_DEL)
 
-					if next_lst == "original":
-						strindex.replace[-1] = strindex.original[-1]
+					if next_str_type == "original":
+						strindex.strings[-1][1] = strindex.strings[-1][0]
 
-					if Strindex.POINTERS_DEL in line:
-						next_lst = "overwrite"
-						strindex.type_order.append("overwrite")
-						strindex.overwrite.append('')
-						strindex.pointers.append([int(p, 16) for p in line.split(Strindex.POINTERS_DEL)[1:-1] if p])
-					else:
-						next_lst = "original"
-						strindex.type_order.append("compatible")
-						strindex.original.append('')
-						strindex.replace.append('')
-						strindex.pointers_switches.append([bool(int(p)) for p in line.split(Strindex.POINTERS_SWITCHES_DEL)[1:-1][0] if p])
-				elif line == Strindex.REPLACE_DEL and next_lst == "original":
+					try:
+						if Strindex.POINTERS_DEL in line:
+							next_str_type = "overwrite"
+							strindex.strings.append('')
+							strindex.pointers.append([int(p, 16) for p in line.split(Strindex.POINTERS_DEL)[1:-1] if p])
+							strindex.type_order.append("overwrite")
+						else:
+							next_str_type = "original"
+							strindex.strings.append(['', ''])
+							strindex.pointers.append([bool(int(p)) for p in line.split(Strindex.POINTERS_SWITCHES_DEL)[1:-1][0] if p])
+							strindex.type_order.append("compatible")
+					except Exception:
+						raise ValueError(f"Error parsing Strindex pointers: {line}")
+				elif line == Strindex.REPLACE_DEL and next_str_type == "original":
 					is_start = True
-					next_lst = "replace"
+					next_str_type = "replace"
 				else:
 					if not is_start:
 						line = "\n" + line
 					is_start = False
 
-					getattr(strindex, next_lst)[-1] += line
+					if next_str_type == "overwrite":
+						strindex.strings[-1] += line
+					elif next_str_type == "original":
+						strindex.strings[-1][0] += line
+					elif next_str_type == "replace":
+						strindex.strings[-1][1] += line
 
 		strindex.assert_data()
 
@@ -211,50 +234,29 @@ class Strindex():
 				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4, default=lambda x: x.hex() if isinstance(x, bytes) else str(x))))
 				f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
 
-			for index, type in self.iterate_type_count():
+			for strings, pointers, type in zip(self.strings, self.pointers, self.type_order):
 				if type == "compatible":
 					f.write(
 						Strindex.ORIGINAL_DEL + Strindex.POINTERS_SWITCHES_DEL +
-						"".join([str(int(bool(p))) for p in self.pointers_switches[index]]) +
+						"".join(str(int(bool(p))) for p in pointers) +
 						Strindex.POINTERS_SWITCHES_DEL + "\n" +
-						self.original[index] + "\n" +
+						strings[0] + "\n" +
 						Strindex.REPLACE_DEL + "\n" +
-						self.replace[index] + "\n"
+						strings[1] + "\n"
 					)
 				else:
 					f.write(
 						Strindex.ORIGINAL_DEL + Strindex.POINTERS_DEL +
-						Strindex.POINTERS_DEL.join([hex(p or 0).lstrip("0x").rjust(HEX_RJUST, '0') for p in self.pointers[index]]) +
+						Strindex.POINTERS_DEL.join(hex(p or 0).lstrip("0x").rjust(HEX_RJUST, '0') for p in pointers) +
 						Strindex.POINTERS_DEL + "\n" +
-						self.overwrite[index] + "\n"
+						strings + "\n"
 					)
 
 			f.seek(f.tell() - 1)
 			f.truncate()
 
-
-	def iterate_type_count(self) -> Generator[tuple[int, str], None, None]:
-		types_dict = {}
-		for type in self.type_order:
-			types_dict[type] = (types_dict[type] + 1) if type in types_dict else 0
-			yield types_dict[type], type
-
-	def append_to_strindex(self, strindex: "Strindex", type: str, index: int):
-		if type == "compatible":
-			strindex.original.append(self.original[index])
-			strindex.replace.append(self.replace[index])
-			strindex.pointers_switches.append(self.pointers_switches[index])
-		else:
-			strindex.overwrite.append(self.overwrite[index])
-			strindex.pointers.append(self.pointers[index])
-
-		strindex.type_order.append(type)
-
-
 	def assert_data(self):
-		assert len(self.overwrite) == len(self.pointers), f"Overwrite and pointers lists are not the same length ({len(self.overwrite)} != {len(self.pointers)})."
-		assert len(self.original) == len(self.replace) == len(self.pointers_switches), f"Original, replace and pointers_switches lists are not the same length ({len(self.original)} != {len(self.replace)} != {len(self.pointers_switches)})."
-		assert len(self.type_order) == len(self.overwrite) + len(self.original), f"Type order list is not the same length ({len(self.type_order)} != {len(self.overwrite) + len(self.original)})."
+		assert len(self.strings) == len(self.pointers) == len(self.type_order), f"Overwrite, pointers and type order lists are not the same length ({len(self.strings)} != {len(self.pointers)} != {len(self.type_order)})."
 
 class FileBytearray(bytearray):
 	""" A class to handle bytearrays with additional methods and shorthands focused on file manipulation. """
@@ -401,11 +403,11 @@ class FileBytearray(bytearray):
 		strindex = Strindex()
 		for string, offset, pointers in zip(temp_strindex["original"], temp_strindex["offsets"], temp_strindex["pointers"]):
 			if pointers:
-				strindex.type_order.append("overwrite")
-				strindex.overwrite.append(string)
+				strindex.strings.append(string)
 				strindex.pointers.append(pointers)
+				strindex.type_order.append("overwrite")
 
-		print(f"(2/2) Found pointers for {len(strindex.overwrite)} / {len(temp_strindex['original'])} strings.")
+		print(f"(2/2) Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
 
 		return strindex
 
@@ -422,15 +424,19 @@ class FileBytearray(bytearray):
 			"switches": []
 		}
 
-		for strindex_index, offset in enumerate(self.indices_ordered(strindex.original)):
+		strindex_original = strindex.get_original
+		strindex_replace = strindex.get_replace
+		strindex_switches = strindex.get_switches
+
+		for index, offset in enumerate(self.indices_ordered(strindex_original)):
 			if offset is None:
-				print(f'String not found: "{strindex.original[strindex_index]}"')
+				print(f'String not found: "{strindex_original[index]}"')
 				continue
 
 			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
 			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
-			update_dict["switches"].append(strindex.pointers_switches[strindex_index])
-			new_data += data_from_string_wrapper(strindex.replace[strindex_index])
+			update_dict["switches"].append(strindex_switches[index])
+			new_data += data_from_string_wrapper(strindex_replace[index])
 
 		update_dict["pointers"] = self.indices_fixed(update_dict["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
 
@@ -440,11 +446,11 @@ class FileBytearray(bytearray):
 			"replaced_bytes": []
 		}
 
-		for strindex_index in range(len(strindex.overwrite)):
+		for overwrite in strindex.get_overwrite:
 			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
-			new_data += data_from_string_wrapper(strindex.overwrite[strindex_index])
+			new_data += data_from_string_wrapper(overwrite)
 
-		self.update_references(strindex.pointers, update_dict["replaced_bytes"])
+		self.update_references(strindex.get_offsets, update_dict["replaced_bytes"])
 
 		return new_data
 
@@ -452,13 +458,13 @@ class FileBytearray(bytearray):
 		if	switches is None:
 			switches = [[True] * len(pointer) for pointer in pointers]
 
-		for i, (pointers, replaced_bytes, switches) in enumerate(zip(pointers, replaced_bytes, switches)):
+		for index, (pointers, replaced_bytes, switches) in enumerate(zip(pointers, replaced_bytes, switches)):
 			if pointers:
 				for pointer, switch in zip(pointers, switches):
 					if switch:
 						self[pointer:pointer+self.byte_length] = replaced_bytes
 			else:
-				print(f"No pointers found for line n.{i + 1}")
+				print(f"No pointers found for line n.{index + 1}")
 
 
 	@property
