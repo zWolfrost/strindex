@@ -12,7 +12,7 @@ Apart from using offsets to replace strings, there's also an option to use the o
 
 There are a lot of features to help with translation, such as spellchecking & filtering strings by length and character set.
 
-The release includes a precompiled version of the program, which by default does the patching (unless executed with arguments). Warning: the precompiled version has a high chance of being detected as a false positive by antivirus software. You can compile the program yourself to avoid this. Also, the package `libxcb-cursor-dev` is *required* for the linux build.
+The release includes a precompiled version of the program, which by default does the patching (unless executed with arguments). Warning: the precompiled version has a high chance of being detected as a false positive by antivirus software. You can compile the program yourself to avoid this.<br>Also, the package `libxcb-cursor-dev` is *required* for the linux build.
 
 ## Supported filetypes
 *Support for more types is not planned.*
