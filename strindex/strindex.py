@@ -271,7 +271,7 @@ def main(sysargs=None):
 	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes that can prefix a pointer.")
 	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[], help="Suffix bytes that can suffix a pointer.")
 
-	parser.add_argument("--version", action="version", version="3.6.0")
+	parser.add_argument("--version", action="version", version="4.0.0")
 	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
 
 	args = parser.parse_args(sysargs)
