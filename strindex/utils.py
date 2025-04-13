@@ -91,9 +91,9 @@ class StrindexSettings():
 class Strindex():
 	""" A class to parse and create strindex files. """
 
-	HEADER = f"You can freely delete informational lines in the header like this one.\n\n{{}}\n\n"
+	HEADER = f"You can freely create & delete informational lines in the header like this one.\n\n{{}}\n\n"
 	INFO = f"//{'=' * 78}/pointer(s)/\n"
-	COMPATIBLE_INFO = f"//{'=' * 78}% reallocate pointer(s) if 1 %\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
+	COMPATIBLE_INFO = f"//{'=' * 78}| reallocate pointer(s) if 1 |\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
 	ORIGINAL_DEL = f"{'=' * 80}"
 	REPLACE_DEL = f"{'-' * 80}"
 	POINTERS_DEL = f'/'
@@ -153,6 +153,7 @@ class Strindex():
 			stream = open(filepath, 'r', encoding='utf-8')
 
 		with stream as f:
+			previous_line_pos = 0
 			while line := f.readline():
 				if line.lstrip().startswith("{"):
 					strindex_settings_lines = line
@@ -162,6 +163,8 @@ class Strindex():
 							strindex.settings = StrindexSettings(**json.loads(strindex_settings_lines))
 						except json.JSONDecodeError as e:
 							line = f.readline()
+							if not line:
+								raise ValueError("Error parsing Strindex settings.")
 							strindex.full_header += line
 							if line.lstrip().startswith("//"):
 								continue
@@ -171,9 +174,10 @@ class Strindex():
 						else:
 							break
 				elif line.startswith(Strindex.ORIGINAL_DEL):
-					f.seek(f.tell() - len(line))
+					f.seek(previous_line_pos)
 					break
 				else:
+					previous_line_pos = f.tell()
 					strindex.full_header += line
 
 			next_str_type = ""
@@ -196,7 +200,7 @@ class Strindex():
 						else:
 							next_str_type = "original"
 							strindex.strings.append(['', ''])
-							strindex.pointers.append([bool(int(p)) for p in line.split(Strindex.POINTERS_SWITCHES_DEL)[1:-1][0] if p])
+							strindex.pointers.append([bool(int(p)) for p in line.strip(Strindex.POINTERS_SWITCHES_DEL) if p])
 							strindex.type_order.append("compatible")
 					except Exception:
 						raise ValueError(f"Error parsing Strindex pointers: {line}")
@@ -214,6 +218,11 @@ class Strindex():
 						strindex.strings[-1][0] += line
 					elif next_str_type == "replace":
 						strindex.strings[-1][1] += line
+
+		if strindex.strings[-1] == ['', '']:
+			strindex.strings.pop()
+			strindex.pointers.pop()
+			strindex.type_order.pop()
 
 		strindex.assert_data()
 
@@ -254,6 +263,11 @@ class Strindex():
 
 			f.seek(f.tell() - 1)
 			f.truncate()
+
+	def append_strindex_index(self, strindex: "Strindex", index: int):
+		self.strings.append(strindex.strings[index])
+		self.pointers.append(strindex.pointers[index])
+		self.type_order.append(strindex.type_order[index])
 
 	def assert_data(self):
 		assert len(self.strings) == len(self.pointers) == len(self.type_order), f"Overwrite, pointers and type order lists are not the same length ({len(self.strings)} != {len(self.pointers)} != {len(self.type_order)})."

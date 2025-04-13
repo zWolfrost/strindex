@@ -123,7 +123,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str):
 		return confidence.language.iso_code_639_1 == getattr(IsoCode639_1, STRINDEX.settings.source_language.upper()) and confidence.value > 0.5
 
 	print_progress = PrintProgress(len(STRINDEX.strings))
-	for index, string, type in enumerate(zip(STRINDEX.strings, STRINDEX.type_order)):
+	for index, (string, type) in enumerate(zip(STRINDEX.strings, STRINDEX.type_order)):
 		actual_string = string[0] if type == "compatible" else string
 
 		valid_language = not STRINDEX.settings.source_language or is_source_language(actual_string)
@@ -131,8 +131,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str):
 		valid_whitelist = not STRINDEX.settings.whitelist or not any(ch not in STRINDEX.settings.whitelist for ch in actual_string)
 
 		if all([valid_language, valid_length, valid_whitelist]):
-			STRINDEX_FILTER.strings.append(string)
-			STRINDEX_FILTER.type_order.append(type)
+			STRINDEX_FILTER.append_strindex_index(STRINDEX, index)
 
 		print_progress(index)
 
@@ -144,7 +143,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 		Filters a full strindex file with a delta strindex file, or intersects them.
 	"""
 
-	strindex_delta_filepath = strindex_delta_filepath or os.path.join(os.path.dirname(strindex_full_filepath), "strindex_delta.txt")
+	strindex_delta_filepath = strindex_delta_filepath or (os.path.splitext(strindex_full_filepath)[0] + "_delta.txt")
 
 	STRINDEX_1 = Strindex.read(strindex_full_filepath)
 	STRINDEX_2 = Strindex.read(strindex_diff_filepath)
@@ -160,9 +159,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 		try:
 			search_index = STRINDEX_2_FLAT_ORIGINAL.index(STRINDEX_1_FLAT_ORIGINAL[index], search_index)
 		except ValueError:
-			STRINDEX_DELTA.strings.append(STRINDEX_1.strings[index])
-			STRINDEX_DELTA.pointers.append(STRINDEX_1.pointers[index])
-			STRINDEX_DELTA.type_order.append(STRINDEX_1.type_order[index])
+			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
 	print(f"Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings.")
@@ -271,7 +268,7 @@ def main(sysargs=None):
 	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes that can prefix a pointer.")
 	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[], help="Suffix bytes that can suffix a pointer.")
 
-	parser.add_argument("--version", action="version", version="4.0.0")
+	parser.add_argument("--version", action="version", version="3.6.0")
 	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
 
 	args = parser.parse_args(sysargs)
@@ -315,7 +312,7 @@ def main(sysargs=None):
 					update(args.files[0], args.files[1], args.output)
 				case "filter":
 					assert_files_num(1)
-					filter(args.files[0])
+					filter(args.files[0], args.output)
 				case "delta":
 					assert_files_num(2)
 					delta(args.files[0], args.files[1], args.output)
