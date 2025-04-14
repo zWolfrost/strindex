@@ -1,20 +1,6 @@
 import os, argparse
 from strindex.utils import PrintProgress, Strindex, StrindexSettings, FileBytearray
-from strindex.filetypes import MODULES
-
-
-def get_module_methods(data: FileBytearray, action: str) -> dict:
-	"""
-		Returns the methods of the module associated with the file type.
-	"""
-
-	for module in MODULES:
-		if module.validate(data):
-			print(f'Detected filetype: "{module.__name__.split(".")[-1]}".')
-			assert action in module.__dict__, f"Action '{action}' is not available for this file type."
-			return module.__dict__[action]
-
-	raise ValueError("This file type has no associated module, or the required libraries to handle it are not installed.")
+from strindex.filetypes import GenericModule
 
 
 def create(file_filepath: str, strindex_filepath: str, compatible: bool, settings: StrindexSettings):
@@ -26,7 +12,7 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, setting
 
 	data = FileBytearray(open(file_filepath, 'rb').read())
 
-	STRINDEX: Strindex = get_module_methods(data, "create")(data, settings)
+	STRINDEX: Strindex = GenericModule(data).create(data, settings)
 
 	if compatible:
 		STRINDEX.type_order = ["compatible"] * len(STRINDEX.strings)
@@ -54,7 +40,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5:
 		print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
 
-	data: FileBytearray = get_module_methods(data, "patch")(data, STRINDEX)
+	data: FileBytearray = GenericModule(data).patch(data, STRINDEX)
 
 	if not file_patched_filepath:
 		if not os.path.exists(file_filepath_bak):
@@ -75,7 +61,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 	data = FileBytearray(open(file_filepath, 'rb').read())
 
 	STRINDEX = Strindex.read(strindex_filepath)
-	STRINDEX_UPDATED: Strindex = get_module_methods(data, "create")(data, STRINDEX.settings)
+	STRINDEX_UPDATED: Strindex = GenericModule(data).create(data, STRINDEX.settings)
 
 	STRINDEX_STRINGS_FLAT_ORIGINAL = STRINDEX.get_strings_flat_original
 

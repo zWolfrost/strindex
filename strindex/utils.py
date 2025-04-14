@@ -333,7 +333,7 @@ class FileBytearray(bytearray):
 		fixed_prefix_length = len(prefixes[0])
 		fixed_length = fixed_prefix_length + len(search_lst_safe[0]) + len(suffixes[0])
 
-		indices_dict = {}
+		indices_dict: dict[bytes, list[int]] = {}
 		for search_string in search_lst_safe:
 			lst = []
 			for prefix in prefixes:
