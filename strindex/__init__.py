@@ -1,1 +1,1 @@
-from strindex import strindex, utils
+import strindex
