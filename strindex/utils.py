@@ -241,7 +241,9 @@ class Strindex():
 				f.write(self.full_header)
 			else:
 				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4, default=lambda x: x.hex() if isinstance(x, bytes) else str(x))))
-				f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
+
+				if len(self.type_order) > 0:
+					f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
 
 			for strings, pointers, type in zip(self.strings, self.pointers, self.type_order):
 				if type == "compatible":
@@ -391,6 +393,24 @@ class FileBytearray(bytearray):
 		value = self.get_int(byte_length, byte_order)
 		self.cursor -= byte_length or self.byte_length
 		return self.put_int(value + delta, byte_length, byte_order)
+
+	def replace_string(self, replace: str, delimiter: bytes = b'\x00') -> bytes:
+		original_length = 0
+
+		for i in range(len(self) - self.cursor):
+			if bytes([self[self.cursor + i]]) == delimiter:
+				original_length = i
+				break
+
+		replace_bytes = bytes(replace, "utf-8")
+
+		if len(replace_bytes) > original_length:
+			print(f'Warning: Replace string at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {replace_bytes}). Truncating.')
+			replace_bytes = replace_bytes[:original_length]
+		else:
+			replace_bytes = replace_bytes.ljust(original_length, delimiter)
+
+		self[self.cursor:self.cursor + original_length] = replace_bytes
 
 
 	# Macros

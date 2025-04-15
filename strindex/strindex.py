@@ -3,7 +3,7 @@ from strindex.utils import PrintProgress, Strindex, StrindexSettings, FileBytear
 from strindex.filetypes import GenericModule
 
 
-def create(file_filepath: str, strindex_filepath: str, compatible: bool, settings: StrindexSettings):
+def create(file_filepath: str, strindex_filepath: str, force: bool, compatible: bool, settings: StrindexSettings):
 	"""
 		Calls the create method of the module associated with the file type.
 	"""
@@ -12,7 +12,7 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, setting
 
 	data = FileBytearray(open(file_filepath, 'rb').read())
 
-	STRINDEX: Strindex = GenericModule(data).create(data, settings)
+	STRINDEX: Strindex = GenericModule(data, force).create(data, settings)
 
 	if compatible:
 		STRINDEX.type_order = ["compatible"] * len(STRINDEX.strings)
@@ -26,7 +26,7 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, setting
 
 	print("Created strindex file.")
 
-def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str):
+def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str, force: bool):
 	"""
 		Calls the patch method of the module associated with the file type.
 	"""
@@ -40,7 +40,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5:
 		print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
 
-	data: FileBytearray = GenericModule(data).patch(data, STRINDEX)
+	data: FileBytearray = GenericModule(data, force).patch(data, STRINDEX)
 
 	if not file_patched_filepath:
 		if not os.path.exists(file_filepath_bak):
@@ -51,7 +51,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	print("File was patched successfully.")
 
-def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str):
+def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str, force: bool):
 	"""
 		Update a strindex file with newly created pointers.
 	"""
@@ -61,7 +61,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 	data = FileBytearray(open(file_filepath, 'rb').read())
 
 	STRINDEX = Strindex.read(strindex_filepath)
-	STRINDEX_UPDATED: Strindex = GenericModule(data).create(data, STRINDEX.settings)
+	STRINDEX_UPDATED: Strindex = GenericModule(data, force).create(data, STRINDEX.settings)
 
 	STRINDEX_STRINGS_FLAT_ORIGINAL = STRINDEX.get_strings_flat_original
 
@@ -246,6 +246,7 @@ def main(sysargs=None):
 	parser.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
+	parser.add_argument("-f", "--force", action="store_true", help="Force the replacement of strings at the same offset they were found.")
 	parser.add_argument("-g", "--gui", action="store_true", help="Enable GUI mode.")
 
 	# create arguments
@@ -283,7 +284,7 @@ def main(sysargs=None):
 			match args.action:
 				case "create":
 					assert_files_num(1)
-					create(args.files[0], args.output, args.compatible,
+					create(args.files[0], args.output, args.force, args.compatible,
 						StrindexSettings(**{
 							"min_length": args.min_length,
 							"prefix_bytes": args.prefix_bytes,
@@ -292,10 +293,10 @@ def main(sysargs=None):
 					)
 				case "patch":
 					assert_files_num(2)
-					patch(args.files[0], args.files[1], args.output)
+					patch(args.files[0], args.files[1], args.output, args.force)
 				case "update":
 					assert_files_num(2)
-					update(args.files[0], args.files[1], args.output)
+					update(args.files[0], args.files[1], args.output, args.force)
 				case "filter":
 					assert_files_num(1)
 					filter(args.files[0], args.output)

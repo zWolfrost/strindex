@@ -1,12 +1,17 @@
 from strindex.utils import FileBytearray, Strindex, StrindexSettings
-from strindex.filetypes import pe, iff
+from strindex.filetypes import force, pe, iff
 
 class GenericModule():
 	"""
 	A class representing a generic module that can be used to extract and patch strings from a filetype.
 	"""
 
-	def __init__(self, data: FileBytearray):
+	def __init__(self, data: FileBytearray, use_force: bool):
+		if use_force:
+			self.module = force
+			print("Force mode enabled.")
+			return
+
 		MODULES = [pe, iff]
 
 		for module in MODULES:
