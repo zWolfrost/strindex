@@ -1,4 +1,5 @@
 import os, sys, json, re, gzip, hashlib
+from urllib.parse import urlparse, unquote
 from typing import Generator, Callable
 
 
@@ -524,11 +525,19 @@ else:
 
 		@staticmethod
 		def execute(gui_cls):
-			app = QtWidgets.QApplication([])
+			is_first_window = not QtWidgets.QApplication.instance()
+
+			app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+			if active_window := QtWidgets.QApplication.activeWindow():
+				active_window.close()
+
 			gui = gui_cls()
 			gui.setup()
 			gui.show()
-			sys.exit(app.exec())
+
+			if is_first_window:
+				sys.exit(app.exec())
 
 		@staticmethod
 		def parse_widgets(args):
@@ -603,6 +612,7 @@ else:
 			line_edit.setPlaceholderText(text)
 			line_edit.textChanged.connect(self.update_action_button)
 			line_edit.textChanged.connect(lambda: line_edit.setStyleSheet(line_edit.styleSheet()))
+			line_edit.dropEvent = lambda event: line_edit.setText(unquote(urlparse(event.mimeData().text()).path))
 			line_edit.setFont(QtGui.QFont("monospace"))
 
 			self.__widgets__.append(line_edit)

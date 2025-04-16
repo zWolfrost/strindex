@@ -182,6 +182,26 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 	print("Spellchecked strindex file.")
 
 
+def general_gui():
+	from strindex.utils import StrindexGUI
+
+	class GeneralGUI(StrindexGUI):
+		def setup(self):
+			self.create_button("Create", callback=create_gui)
+			self.create_button("Patch", callback=patch_gui)
+			self.create_button("Update", callback=delta_gui)
+			self.create_button("Filter", callback=filter_gui)
+			self.create_button("Delta", callback=delta_gui)
+			self.create_button("Spellcheck", callback=spellcheck_gui)
+
+			self.create_grid_layout(1)
+
+			self.set_window_properties(title="Strindex GUI")
+
+			self.resize(300, 0)
+
+	StrindexGUI.execute(GeneralGUI)
+
 def create_gui():
 	from strindex.utils import StrindexGUI
 
@@ -243,11 +263,89 @@ def patch_gui():
 
 	StrindexGUI.execute(PatchGUI)
 
+def delta_gui():
+	from strindex.utils import StrindexGUI
+
+	class UpdateGUI(StrindexGUI):
+		def setup(self):
+			self.create_file_selection(line_text="*Select a file to update from")
+			self.create_strindex_selection(line_text="*Select a strindex file to update")
+
+			self.create_action_button(
+				text="Update strindex", progress_text="Updating... %p%", complete_text="Created an updated strindex successfully.",
+				callback=lambda file, strdex: update(file, strdex, None)
+			)
+			self.create_padding(1)
+
+			self.create_grid_layout(2).setColumnStretch(0, 1)
+
+			self.set_window_properties(title="Strindex Update")
+
+	StrindexGUI.execute(UpdateGUI)
+
+def filter_gui():
+	from strindex.utils import StrindexGUI
+
+	class FilterGUI(StrindexGUI):
+		def setup(self):
+			self.create_strindex_selection(line_text="*Select a file to filter")
+
+			self.create_action_button(
+				text="Filter strindex", progress_text="Filtering... %p%", complete_text="Created a filtered strindex successfully.",
+				callback=lambda strdex: filter(strdex, None)
+			)
+			self.create_padding(1)
+
+			self.create_grid_layout(2).setColumnStretch(0, 1)
+
+			self.set_window_properties(title="Strindex Filter")
+
+	StrindexGUI.execute(FilterGUI)
+
+def delta_gui():
+	from strindex.utils import StrindexGUI
+
+	class DeltaGUI(StrindexGUI):
+		def setup(self):
+			self.create_strindex_selection(line_text="*Select a strindex file to diff from")
+			self.create_strindex_selection(line_text="*Select a strindex file to diff against")
+
+			self.create_action_button(
+				text="Delta strindex", progress_text="Updating... %p%", complete_text="Created a delta strindex successfully.",
+				callback=lambda strdex1, strdex2: delta(strdex1, strdex2, None)
+			)
+			self.create_padding(1)
+
+			self.create_grid_layout(2).setColumnStretch(0, 1)
+
+			self.set_window_properties(title="Strindex Delta")
+
+	StrindexGUI.execute(DeltaGUI)
+
+def spellcheck_gui():
+	from strindex.utils import StrindexGUI
+
+	class SpellcheckGUI(StrindexGUI):
+		def setup(self):
+			self.create_strindex_selection(line_text="*Select a file to spellcheck")
+
+			self.create_action_button(
+				text="Spellcheck strindex", progress_text="Spellchecking... %p%", complete_text="Created a spellcheck file of a strindex successfully.",
+				callback=lambda strdex: spellcheck(strdex, None)
+			)
+			self.create_padding(1)
+
+			self.create_grid_layout(2).setColumnStretch(0, 1)
+
+			self.set_window_properties(title="Strindex Spellcheck")
+
+	StrindexGUI.execute(SpellcheckGUI)
+
 
 def main(sysargs=None):
 	parser = argparse.ArgumentParser(prog="strindex", description="A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.")
 
-	parser.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "delta", "spellcheck"], help="Action to perform.")
+	parser.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
 	parser.add_argument("-g", "--gui", action="store_true", help="Enable GUI mode.")
@@ -268,19 +366,27 @@ def main(sysargs=None):
 		if not all([os.path.isfile(file) for file in args.files]):
 			raise FileNotFoundError("One or more files do not exist.")
 
-		if args.gui:
+		if args.action == "gui" or args.gui:
 			try:
 				from strindex.utils import StrindexGUI
 			except ImportError:
 				raise ImportError("Please install the 'PySide6' package (pip install pyside6) to use this feature.")
 
 			match args.action:
+				case "gui":
+					general_gui()
 				case "create":
 					create_gui()
 				case "patch":
 					patch_gui()
-				case _:
-					raise NotImplementedError("GUI mode is not available for this action.")
+				case "update":
+					delta_gui()
+				case "filter":
+					filter_gui()
+				case "delta":
+					delta_gui()
+				case "spellcheck":
+					spellcheck_gui()
 		else:
 			def assert_files_num(n: int) -> tuple[bool, str]:
 				assert len(args.files) == n, f"Expected {n} files, got {len(args.files)}."
