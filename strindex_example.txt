@@ -8,6 +8,9 @@ as well as the start of the strings to patch (the body), after which comments ar
     // Useful for many reasons, such as debugging.
     "md5": "29ed1f9e450d43815c2d1a0cab168da3",
 
+    // Whether the strindex was created using the "force" mode.
+    "force_mode": true,
+
     // The minimum length of strings that should be considered when creating or updating the strindex.
     "min_length": 3,
 

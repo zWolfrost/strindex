@@ -12,11 +12,11 @@ Apart from using offsets to replace strings, there's also an option to use the o
 
 There are a lot of features to help with translation, such as spellchecking & filtering strings by length and character set.
 
-The releases tab includes a precompiled version of the program, which by default does the patching (unless executed with arguments). Warning: the precompiled version has a high chance of being detected as a **false positive** by antivirus software. You can compile the program yourself to avoid this.<br>Also, the apt package `libxcb-cursor0` is **required** for the linux build.
+The releases tab includes a precompiled version of the program, which by default opens the gui mode (unless executed with arguments). Warning: the precompiled version has a high chance of being detected as a **false positive** by antivirus software. You can compile the program yourself to avoid this.<br>Also, the apt package `libxcb-cursor0` is **required** for the linux build.
 
 ## Supported filetypes
 *Support for more types is not planned.*
-- PE files (".exe, ".dll"...)
+- PE files (".exe, ".dll"...) *(direct pointers only)*
 - Gamemaker data files ("data.win")
 
 ## Installation
@@ -28,14 +28,19 @@ You can run the program with the command `strindex <action> <input file(s)> [opt
 You can run `strindex -h` to see the available arguments.
 
 These are the available actions:
-- `create`: Create a list of strings from a PE file (a strindex). Use `-c` to create a strindex that uses the original strings as references.
+- `create`: Create a list of strings from a PE file (a strindex). Use `-f` to enable force mode, and replace strings in the same offset they were found. Use `-c` to create a strindex that uses the original strings as references.
 - `patch`: Patch a PE file with a strindex. Strindexes compressed with gzip are also supported for all actions.
 - `update` Update a strindex pointers' with the updated version of a file.
 - `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
 - `delta`: Create a delta file between two strindexes, that only contains the lines of the first strindex missing in the second one.
 - `spellcheck`: Spellcheck a strindex. You can specify the target language in the strindex settings as an ISO 639-1 code.
+- `gui`: Open Strindex in GUI mode. You can also use the `-g` option for any other action to directly open the GUI for that action.
 
 ## Usage Examples
+- Open strindex in GUI mode:
+  ```sh
+  strindex gui
+  ```
 - Create a strindex from a PE file:
   ```sh
   strindex create program.exe -o strindex.txt
