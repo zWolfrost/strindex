@@ -520,8 +520,9 @@ else:
 
 		def __init__(self):
 			if active_window := QtWidgets.QApplication.activeWindow():
+				active_window: StrindexGUI
 				active_window.hide()
-				self.closeEvent = lambda event: active_window.show()
+				self.closeEvent = lambda _: (active_window.show(), active_window.center_window())
 
 			is_first_window = not QtWidgets.QApplication.instance()
 			app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
