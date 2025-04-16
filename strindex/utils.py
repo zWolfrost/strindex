@@ -50,6 +50,7 @@ class StrindexSettings():
 
 	md5: str
 	whitelist: set[str]
+	force_mode: bool
 	min_length: int
 	prefix_bytes: list[bytes]
 	suffix_bytes: list[bytes]
@@ -62,6 +63,7 @@ class StrindexSettings():
 	def __init__(self, **kwargs):
 		self.md5 = kwargs.get("md5")
 		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist"))
+		self.force_mode = kwargs.get("force_mode") or False
 		self.min_length = int(kwargs.get("min_length") or 1)
 		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes"))
 		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes"))
