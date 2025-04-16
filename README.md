@@ -18,6 +18,7 @@ The releases tab includes a precompiled version of the program, which by default
 *Support for more types is not planned.*
 - PE files (".exe, ".dll"...) *(direct pointers only)*
 - Gamemaker data files ("data.win")
+- Forceful replacement in every filetype
 
 ## Installation
 You can install the program with the command `pip install strindex`.
@@ -28,7 +29,7 @@ You can run the program with the command `strindex <action> <input file(s)> [opt
 You can run `strindex -h` to see the available arguments.
 
 These are the available actions:
-- `create`: Create a list of strings from a PE file (a strindex). Use `-f` to enable force mode, and replace strings in the same offset they were found. Use `-c` to create a strindex that uses the original strings as references.
+- `create`: Create a list of strings from a PE file (a strindex). Use `-f` to enable force mode, and replace strings at the same offset they were found. Use `-c` to create a strindex that uses the original strings as references instead of pointers.
 - `patch`: Patch a PE file with a strindex. Strindexes compressed with gzip are also supported for all actions.
 - `update` Update a strindex pointers' with the updated version of a file.
 - `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.

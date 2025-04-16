@@ -408,7 +408,7 @@ class FileBytearray(bytearray):
 		replace_bytes = bytes(replace, "utf-8")
 
 		if len(replace_bytes) > original_length:
-			print(f'Warning: Replace string at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {replace_bytes}). Truncating.')
+			print(f'Warning: Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}). Truncating.')
 			replace_bytes = replace_bytes[:original_length]
 		else:
 			replace_bytes = replace_bytes.ljust(original_length, delimiter)
