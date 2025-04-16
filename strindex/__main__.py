@@ -11,6 +11,6 @@ from strindex.strindex import main
 
 if __name__ == "__main__":
 	if "__compiled__" in globals() and len(argv) <= 1:
-		main(["patch", "-g", "-v"])
+		main(["gui"])
 	else:
 		main()
