@@ -96,7 +96,10 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str):
 		try:
 			from lingua import LanguageDetectorBuilder, IsoCode639_1
 		except ImportError:
-			raise ImportError("Please install the 'lingua' package (pip install lingua-language-detector) to filter by language.")
+			if "__compiled__" in globals():
+				print("Warning: Filtering by language is not supported in compiled builds.")
+			else:
+				raise ImportError("Please install the 'lingua' package (pip install lingua-language-detector) to filter by language.")
 
 		ALL_LANGUAGES = [code for code in IsoCode639_1.__dict__.values() if isinstance(code, IsoCode639_1)]
 		SETTINGS_LANGUAGES = [getattr(IsoCode639_1, code.upper()) for code in STRINDEX.settings.among_languages or []]
@@ -189,10 +192,11 @@ def general_gui():
 		def setup(self):
 			self.create_button("Create", callback=create_gui)
 			self.create_button("Patch", callback=patch_gui)
-			self.create_button("Update", callback=delta_gui)
+			self.create_button("Update", callback=update_gui)
 			self.create_button("Filter", callback=filter_gui)
 			self.create_button("Delta", callback=delta_gui)
-			self.create_button("Spellcheck", callback=spellcheck_gui)
+			if "__compiled__" not in globals():
+				self.create_button("Spellcheck", callback=spellcheck_gui)
 
 			self.create_grid_layout(1)
 
@@ -263,7 +267,7 @@ def patch_gui():
 
 	PatchGUI()
 
-def delta_gui():
+def update_gui():
 	from strindex.utils import StrindexGUI
 
 	class UpdateGUI(StrindexGUI):
@@ -288,7 +292,7 @@ def filter_gui():
 
 	class FilterGUI(StrindexGUI):
 		def setup(self):
-			self.create_strindex_selection(line_text="*Select a file to filter")
+			self.create_strindex_selection(line_text="*Select a strindex to filter")
 
 			self.create_action_button(
 				text="Filter strindex", progress_text="Filtering... %p%", complete_text="Created a filtered strindex successfully.",
@@ -307,8 +311,8 @@ def delta_gui():
 
 	class DeltaGUI(StrindexGUI):
 		def setup(self):
-			self.create_strindex_selection(line_text="*Select a strindex file to diff from")
-			self.create_strindex_selection(line_text="*Select a strindex file to diff against")
+			self.create_strindex_selection(line_text="*Select a strindex to diff from")
+			self.create_strindex_selection(line_text="*Select a strindex to diff against")
 
 			self.create_action_button(
 				text="Delta strindex", progress_text="Updating... %p%", complete_text="Created a delta strindex successfully.",
@@ -327,7 +331,7 @@ def spellcheck_gui():
 
 	class SpellcheckGUI(StrindexGUI):
 		def setup(self):
-			self.create_strindex_selection(line_text="*Select a file to spellcheck")
+			self.create_strindex_selection(line_text="*Select a strindex to spellcheck")
 
 			self.create_action_button(
 				text="Spellcheck strindex", progress_text="Spellchecking... %p%", complete_text="Created a spellcheck file of a strindex successfully.",
@@ -366,6 +370,9 @@ def main(sysargs=None):
 		if not all([os.path.isfile(file) for file in args.files]):
 			raise FileNotFoundError("One or more files do not exist.")
 
+		if "__compiled__" in globals() and args.action == "spellcheck":
+			raise ImportError("Spellchecking is not supported in compiled builds.")
+
 		if args.action == "gui" or args.gui:
 			try:
 				from strindex.utils import StrindexGUI
@@ -380,7 +387,7 @@ def main(sysargs=None):
 				case "patch":
 					patch_gui()
 				case "update":
-					delta_gui()
+					update_gui()
 				case "filter":
 					filter_gui()
 				case "delta":
