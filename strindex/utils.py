@@ -519,22 +519,20 @@ else:
 		__widgets__: list[QtWidgets.QWidget]
 
 		def __init__(self):
-			super().__init__()
-			self.__required__ = []
-			self.__widgets__ = []
+			if active_window := QtWidgets.QApplication.activeWindow():
+				active_window.hide()
+				self.closeEvent = lambda event: active_window.show()
 
-		@staticmethod
-		def execute(gui_cls):
 			is_first_window = not QtWidgets.QApplication.instance()
-
 			app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
-			if active_window := QtWidgets.QApplication.activeWindow():
-				active_window.close()
+			super().__init__()
 
-			gui = gui_cls()
-			gui.setup()
-			gui.show()
+			self.__required__ = []
+			self.__widgets__ = []
+			self.setup()
+			self.show()
+			self.center_window()
 
 			if is_first_window:
 				sys.exit(app.exec())
@@ -548,6 +546,10 @@ else:
 				elif isinstance(arg, QtWidgets.QCheckBox):
 					parsed_args.append(arg.isChecked())
 			return parsed_args
+
+
+		def setup(self):
+			pass
 
 
 		def create_file_selection(self, line_text: str, button_text: str = "Browse Files"):
@@ -671,7 +673,6 @@ else:
 			self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
 			self.setMaximumSize(1600, 0)
 			self.resize(800, 0)
-			self.center_window()
 
 		def browse_files(self, line: QtWidgets.QLineEdit, caption, filter):
 			if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:

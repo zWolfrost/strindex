@@ -200,7 +200,7 @@ def general_gui():
 
 			self.resize(300, 0)
 
-	StrindexGUI.execute(GeneralGUI)
+	GeneralGUI()
 
 def create_gui():
 	from strindex.utils import StrindexGUI
@@ -241,7 +241,7 @@ def create_gui():
 
 			self.set_window_properties(title="Strindex Create")
 
-	StrindexGUI.execute(CreateGUI)
+	CreateGUI()
 
 def patch_gui():
 	from strindex.utils import StrindexGUI
@@ -261,7 +261,7 @@ def patch_gui():
 
 			self.set_window_properties(title="Strindex Patch")
 
-	StrindexGUI.execute(PatchGUI)
+	PatchGUI()
 
 def delta_gui():
 	from strindex.utils import StrindexGUI
@@ -281,7 +281,7 @@ def delta_gui():
 
 			self.set_window_properties(title="Strindex Update")
 
-	StrindexGUI.execute(UpdateGUI)
+	UpdateGUI()
 
 def filter_gui():
 	from strindex.utils import StrindexGUI
@@ -300,7 +300,7 @@ def filter_gui():
 
 			self.set_window_properties(title="Strindex Filter")
 
-	StrindexGUI.execute(FilterGUI)
+	FilterGUI()
 
 def delta_gui():
 	from strindex.utils import StrindexGUI
@@ -320,7 +320,7 @@ def delta_gui():
 
 			self.set_window_properties(title="Strindex Delta")
 
-	StrindexGUI.execute(DeltaGUI)
+	DeltaGUI()
 
 def spellcheck_gui():
 	from strindex.utils import StrindexGUI
@@ -339,7 +339,7 @@ def spellcheck_gui():
 
 			self.set_window_properties(title="Strindex Spellcheck")
 
-	StrindexGUI.execute(SpellcheckGUI)
+	SpellcheckGUI()
 
 
 def main(sysargs=None):

@@ -6,11 +6,11 @@
 # nuitka-project: --windows-console-mode=attach
 # nuitka-project: --windows-icon-from-ico=icon.png
 
-from sys import argv
+import sys
 from strindex.strindex import main
 
 if __name__ == "__main__":
-	if "__compiled__" in globals() and len(argv) <= 1:
+	if "__compiled__" in globals() and len(sys.argv) <= 1:
 		main(["gui"])
 	else:
 		main()
