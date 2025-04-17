@@ -42,7 +42,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	new_data = data.patch_pointers_macro(strindex,
 		lambda offset: data.from_int(offset - data.byte_length),
 		lambda offset: data.from_int(len(data) + offset),
-		lambda string: data.from_int(len(string)) + bytearray(string, 'utf-8') + b'\x00'
+		lambda string: data.from_int(len(string.encode('utf-8'))) + bytearray(string, 'utf-8') + b'\x00'
 	)
 
 	data.cursor = 4

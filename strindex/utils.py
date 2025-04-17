@@ -285,12 +285,18 @@ class FileBytearray(bytearray):
 
 	# Algorithms
 	def yield_strings(self, sep=b'\x00') -> Generator[tuple[str, int], None, None]:
-		print_progress = PrintProgress(len(self))
+		CONTROL_CHARACTERS = set(range(1, 9)) | set(range(11, 32)) | {127}
 		byte_string = b''
+		skip = False
+		print_progress = PrintProgress(len(self))
 		for offset, char in enumerate(self):
+			if char in CONTROL_CHARACTERS:
+				skip = True
 			char = bytes([char])
 			if char == sep:
 				try:
+					if skip:
+						continue
 					string = byte_string.decode('utf-8')
 				except UnicodeDecodeError:
 					continue
@@ -298,6 +304,7 @@ class FileBytearray(bytearray):
 					yield string, offset - len(byte_string)
 				finally:
 					byte_string = b''
+					skip = False
 					print_progress(offset)
 			else:
 				byte_string += char
@@ -307,7 +314,7 @@ class FileBytearray(bytearray):
 		Returns the index of the first occurrence of every search list string in a bytearray.
 		Extremely fast, but can only can work for search lists that are ordered by occurrence order.
 		"""
-		search_lst = [bytes(search, 'utf-8') if isinstance(search, str) else search for search in search_lst]
+		search_lst = [search.encode('utf-8') if isinstance(search, str) else search for search in search_lst]
 		indices = []
 		prefix_length = len(prefix)
 		start_index = 0
@@ -404,7 +411,7 @@ class FileBytearray(bytearray):
 				original_length = i
 				break
 
-		replace_bytes = bytes(replace, "utf-8")
+		replace_bytes = replace.encode('utf-8')
 
 		if len(replace_bytes) > original_length:
 			print(f'Warning: Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}). Truncating.')

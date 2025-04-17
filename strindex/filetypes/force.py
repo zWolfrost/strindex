@@ -5,7 +5,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	strindex = Strindex()
 
 	for string, offset in data.yield_strings():
-		end_offset = offset + len(bytes(string, "utf-8"))
+		end_offset = offset + len(string.encode('utf-8'))
 
 		if (
 			len(string) >= settings.min_length and
