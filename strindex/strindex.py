@@ -185,167 +185,6 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 	print("Spellchecked strindex file.")
 
 
-def general_gui():
-	from strindex.utils import StrindexGUI
-
-	class GeneralGUI(StrindexGUI):
-		def setup(self):
-			self.create_button("Create", callback=create_gui)
-			self.create_button("Patch", callback=patch_gui)
-			self.create_button("Update", callback=update_gui)
-			self.create_button("Filter", callback=filter_gui)
-			self.create_button("Delta", callback=delta_gui)
-			if "__compiled__" not in globals():
-				self.create_button("Spellcheck", callback=spellcheck_gui)
-
-			self.create_grid_layout(1)
-
-			self.set_window_properties(title="Strindex GUI")
-
-			self.resize(300, 0)
-
-	GeneralGUI()
-
-def create_gui():
-	from strindex.utils import StrindexGUI
-
-	class CreateGUI(StrindexGUI):
-		def setup(self):
-			self.create_file_selection(line_text="*Select a file"),
-
-			self.create_lineedit("Minimum length of strings")
-			self.create_padding(1)
-
-			self.create_lineedit("Prefix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
-			self.create_padding(1)
-
-			self.create_lineedit("Suffix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
-			self.create_padding(1)
-
-			self.create_checkbox("Force Mode")
-			self.create_padding(1)
-
-			self.create_checkbox("Compatible Mode")
-			self.create_padding(1)
-
-			self.create_action_button(
-				text="Create strindex", progress_text="Creating... %p%", complete_text="Strindex created successfully.",
-				callback=lambda file, length, prefix, suffix, force, comp: create(
-					file, None, comp, StrindexSettings(**{
-						"force_mode": force,
-						"min_length": length,
-						"prefix_bytes": prefix.split(","),
-						"suffix_bytes": suffix.split(",")
-					})
-				)
-			)
-			self.create_padding(1)
-
-			self.create_grid_layout(2).setColumnStretch(0, 1)
-
-			self.set_window_properties(title="Strindex Create")
-
-	CreateGUI()
-
-def patch_gui():
-	from strindex.utils import StrindexGUI
-
-	class PatchGUI(StrindexGUI):
-		def setup(self):
-			self.create_file_selection(line_text="*Select a file to patch")
-			self.create_strindex_selection(line_text="*Select a strindex file")
-
-			self.create_action_button(
-				text="Patch file", progress_text="Patching... %p%", complete_text="File patched successfully.",
-				callback=lambda file, strdex: patch(file, strdex, None)
-			)
-			self.create_padding(1)
-
-			self.create_grid_layout(2).setColumnStretch(0, 1)
-
-			self.set_window_properties(title="Strindex Patch")
-
-	PatchGUI()
-
-def update_gui():
-	from strindex.utils import StrindexGUI
-
-	class UpdateGUI(StrindexGUI):
-		def setup(self):
-			self.create_file_selection(line_text="*Select a file to update from")
-			self.create_strindex_selection(line_text="*Select a strindex file to update")
-
-			self.create_action_button(
-				text="Update strindex", progress_text="Updating... %p%", complete_text="Created an updated strindex successfully.",
-				callback=lambda file, strdex: update(file, strdex, None)
-			)
-			self.create_padding(1)
-
-			self.create_grid_layout(2).setColumnStretch(0, 1)
-
-			self.set_window_properties(title="Strindex Update")
-
-	UpdateGUI()
-
-def filter_gui():
-	from strindex.utils import StrindexGUI
-
-	class FilterGUI(StrindexGUI):
-		def setup(self):
-			self.create_strindex_selection(line_text="*Select a strindex to filter")
-
-			self.create_action_button(
-				text="Filter strindex", progress_text="Filtering... %p%", complete_text="Created a filtered strindex successfully.",
-				callback=lambda strdex: filter(strdex, None)
-			)
-			self.create_padding(1)
-
-			self.create_grid_layout(2).setColumnStretch(0, 1)
-
-			self.set_window_properties(title="Strindex Filter")
-
-	FilterGUI()
-
-def delta_gui():
-	from strindex.utils import StrindexGUI
-
-	class DeltaGUI(StrindexGUI):
-		def setup(self):
-			self.create_strindex_selection(line_text="*Select a strindex to diff from")
-			self.create_strindex_selection(line_text="*Select a strindex to diff against")
-
-			self.create_action_button(
-				text="Delta strindex", progress_text="Updating... %p%", complete_text="Created a delta strindex successfully.",
-				callback=lambda strdex1, strdex2: delta(strdex1, strdex2, None)
-			)
-			self.create_padding(1)
-
-			self.create_grid_layout(2).setColumnStretch(0, 1)
-
-			self.set_window_properties(title="Strindex Delta")
-
-	DeltaGUI()
-
-def spellcheck_gui():
-	from strindex.utils import StrindexGUI
-
-	class SpellcheckGUI(StrindexGUI):
-		def setup(self):
-			self.create_strindex_selection(line_text="*Select a strindex to spellcheck")
-
-			self.create_action_button(
-				text="Spellcheck strindex", progress_text="Spellchecking... %p%", complete_text="Created a spellcheck file of a strindex successfully.",
-				callback=lambda strdex: spellcheck(strdex, None)
-			)
-			self.create_padding(1)
-
-			self.create_grid_layout(2).setColumnStretch(0, 1)
-
-			self.set_window_properties(title="Strindex Spellcheck")
-
-	SpellcheckGUI()
-
-
 def main(sysargs=None):
 	parser = argparse.ArgumentParser(prog="strindex", description="A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.")
 
@@ -367,7 +206,7 @@ def main(sysargs=None):
 	args = parser.parse_args(sysargs)
 
 	try:
-		if not all([os.path.isfile(file) for file in args.files]):
+		if not all(os.path.isfile(file) for file in args.files):
 			raise FileNotFoundError("One or more files do not exist.")
 
 		if "__compiled__" in globals() and args.action == "spellcheck":
@@ -375,25 +214,11 @@ def main(sysargs=None):
 
 		if args.action == "gui" or args.gui:
 			try:
-				from strindex.utils import StrindexGUI
-			except ImportError:
+				from strindex.gui import action_gui
+			except ModuleNotFoundError:
 				raise ImportError("Please install the 'PySide6' package (pip install pyside6) to use this feature.")
 
-			match args.action:
-				case "gui":
-					general_gui()
-				case "create":
-					create_gui()
-				case "patch":
-					patch_gui()
-				case "update":
-					update_gui()
-				case "filter":
-					filter_gui()
-				case "delta":
-					delta_gui()
-				case "spellcheck":
-					spellcheck_gui()
+			action_gui(args.action)
 		else:
 			def assert_files_num(n: int) -> tuple[bool, str]:
 				assert len(args.files) == n, f"Expected {n} files, got {len(args.files)}."
