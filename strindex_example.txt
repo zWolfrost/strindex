@@ -9,6 +9,10 @@ as well as the start of the strings to patch (the body), after which comments ar
     "md5": "29ed1f9e450d43815c2d1a0cab168da3",
 
     // Whether the strindex was created using the "force" mode.
+    // This mode tells the program hard-replace strings at the same offset they were found,
+    // instead of elegantly relocating them somewhere else.
+    // This means the program will effectively work with any filetype,
+    // but the length of the patched strings can't be longer than the original ones.
     "force_mode": true,
 
     // The minimum length of strings that should be considered when creating or updating the strindex.
@@ -17,7 +21,7 @@ as well as the start of the strings to patch (the body), after which comments ar
     // A list of prefix/suffix bytes that can prefix a pointer.
     // Bytes strings of the same list MUST BE of the same length.
     // If the pointers for the strings you want to patch always have those,
-    // This can help identifying them better and avoiding relocating "false pointers"
+    // this can help identifying them better and avoiding relocating "false pointers"
     // (sequence of bytes that are the same as a pointer but that aren't one).
     // When relocating false pointers, there's a high chance of the program crashing.
     // You can also give those in the "create" action arguments, as it follows:
