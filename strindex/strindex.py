@@ -24,14 +24,14 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, setting
 
 	STRINDEX.write(strindex_filepath)
 
-	print("Created strindex file.")
+	print(f'Created strindex file at "{strindex_filepath}"')
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str):
 	"""
 		Calls the patch method of the module associated with the file type.
 	"""
 
-	file_filepath_bak = file_filepath + '.bak'
+	file_filepath_bak = file_filepath + ".bak"
 
 	data = FileBytearray(open(file_filepath_bak if os.path.exists(file_filepath_bak) else file_filepath, 'rb').read())
 
@@ -79,7 +79,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	STRINDEX.write(file_updated_filepath)
 
-	print(f"Created strindex file with {updated_pointers} updated pointer(s).")
+	print(f'Created strindex file with {updated_pointers} updated pointer(s) at "{file_updated_filepath}".')
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str):
 	"""
@@ -99,7 +99,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str):
 			if "__compiled__" in globals():
 				print("Warning: Filtering by language is not supported in compiled builds.")
 			else:
-				raise ImportError("Please install the 'lingua' package (pip install lingua-language-detector) to filter by language.")
+				raise ImportError('Please install the "lingua" package (pip install lingua-language-detector) to filter by language.')
 
 		ALL_LANGUAGES = [code for code in IsoCode639_1.__dict__.values() if isinstance(code, IsoCode639_1)]
 		SETTINGS_LANGUAGES = [getattr(IsoCode639_1, code.upper()) for code in STRINDEX.settings.among_languages or []]
@@ -125,7 +125,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str):
 		print_progress(index)
 
 	STRINDEX_FILTER.write(strindex_filter_filepath)
-	print(f"Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings.")
+	print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at "{strindex_filter_filepath}".')
 
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str):
 	"""
@@ -151,7 +151,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
-	print(f"Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings.")
+	print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at "{strindex_delta_filepath}".')
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 	"""
@@ -163,13 +163,13 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 	try:
 		from language_tool_python import LanguageTool
 	except ImportError:
-		raise ImportError("Please install the 'language-tool-python' package (pip install language-tool-python) to use this feature.")
+		raise ImportError('Please install the "language-tool-python" package (pip install language-tool-python) to use this feature.')
 
 	STRINDEX = Strindex.read(strindex_filepath)
 	STRINDEX_FLAT_REPLACE = STRINDEX.get_strings_flat_replace
 
 	if not STRINDEX.settings.target_language:
-		raise ValueError("Please specify the target language to spellcheck in the strindex file ('target_language').")
+		raise ValueError('Please specify the target language to spellcheck in the strindex file ("target_language").')
 
 	lang = LanguageTool(STRINDEX.settings.target_language)
 	print("Created language tool.")
@@ -182,7 +182,8 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
 				f.write('\n'.join(str(error).split('\n')[-3:]) + '\n')
 
 			print_progress(index)
-	print("Spellchecked strindex file.")
+
+	print(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
 
 
 def main(sysargs=None):
@@ -216,7 +217,7 @@ def main(sysargs=None):
 			try:
 				from strindex.gui import action_gui
 			except ModuleNotFoundError:
-				raise ImportError("Please install the 'PySide6' package (pip install pyside6) to use this feature.")
+				raise ImportError('Please install the "PySide6" package (pip install pyside6) to use this feature.')
 
 			action_gui(args.action)
 		else:

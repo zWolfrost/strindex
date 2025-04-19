@@ -221,6 +221,6 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	)
 
 	pe = pe_add_section(pefile.PE(data=bytes(data)), Name=SECTION_NAME, Data=new_data, Characteristics=0xF0000040)
-	print(f"Added '{SECTION_NAME.decode('utf-8')}' section.")
+	print(f'Added "{SECTION_NAME.decode("utf-8")}" section.')
 
 	return FileBytearray(pe.write())

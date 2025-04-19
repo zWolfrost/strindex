@@ -26,7 +26,7 @@ class GenericModule():
 	def __getattribute__(self, action):
 		module = object.__getattribute__(self, "module")
 		if action not in dir(module):
-			raise NotImplementedError(f"Action '{action}' is not available for module '{module.FILETYPE}'.")
+			raise NotImplementedError(f'Action "{action}" is not available for module "{module.FILETYPE}".')
 		return getattr(module, action)
 
 	def validate(self, data: FileBytearray) -> bool:

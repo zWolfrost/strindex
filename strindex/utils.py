@@ -340,6 +340,7 @@ class FileBytearray(bytearray):
 		assert len(search_lst_safe) == len(set(search_lst_safe)), "Search list is not unique."
 		assert all(len(search) == len(search_lst_safe[0]) for search in search_lst_safe), "Search list is not fixed length."
 		assert all(len(prefix) == len(prefixes[0]) for prefix in prefixes), "Prefix list is not fixed length."
+		assert all(len(suffix) == len(suffixes[0]) for suffix in suffixes), "Suffix list is not fixed length."
 
 		fixed_prefix_length = len(prefixes[0])
 		fixed_length = fixed_prefix_length + len(search_lst_safe[0]) + len(suffixes[0])
