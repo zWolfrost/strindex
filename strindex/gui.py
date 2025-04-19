@@ -10,10 +10,12 @@ class StrindexGUI(QtWidgets.QWidget):
 	__widgets__: list[QtWidgets.QWidget]
 
 	def __init__(self):
-		if active_window := QtWidgets.QApplication.activeWindow():
+		active_window = QtWidgets.QApplication.activeWindow()
+
+		if active_window:
 			active_window: StrindexGUI
 			active_window.hide()
-			self.closeEvent = lambda _: (active_window.show(), active_window.center_window())
+			self.closeEvent = lambda _: (active_window.show(), active_window.center_window(self))
 
 		is_first_window = not QtWidgets.QApplication.instance()
 		app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
@@ -24,7 +26,7 @@ class StrindexGUI(QtWidgets.QWidget):
 		self.__widgets__ = []
 		self.setup()
 		self.show()
-		self.center_window()
+		self.center_window(active_window)
 
 		if is_first_window:
 			sys.exit(app.exec())
@@ -170,18 +172,23 @@ class StrindexGUI(QtWidgets.QWidget):
 		if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:
 			line.setText(filepath)
 
-	def center_window(self):
-		res = QtGui.QGuiApplication.primaryScreen().availableGeometry()
-		self.move((res.width() - self.width()) // 2, (res.height() - self.height()) // 2)
+	def center_window(self, target: QtWidgets.QWidget):
+		if target:
+			target_rect = target.frameGeometry()
+		else:
+			target_rect = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+
+		diff_size = target_rect.size() - self.frameGeometry().size()
+		self.move(target_rect.x() + diff_size.width() // 2, target_rect.y() + diff_size.height() // 2)
 
 	def show_message(self, text: str, icon):
-			msg = QtWidgets.QMessageBox()
-			msg.setWindowTitle(self.windowTitle())
-			msg.setIcon(icon)
-			msg.setText(text)
-			msg.setStandardButtons(QtWidgets.QMessageBox.Ok.Ok)
-			msg.exec()
-			return msg
+		msg = QtWidgets.QMessageBox()
+		msg.setWindowTitle(self.windowTitle())
+		msg.setIcon(icon)
+		msg.setText(text)
+		msg.setStandardButtons(QtWidgets.QMessageBox.Ok.Ok)
+		msg.exec()
+		return msg
 
 
 class GeneralGUI(StrindexGUI):
