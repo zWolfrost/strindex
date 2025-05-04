@@ -19,7 +19,7 @@ setup(
 	extras_require = {
 		"filter_language": ["lingua-language-detector"],
 		"spellcheck": ["language-tool-python"],
-		"patch_gui": ["pyside6"],
+		"gui": ["pyside6"],
 	},
 	classifiers = [
 		"Development Status :: 5 - Production/Stable",

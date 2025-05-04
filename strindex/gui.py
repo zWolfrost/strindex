@@ -6,8 +6,9 @@ from strindex.strindex import create, patch, update, filter, delta, spellcheck
 
 
 class StrindexGUI(QtWidgets.QWidget):
-	__required__: list[QtWidgets.QWidget]
 	__widgets__: list[QtWidgets.QWidget]
+	__required__: list[QtWidgets.QWidget]
+	__actions__: list[QtWidgets.QWidget]
 
 	def __init__(self):
 		active_window = QtWidgets.QApplication.activeWindow()
@@ -22,8 +23,9 @@ class StrindexGUI(QtWidgets.QWidget):
 
 		super().__init__()
 
-		self.__required__ = []
 		self.__widgets__ = []
+		self.__required__ = []
+		self.__actions__ = []
 		self.setup()
 		self.show()
 		self.center_window(active_window)
@@ -70,9 +72,10 @@ class StrindexGUI(QtWidgets.QWidget):
 		progress_bar.setRange(0, 100)
 		progress_bar.setFormat(progress_text)
 		progress_bar.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-		PrintProgress.callback = lambda progress: progress_bar.setValue(progress.percent)
 
 		def callback_wrapper():
+			PrintProgress.callback = lambda progress: progress_bar.setValue(progress.percent)
+
 			self.setEnabled(False)
 			progress_bar.setValue(0)
 			self.layout().replaceWidget(action_button, progress_bar)
@@ -96,11 +99,14 @@ class StrindexGUI(QtWidgets.QWidget):
 		action_button.clicked.connect(callback_wrapper)
 
 		self.__widgets__.append(action_button)
+		self.__actions__.append(action_button)
 
 		return action_button
 
 	def update_action_button(self):
-		self.__widgets__[-1].setEnabled(all([os.path.isfile(file_select.text()) for file_select in self.__required__]))
+		enabled = all(os.path.isfile(file_select.text()) for file_select in self.__required__)
+		for widget in self.__actions__:
+			widget.setEnabled(enabled)
 
 
 	def create_lineedit(self, text: str):
