@@ -5,10 +5,30 @@ from strindex.utils import PrintProgress, StrindexSettings
 from strindex.strindex import create, patch, update, filter, delta, spellcheck
 
 
+class CallbackWorker(QtCore.QThread):
+	sig_progress = QtCore.Signal(PrintProgress)
+	sig_except = QtCore.Signal(Exception)
+	sig_else = QtCore.Signal()
+
+	def __init__(self, callback):
+		super().__init__()
+		self.callback = callback
+
+	def run(self):
+		PrintProgress.callback = lambda progress: self.sig_progress.emit(progress)
+
+		try:
+			self.callback()
+		except Exception as e:
+			self.sig_except.emit(e)
+		else:
+			self.sig_else.emit()
+
 class StrindexGUI(QtWidgets.QWidget):
 	__widgets__: list[QtWidgets.QWidget]
 	__required__: list[QtWidgets.QWidget]
 	__actions__: list[QtWidgets.QWidget]
+	__callback_worker__: CallbackWorker
 
 	def __init__(self):
 		active_window = QtWidgets.QApplication.activeWindow()
@@ -74,27 +94,38 @@ class StrindexGUI(QtWidgets.QWidget):
 		progress_bar.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
 		def callback_wrapper():
-			PrintProgress.callback = lambda progress: progress_bar.setValue(progress.percent)
-
 			self.setEnabled(False)
 			progress_bar.setValue(0)
 			self.layout().replaceWidget(action_button, progress_bar)
 			action_button.setParent(None)
 			QtWidgets.QApplication.processEvents()
 
-			try:
-				# TODO: do this in a separate thread
+			def callback_worker():
 				callback(*self.parse_widgets(self.__widgets__))
 				progress_bar.setValue(100)
-			except Exception as e:
+
+			def callback_progress(progress):
+				progress_bar.setValue(progress.percent)
+
+			def callback_except(e):
 				self.show_message(str(e), QtWidgets.QMessageBox.Critical)
-			else:
+				callback_finally()
+
+			def callback_else():
 				self.show_message(complete_text, QtWidgets.QMessageBox.Information)
-			finally:
+				callback_finally()
+
+			def callback_finally():
 				self.layout().replaceWidget(progress_bar, action_button)
 				progress_bar.setParent(None)
 				self.setEnabled(True)
 				QtWidgets.QApplication.processEvents()
+
+			self.__callback_worker__ = CallbackWorker(callback_worker)
+			self.__callback_worker__.sig_progress.connect(callback_progress)
+			self.__callback_worker__.sig_except.connect(callback_except)
+			self.__callback_worker__.sig_else.connect(callback_else)
+			self.__callback_worker__.start()
 
 		action_button.clicked.connect(callback_wrapper)
 
