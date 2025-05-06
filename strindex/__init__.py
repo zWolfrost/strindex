@@ -1,1 +1,3 @@
-import strindex
+import strindex.strindex
+import strindex.utils
+import strindex.gui
