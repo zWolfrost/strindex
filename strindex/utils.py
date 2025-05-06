@@ -350,11 +350,12 @@ class FileBytearray(bytearray):
 			lst = []
 			for prefix in prefixes:
 				for suffix in suffixes:
-					indices_dict[prefix + search_string + suffix] = lst
+					indices_dict[memoryview(bytes(prefix + search_string + suffix))] = lst
 
 		print_progress = PrintProgress(len(self))
+		mv = memoryview(bytes(self))
 		for offset in range(len(self)):
-			cur_bytes = bytes(self[offset:offset + fixed_length])
+			cur_bytes = mv[offset:offset + fixed_length]
 			if cur_bytes in indices_dict:
 				indices_dict[cur_bytes].append(offset + fixed_prefix_length)
 			if offset >= print_progress.limit:

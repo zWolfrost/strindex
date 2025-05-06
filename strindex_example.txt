@@ -70,7 +70,7 @@ or
 // replace the string at this offset with this one.
 
 
-The pointers have different significance depending on the file format that's being patched.
+The pointers have different meaning depending on the file format that's being patched.
 If using original strings to replace the patched ones, they must be in order of appearance in the file.
 
 This is the start of the body of the strindex, detected by the start with 80 "═" characters:
