@@ -149,7 +149,10 @@ class Strindex():
 
 		strindex = cls()
 
-		if filepath.endswith(".gz"):
+		with open(filepath, 'rb') as f:
+			is_gzipped = (f.read(2) == b'\x1f\x8b')
+
+		if is_gzipped:
 			stream = gzip.open(filepath, 'rt', encoding='utf-8')
 		else:
 			stream = open(filepath, 'r', encoding='utf-8')
