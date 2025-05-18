@@ -108,11 +108,11 @@ class StrindexGUI(QtWidgets.QWidget):
 				progress_bar.setValue(progress.percent)
 
 			def callback_except(e):
-				self.show_message(str(e), QtWidgets.QMessageBox.Critical)
+				self.show_message(str(e), QtWidgets.QMessageBox.Icon.Critical)
 				callback_finally()
 
 			def callback_else():
-				self.show_message(complete_text, QtWidgets.QMessageBox.Information)
+				self.show_message(complete_text, QtWidgets.QMessageBox.Icon.Information)
 				callback_finally()
 
 			def callback_finally():
@@ -223,7 +223,7 @@ class StrindexGUI(QtWidgets.QWidget):
 		msg.setWindowTitle(self.windowTitle())
 		msg.setIcon(icon)
 		msg.setText(text)
-		msg.setStandardButtons(QtWidgets.QMessageBox.Ok.Ok)
+		msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
 		msg.exec()
 		return msg
 
@@ -246,7 +246,7 @@ class GeneralGUI(StrindexGUI):
 
 class CreateGUI(StrindexGUI):
 	def setup(self):
-		self.create_file_selection(line_text="*Select a file"),
+		self.create_file_selection(line_text="*Select a file")
 
 		self.create_lineedit("Minimum length of strings")
 		self.create_padding(1)

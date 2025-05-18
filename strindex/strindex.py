@@ -3,7 +3,7 @@ from strindex.utils import PrintProgress, Strindex, StrindexSettings, FileBytear
 from strindex.filetypes import GenericModule
 
 
-def create(file_filepath: str, strindex_filepath: str, compatible: bool, settings: StrindexSettings):
+def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, settings: StrindexSettings):
 	"""
 		Calls the create method of the module associated with the file type.
 	"""
@@ -26,7 +26,7 @@ def create(file_filepath: str, strindex_filepath: str, compatible: bool, setting
 
 	print(f'Created strindex file at "{strindex_filepath}"')
 
-def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str):
+def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None):
 	"""
 		Calls the patch method of the module associated with the file type.
 	"""
@@ -51,7 +51,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	print("File was patched successfully.")
 
-def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str):
+def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None):
 	"""
 		Update a strindex file with newly created pointers.
 	"""
@@ -81,7 +81,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	print(f'Created strindex file with {updated_pointers} updated pointer(s) at "{file_updated_filepath}".')
 
-def filter(strindex_filepath: str, strindex_filter_filepath: str):
+def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 	"""
 		Filters a strindex file with respect to length, whitelist and source language.
 	"""
@@ -127,7 +127,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str):
 	STRINDEX_FILTER.write(strindex_filter_filepath)
 	print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at "{strindex_filter_filepath}".')
 
-def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str):
+def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None):
 	"""
 		Filters a full strindex file with a delta strindex file, or intersects them.
 	"""
@@ -153,7 +153,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 	STRINDEX_DELTA.write(strindex_delta_filepath)
 	print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at "{strindex_delta_filepath}".')
 
-def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str):
+def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None):
 	"""
 		Creates a spellcheck file from a strindex file, for the specified language.
 	"""
@@ -221,7 +221,7 @@ def main(sysargs=None):
 
 			action_gui(args.action)
 		else:
-			def assert_files_num(n: int) -> tuple[bool, str]:
+			def assert_files_num(n: int):
 				assert len(args.files) == n, f"Expected {n} files, got {len(args.files)}."
 
 			match args.action:
