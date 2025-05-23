@@ -215,6 +215,16 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		sys.exit(app.exec())
 
+	def set_custom_appearance(self):
+		WINDOWS_STYLESHEET = f""""""
+		UNIX_STYLESHEET = f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
+		self.setStyleSheet(WINDOWS_STYLESHEET if sys.platform == "win32" else UNIX_STYLESHEET)
+
+		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
+		self.setMinimumSize(500, 0)
+		self.setMaximumSize(1600, 0)
+		self.resize(800, 0)
+
 	def setup(self):
 		self.tab_widget = QtWidgets.QTabWidget()
 		self.tab_widget.addTab(CreateGUI(), "Create")
@@ -230,14 +240,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		self.setWindowTitle("Strindex GUI")
 
-		WINDOWS_STYLESHEET = f""""""
-		UNIX_STYLESHEET = f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
-		self.setStyleSheet(WINDOWS_STYLESHEET if sys.platform == "win32" else UNIX_STYLESHEET)
-
-		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
-		self.setMinimumSize(500, 0)
-		self.setMaximumSize(1600, 0)
-		self.resize(800, 0)
+		self.set_custom_appearance()
 
 class CreateGUI(BaseStrindexGUI):
 	def setup(self):
