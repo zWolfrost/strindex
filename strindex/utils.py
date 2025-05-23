@@ -288,29 +288,31 @@ class FileBytearray(bytearray):
 
 	# Algorithms
 	def yield_strings(self, sep=b'\x00') -> Generator[tuple[str, int], None, None]:
-		CONTROL_CHARACTERS = set(range(1, 9)) | set(range(11, 32)) | {127}
-		byte_string = b''
+		"""
+		Yields all strings in a bytearray, separated by a given separator. Extremely fast.
+		Skips strings that contain control characters and ones that are not valid UTF-8.
+		"""
+		SEPARATOR_CH = sep[0]
+		CONTROL_CHARS = (set(range(1, 9)) | set(range(11, 32)) | {127}) - {SEPARATOR_CH}
+		start_offset = 0
 		skip = False
 		print_progress = PrintProgress(len(self))
 		for offset, char in enumerate(self):
-			if char in CONTROL_CHARACTERS:
+			if char in CONTROL_CHARS:
 				skip = True
-			char = bytes([char])
-			if char == sep:
+			if char == SEPARATOR_CH:
 				try:
 					if skip:
 						continue
-					string = byte_string.decode('utf-8')
+					string = self[start_offset:offset].decode('utf-8')
 				except UnicodeDecodeError:
 					continue
 				else:
-					yield string, offset - len(byte_string)
+					yield string, start_offset
 				finally:
-					byte_string = b''
+					start_offset = offset + 1
 					skip = False
 					print_progress(offset)
-			else:
-				byte_string += char
 
 	def indices_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
