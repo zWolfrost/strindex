@@ -24,34 +24,19 @@ class CallbackWorker(QtCore.QThread):
 		else:
 			self.sig_else.emit()
 
-class StrindexGUI(QtWidgets.QWidget):
+class BaseStrindexGUI(QtWidgets.QWidget):
 	__widgets__: list[QtWidgets.QWidget]
 	__required__: list[QtWidgets.QWidget]
 	__actions__: list[QtWidgets.QWidget]
 	__callback_worker__: CallbackWorker
 
 	def __init__(self):
-		active_window = QtWidgets.QApplication.activeWindow()
-
-		if active_window:
-			active_window: StrindexGUI
-			active_window.hide()
-			self.closeEvent = lambda _: (active_window.show(), active_window.center_window(self))
-
-		is_first_window = not QtWidgets.QApplication.instance()
-		app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-
 		super().__init__()
 
 		self.__widgets__ = []
 		self.__required__ = []
 		self.__actions__ = []
 		self.setup()
-		self.show()
-		self.center_window(active_window)
-
-		if is_first_window:
-			sys.exit(app.exec())
 
 	@staticmethod
 	def parse_widgets(args):
@@ -94,7 +79,7 @@ class StrindexGUI(QtWidgets.QWidget):
 		progress_bar.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
 		def callback_wrapper():
-			self.setEnabled(False)
+			self.window().setEnabled(False)
 			progress_bar.setValue(0)
 			self.layout().replaceWidget(action_button, progress_bar)
 			action_button.setParent(None)
@@ -118,7 +103,7 @@ class StrindexGUI(QtWidgets.QWidget):
 			def callback_finally():
 				self.layout().replaceWidget(progress_bar, action_button)
 				progress_bar.setParent(None)
-				self.setEnabled(True)
+				self.window().setEnabled(True)
 				QtWidgets.QApplication.processEvents()
 
 			self.__callback_worker__ = CallbackWorker(callback_worker)
@@ -188,6 +173,9 @@ class StrindexGUI(QtWidgets.QWidget):
 		grid_layout.setSpacing(10)
 		for i in range(columns):
 			grid_layout.setColumnMinimumWidth(i, 125)
+
+		grid_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
+
 		self.setLayout(grid_layout)
 
 		return grid_layout
@@ -196,24 +184,12 @@ class StrindexGUI(QtWidgets.QWidget):
 		self.__widgets__ += [None] * padding
 
 
-	def set_window_properties(self, title: str):
-		WINDOWS_STYLESHEET = f""""""
-		UNIX_STYLESHEET = f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
-		self.setWindowTitle(title)
-		self.setStyleSheet(WINDOWS_STYLESHEET if sys.platform == "win32" else UNIX_STYLESHEET)
-		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
-		self.setMaximumSize(1600, 0)
-		self.resize(800, 0)
-
 	def browse_files(self, line: QtWidgets.QLineEdit, caption, filter):
 		if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:
 			line.setText(filepath)
 
-	def center_window(self, target: QtWidgets.QWidget):
-		if target:
-			target_rect = target.frameGeometry()
-		else:
-			target_rect = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+	def center_window(self):
+		target_rect = QtGui.QGuiApplication.primaryScreen().availableGeometry()
 
 		diff_size = target_rect.size() - self.frameGeometry().size()
 		self.move(target_rect.x() + diff_size.width() // 2, target_rect.y() + diff_size.height() // 2)
@@ -228,23 +204,42 @@ class StrindexGUI(QtWidgets.QWidget):
 		return msg
 
 
-class GeneralGUI(StrindexGUI):
+class MainStrindexGUI(BaseStrindexGUI):
+	def __init__(self):
+		app = QtWidgets.QApplication([])
+
+		super().__init__()
+
+		self.show()
+		self.center_window()
+
+		sys.exit(app.exec())
+
 	def setup(self):
-		self.create_button("Create", callback=CreateGUI)
-		self.create_button("Patch", callback=PatchGUI)
-		self.create_button("Update", callback=UpdateGUI)
-		self.create_button("Filter", callback=FilterGUI)
-		self.create_button("Delta", callback=DeltaGUI)
+		self.tab_widget = QtWidgets.QTabWidget()
+		self.tab_widget.addTab(CreateGUI(), "Create")
+		self.tab_widget.addTab(PatchGUI(), "Patch")
+		self.tab_widget.addTab(UpdateGUI(), "Update")
+		self.tab_widget.addTab(FilterGUI(), "Filter")
+		self.tab_widget.addTab(DeltaGUI(), "Delta")
 		if "__compiled__" not in globals():
-			self.create_button("Spellcheck", callback=SpellcheckGUI)
+			self.tab_widget.addTab(SpellcheckGUI(), "Spellcheck")
+		self.__widgets__.append(self.tab_widget)
 
 		self.create_grid_layout(1)
 
-		self.set_window_properties(title="Strindex GUI")
+		self.setWindowTitle("Strindex GUI")
 
-		self.resize(300, 0)
+		WINDOWS_STYLESHEET = f""""""
+		UNIX_STYLESHEET = f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
+		self.setStyleSheet(WINDOWS_STYLESHEET if sys.platform == "win32" else UNIX_STYLESHEET)
 
-class CreateGUI(StrindexGUI):
+		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
+		self.setMinimumSize(500, 0)
+		self.setMaximumSize(1600, 0)
+		self.resize(800, 0)
+
+class CreateGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_file_selection(line_text="*Select a file")
 
@@ -278,9 +273,7 @@ class CreateGUI(StrindexGUI):
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
-		self.set_window_properties(title="Strindex Create")
-
-class PatchGUI(StrindexGUI):
+class PatchGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_file_selection(line_text="*Select a file to patch")
 		self.create_strindex_selection(line_text="*Select a strindex file")
@@ -293,9 +286,7 @@ class PatchGUI(StrindexGUI):
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
-		self.set_window_properties(title="Strindex Patch")
-
-class UpdateGUI(StrindexGUI):
+class UpdateGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_file_selection(line_text="*Select a file to update from")
 		self.create_strindex_selection(line_text="*Select a strindex file to update")
@@ -308,9 +299,7 @@ class UpdateGUI(StrindexGUI):
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
-		self.set_window_properties(title="Strindex Update")
-
-class FilterGUI(StrindexGUI):
+class FilterGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_strindex_selection(line_text="*Select a strindex to filter")
 
@@ -322,9 +311,7 @@ class FilterGUI(StrindexGUI):
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
-		self.set_window_properties(title="Strindex Filter")
-
-class DeltaGUI(StrindexGUI):
+class DeltaGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_strindex_selection(line_text="*Select a strindex to diff from")
 		self.create_strindex_selection(line_text="*Select a strindex to diff against")
@@ -337,9 +324,7 @@ class DeltaGUI(StrindexGUI):
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
-		self.set_window_properties(title="Strindex Delta")
-
-class SpellcheckGUI(StrindexGUI):
+class SpellcheckGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_strindex_selection(line_text="*Select a strindex to spellcheck")
 
@@ -350,23 +335,3 @@ class SpellcheckGUI(StrindexGUI):
 		self.create_padding(1)
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
-
-		self.set_window_properties(title="Strindex Spellcheck")
-
-
-def action_gui(action):
-	match action:
-		case "gui":
-			GeneralGUI()
-		case "create":
-			CreateGUI()
-		case "patch":
-			PatchGUI()
-		case "update":
-			UpdateGUI()
-		case "filter":
-			FilterGUI()
-		case "delta":
-			DeltaGUI()
-		case "spellcheck":
-			SpellcheckGUI()

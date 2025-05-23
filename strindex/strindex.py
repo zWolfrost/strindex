@@ -192,7 +192,6 @@ def main(sysargs=None):
 	parser.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
-	parser.add_argument("-g", "--gui", action="store_true", help="Enable GUI mode.")
 
 	# create arguments
 	parser.add_argument("-f", "--force-mode", action="store_true", help="Force the replacement of strings at the same offset they were found.")
@@ -213,13 +212,13 @@ def main(sysargs=None):
 		if "__compiled__" in globals() and args.action == "spellcheck":
 			raise ImportError("Spellchecking is not supported in compiled builds.")
 
-		if args.action == "gui" or args.gui:
+		if args.action == "gui":
 			try:
-				from strindex.gui import action_gui
+				from strindex.gui import MainStrindexGUI
 			except ModuleNotFoundError:
 				raise ImportError('Please install the "PySide6" package (pip install pyside6) to use this feature.')
 
-			action_gui(args.action)
+			MainStrindexGUI()
 		else:
 			def assert_files_num(n: int):
 				assert len(args.files) == n, f"Expected {n} files, got {len(args.files)}."

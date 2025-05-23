@@ -35,7 +35,7 @@ These are the available actions:
 - `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
 - `delta`: Create a delta file between two strindexes, that only contains the lines of the first strindex missing in the second one (their difference).
 - `spellcheck`: Spellcheck a strindex. You can specify the target language in the strindex settings as an ISO 639-1 code.
-- `gui`: Open Strindex in GUI mode. You can also use the `-g` option for any other action to directly open the GUI for that action.
+- `gui`: Open Strindex in GUI mode.
 
 ## Usage Examples
 - Open strindex in GUI mode:
