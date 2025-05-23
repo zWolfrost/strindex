@@ -130,7 +130,8 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		line_edit.setPlaceholderText(text)
 		line_edit.textChanged.connect(self.update_action_button)
 		line_edit.textChanged.connect(lambda: line_edit.setStyleSheet(line_edit.styleSheet()))
-		line_edit.dropEvent = lambda event: line_edit.setText(unquote(urlparse(event.mimeData().text()).path))
+		line_edit.dragEnterEvent = lambda event: event.accept() if event.mimeData().hasUrls() else event.ignore()
+		line_edit.dropEvent = lambda event: line_edit.setText(event.mimeData().urls()[0].toLocalFile())
 		line_edit.setFont(QtGui.QFont("monospace"))
 
 		self.__widgets__.append(line_edit)

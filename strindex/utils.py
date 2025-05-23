@@ -31,8 +31,7 @@ class PrintProgress():
 			self.percent = round(iteration / self.total * 100, self.round)
 			if callable(PrintProgress.callback):
 				PrintProgress.callback(self)
-			else:
-				print(self.percent, end=self.print_end)
+			print(self.percent, end=self.print_end)
 
 	@property
 	def callback() -> Callable[["PrintProgress"], None]:
