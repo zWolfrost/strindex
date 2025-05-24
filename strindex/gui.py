@@ -217,7 +217,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		sys.exit(app.exec())
 
 	def set_custom_appearance(self):
-		WINDOWS_STYLESHEET = f""""""
+		WINDOWS_STYLESHEET = f"""QLineEdit{{padding: 2px; margin: 1px 0px;}}"""
 		UNIX_STYLESHEET = f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
 		self.setStyleSheet(WINDOWS_STYLESHEET if sys.platform == "win32" else UNIX_STYLESHEET)
 
