@@ -10,7 +10,7 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	strindex_filepath = strindex_filepath or (os.path.splitext(file_filepath)[0] + "_strindex.txt")
 
-	data = FileBytearray(open(file_filepath, 'rb').read())
+	data = FileBytearray.read(file_filepath)
 
 	STRINDEX = GenericModule(data, settings.force_mode).create(data, settings)
 
@@ -33,13 +33,13 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	MD5_SLICE = 8
 
-	file_filepath_bak = file_filepath + "_" + FileBytearray(open(file_filepath, 'rb').read()).md5[:MD5_SLICE] + ".bak"
+	file_filepath_bak = file_filepath + "_" + FileBytearray.read(file_filepath).md5[:MD5_SLICE] + ".bak"
 
 	if os.path.exists(file_filepath_bak):
 		print(f"Detected backup file, patching that instead.")
-		data = FileBytearray(open(file_filepath_bak, 'rb').read())
+		data = FileBytearray.read(file_filepath_bak)
 	else:
-		data = FileBytearray(open(file_filepath, 'rb').read())
+		data = FileBytearray.read(file_filepath)
 
 	STRINDEX = Strindex.read(strindex_filepath)
 
@@ -66,7 +66,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	file_updated_filepath = file_updated_filepath or (os.path.splitext(strindex_filepath)[0] + "_updated.txt")
 
-	data = FileBytearray(open(file_filepath, 'rb').read())
+	data = FileBytearray.read(file_filepath)
 
 	STRINDEX = Strindex.read(strindex_filepath)
 	STRINDEX_UPDATED = GenericModule(data, STRINDEX.settings.force_mode).create(data, STRINDEX.settings)

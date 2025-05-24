@@ -1,4 +1,4 @@
-import json, re, gzip, hashlib
+import os, json, re, gzip, hashlib
 from typing import Generator, Callable
 
 
@@ -283,6 +283,12 @@ class FileBytearray(bytearray):
 	cursor: int = 0
 	byte_length: int
 	byte_order: str
+
+
+	@classmethod
+	def read(cls, filepath: str):
+		with open(filepath, 'rb') as f:
+			return cls(f.read())
 
 
 	# Algorithms
