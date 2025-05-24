@@ -1,4 +1,4 @@
-import os, json, re, gzip, hashlib
+import json, re, gzip, hashlib
 from typing import Generator, Callable
 
 
