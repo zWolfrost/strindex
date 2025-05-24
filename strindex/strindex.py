@@ -12,7 +12,7 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	data = FileBytearray(open(file_filepath, 'rb').read())
 
-	STRINDEX: Strindex = GenericModule(data, settings.force_mode).create(data, settings)
+	STRINDEX = GenericModule(data, settings.force_mode).create(data, settings)
 
 	if compatible:
 		STRINDEX.type_order = ["compatible"] * len(STRINDEX.strings)
@@ -24,23 +24,31 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	STRINDEX.write(strindex_filepath)
 
-	print(f'Created strindex file at "{strindex_filepath}"')
+	print(f'Created strindex file in "{os.path.dirname(strindex_filepath)}"')
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None):
 	"""
 		Calls the patch method of the module associated with the file type.
 	"""
 
-	file_filepath_bak = file_filepath + ".bak"
+	MD5_SLICE = 8
 
-	data = FileBytearray(open(file_filepath_bak if os.path.exists(file_filepath_bak) else file_filepath, 'rb').read())
+	file_filepath_bak = file_filepath + "_" + FileBytearray(open(file_filepath, 'rb').read()).md5[:MD5_SLICE] + ".bak"
+
+	if os.path.exists(file_filepath_bak):
+		print(f"Detected backup file, patching that instead.")
+		data = FileBytearray(open(file_filepath_bak, 'rb').read())
+	else:
+		data = FileBytearray(open(file_filepath, 'rb').read())
 
 	STRINDEX = Strindex.read(strindex_filepath)
 
 	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5:
 		print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
 
-	data: FileBytearray = GenericModule(data, STRINDEX.settings.force_mode).patch(data, STRINDEX)
+	data = GenericModule(data, STRINDEX.settings.force_mode).patch(data, STRINDEX)
+
+	file_filepath_bak = file_filepath + "_" + data.md5[:MD5_SLICE] + ".bak"
 
 	if not file_patched_filepath:
 		if not os.path.exists(file_filepath_bak):
@@ -61,7 +69,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 	data = FileBytearray(open(file_filepath, 'rb').read())
 
 	STRINDEX = Strindex.read(strindex_filepath)
-	STRINDEX_UPDATED: Strindex = GenericModule(data, STRINDEX.settings.force_mode).create(data, STRINDEX.settings)
+	STRINDEX_UPDATED = GenericModule(data, STRINDEX.settings.force_mode).create(data, STRINDEX.settings)
 
 	STRINDEX_STRINGS_FLAT_ORIGINAL = STRINDEX.get_strings_flat_original
 
@@ -79,7 +87,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	STRINDEX.write(file_updated_filepath)
 
-	print(f'Created strindex file with {updated_pointers} updated pointer(s) at "{file_updated_filepath}".')
+	print(f'Created strindex file with {updated_pointers} updated pointer(s) in "{os.path.dirname(file_updated_filepath)}".')
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 	"""
@@ -125,7 +133,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 		print_progress(index)
 
 	STRINDEX_FILTER.write(strindex_filter_filepath)
-	print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at "{strindex_filter_filepath}".')
+	print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings in "{os.path.dirname(strindex_filter_filepath)}".')
 
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None):
 	"""
@@ -151,7 +159,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
-	print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at "{strindex_delta_filepath}".')
+	print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings in "{os.path.dirname(strindex_delta_filepath)}".')
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None):
 	"""
@@ -183,7 +191,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 
 			print_progress(index)
 
-	print(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
+	print(f'Created spellcheck file in "{os.path.dirname(strindex_spellcheck_filepath)}".')
 
 
 def main(sysargs=None):
