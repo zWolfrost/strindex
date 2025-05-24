@@ -14,7 +14,6 @@ class PrintProgress():
 	delta: int
 	round: int
 	percent: float
-	print_end: str
 
 	def __init__(self, total: int, round: int = 0):
 		self.total = total
@@ -22,16 +21,20 @@ class PrintProgress():
 		self.delta = total // (10 ** (round + 2))
 		self.round = None if round == 0 else round
 		self.percent = 0
-		self.print_end = "%" + " " * (round + 3) + "\r"
 		self(0)
 
+	def progress_bar_str(self, iteration: int, bar_length: int = 25) -> str:
+		""" Returns a string with the progress bar. """
+		progress = round(iteration / self.total * bar_length)
+		return f"\r[{'#' * progress}{'-' * (bar_length - progress)}] {self.percent}%"
+
 	def __call__(self, iteration: int):
-		if iteration >= self.limit:
+		if iteration >= self.limit and self.percent < 100:
 			self.limit += self.delta
 			self.percent = round(iteration / self.total * 100, self.round)
 			if callable(PrintProgress.callback):
 				PrintProgress.callback(self)
-			print(self.percent, end=self.print_end)
+			print(self.progress_bar_str(iteration), end=("" if self.percent < 100 else "\n"))
 
 	@property
 	def callback() -> Callable[["PrintProgress"], None]:
