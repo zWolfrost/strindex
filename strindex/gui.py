@@ -1,5 +1,4 @@
 import os, sys
-from urllib.parse import urlparse, unquote
 from PySide6 import QtWidgets, QtGui, QtCore
 from strindex.utils import PrintProgress, StrindexSettings
 from strindex.strindex import create, patch, update, filter, delta, spellcheck
