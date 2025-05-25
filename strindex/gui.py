@@ -1,7 +1,7 @@
 import os, sys
 from PySide6 import QtWidgets, QtGui, QtCore
 from strindex.utils import PrintProgress, StrindexSettings
-from strindex.strindex import create, patch, update, filter, delta, spellcheck
+from strindex.strindex import create, patch, update, filter, delta, spellcheck, VERSION
 
 
 class CallbackWorker(QtCore.QThread):
@@ -227,18 +227,47 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 	def setup(self):
 		self.tab_widget = QtWidgets.QTabWidget()
-		self.tab_widget.addTab(CreateGUI(), "Create")
-		self.tab_widget.addTab(PatchGUI(), "Patch")
-		self.tab_widget.addTab(UpdateGUI(), "Update")
-		self.tab_widget.addTab(FilterGUI(), "Filter")
-		self.tab_widget.addTab(DeltaGUI(), "Delta")
+
+		self.tab_widget.setTabToolTip(
+			self.tab_widget.addTab(CreateGUI(), "Create"),
+			"Create a list of strings (a strindex) extracted from a file."
+		)
+		self.tab_widget.setTabToolTip(
+			self.tab_widget.addTab(PatchGUI(), "Patch"),
+			"Patch a file with a strindex.\n" \
+			"Strindexes compressed with gzip are also supported for all actions."
+		)
+		self.tab_widget.setTabToolTip(
+			self.tab_widget.addTab(UpdateGUI(), "Update"),
+			"Update a strindex file pointers' with the updated version of a file."
+		)
+		self.tab_widget.setTabToolTip(
+			self.tab_widget.addTab(FilterGUI(), "Filter"),
+			"Filter a strindex by detected language, wordlist or length.\n" \
+			"You can specify those in the strindex settings."
+		)
+		self.tab_widget.setTabToolTip(
+			self.tab_widget.addTab(DeltaGUI(), "Delta"),
+			"Create a delta file between two strindexes,\n" \
+			"that only contains the lines of the first strindex missing in the second one (their difference)."
+		)
 		if "__compiled__" not in globals():
-			self.tab_widget.addTab(SpellcheckGUI(), "Spellcheck")
+			self.tab_widget.setTabToolTip(
+				self.tab_widget.addTab(SpellcheckGUI(), "Spellcheck"),
+				"Spellcheck a strindex.\n" \
+				"You can specify the target language in the strindex settings as an ISO 639-1 code."
+			)
+
+		version_label = QtWidgets.QLabel(f"<a href='https://github.com/zWolfrost/strindex'>v{VERSION}</a>")
+		version_label.setOpenExternalLinks(True)
+		version_label.setContentsMargins(3, 3, 3, 3)
+		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
+
 		self.__widgets__.append(self.tab_widget)
 
 		self.create_grid_layout(1)
 
-		self.setWindowTitle("Strindex GUI")
+		self.setWindowTitle("Strindex")
 
 		self.set_custom_appearance()
 
@@ -255,14 +284,22 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_lineedit("Suffix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
 		self.create_padding(1)
 
-		self.create_checkbox("Force Mode")
+		self.create_checkbox("Force Mode").setToolTip(
+			"When patching, replace strings at the same offset they were found.\n" \
+			"This means the program will effectively work with any filetype,\n" \
+			"but the length of the patched strings can't be longer than the original ones."
+		)
 		self.create_padding(1)
 
-		self.create_checkbox("Compatible Mode")
+		self.create_checkbox("Compatible Mode").setToolTip(
+			"Create a strindex that uses the original strings as references, instead of pointers."
+		)
 		self.create_padding(1)
 
 		self.create_action_button(
-			text="Create strindex", progress_text="Creating... %p%", complete_text="Strindex created successfully.",
+			text="Create strindex",
+			progress_text="Creating... %p%",
+			complete_text="Strindex created successfully.",
 			callback=lambda file, length, prefix, suffix, force, comp: create(
 				file, None, comp, StrindexSettings(**{
 					"force_mode": force,
@@ -282,7 +319,9 @@ class PatchGUI(BaseStrindexGUI):
 		self.create_strindex_selection(line_text="*Select a strindex file")
 
 		self.create_action_button(
-			text="Patch file", progress_text="Patching... %p%", complete_text="File patched successfully.",
+			text="Patch file",
+			progress_text="Patching... %p%",
+			complete_text="File patched successfully.",
 			callback=lambda file, strdex: patch(file, strdex, None)
 		)
 		self.create_padding(1)
@@ -295,7 +334,9 @@ class UpdateGUI(BaseStrindexGUI):
 		self.create_strindex_selection(line_text="*Select a strindex file to update")
 
 		self.create_action_button(
-			text="Update strindex", progress_text="Updating... %p%", complete_text="Created an updated strindex successfully.",
+			text="Update strindex",
+			progress_text="Updating... %p%",
+			complete_text="Created an updated strindex successfully.",
 			callback=lambda file, strdex: update(file, strdex, None)
 		)
 		self.create_padding(1)
@@ -307,7 +348,9 @@ class FilterGUI(BaseStrindexGUI):
 		self.create_strindex_selection(line_text="*Select a strindex to filter")
 
 		self.create_action_button(
-			text="Filter strindex", progress_text="Filtering... %p%", complete_text="Created a filtered strindex successfully.",
+			text="Filter strindex",
+			progress_text="Filtering... %p%",
+			complete_text="Created a filtered strindex successfully.",
 			callback=lambda strdex: filter(strdex, None)
 		)
 		self.create_padding(1)
@@ -320,7 +363,9 @@ class DeltaGUI(BaseStrindexGUI):
 		self.create_strindex_selection(line_text="*Select a strindex to diff against")
 
 		self.create_action_button(
-			text="Delta strindex", progress_text="Updating... %p%", complete_text="Created a delta strindex successfully.",
+			text="Delta strindex",
+			progress_text="Updating... %p%",
+			complete_text="Created a delta strindex successfully.",
 			callback=lambda strdex1, strdex2: delta(strdex1, strdex2, None)
 		)
 		self.create_padding(1)
@@ -332,7 +377,9 @@ class SpellcheckGUI(BaseStrindexGUI):
 		self.create_strindex_selection(line_text="*Select a strindex to spellcheck")
 
 		self.create_action_button(
-			text="Spellcheck strindex", progress_text="Spellchecking... %p%", complete_text="Created a spellcheck file of a strindex successfully.",
+			text="Spellcheck strindex",
+			progress_text="Spellchecking... %p%",
+			complete_text="Created a spellcheck file of a strindex successfully.",
 			callback=lambda strdex: spellcheck(strdex, None)
 		)
 		self.create_padding(1)

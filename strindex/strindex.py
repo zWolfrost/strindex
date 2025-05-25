@@ -2,6 +2,8 @@ import os, argparse
 from strindex.utils import PrintProgress, Strindex, StrindexSettings, FileBytearray
 from strindex.filetypes import GenericModule
 
+VERSION = "3.8.0"
+
 
 def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, settings: StrindexSettings):
 	"""
@@ -208,7 +210,7 @@ def main(sysargs=None):
 	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes that can prefix a pointer.")
 	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[], help="Suffix bytes that can suffix a pointer.")
 
-	parser.add_argument("--version", action="version", version="3.7.1")
+	parser.add_argument("--version", action="version", version=VERSION, help="Show the version of strindex and exit.")
 	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
 
 	args = parser.parse_args(sysargs)
