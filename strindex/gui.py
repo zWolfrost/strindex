@@ -54,7 +54,10 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 	def create_file_selection(self, line_text: str, button_text: str = "Browse Files"):
 		file_select = self.create_lineedit(line_text)
-		file_browse = self.create_button(button_text, lambda: self.browse_files(file_select, "Select File", "All Files (*)"))
+		file_browse = self.create_button(
+			button_text,
+			lambda: self.browse_files(file_select, "Select File", "All Files (*)")
+		)
 
 		self.__required__.append(file_select)
 
@@ -62,7 +65,10 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 	def create_strindex_selection(self, line_text: str, button_text: str = "Browse strindex"):
 		strindex_select = self.create_lineedit(line_text)
-		strindex_browse = self.create_button(button_text, lambda: self.browse_files(strindex_select, "Select Strindex", "Strindex Files (*.txt *.gz)"))
+		strindex_browse = self.create_button(
+			button_text,
+			lambda: self.browse_files(strindex_select, "Select Strindex", "Strindex Files (*.txt *.gz)")
+		)
 
 		self.__required__.append(strindex_select)
 
