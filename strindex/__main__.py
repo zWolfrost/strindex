@@ -11,6 +11,6 @@ from strindex.strindex import main
 
 if __name__ == "__main__":
 	if "__compiled__" in globals() and len(sys.argv) <= 1:
-		main(["gui"])
+		main(["gui", "--verbose"])
 	else:
 		main()
