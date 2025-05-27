@@ -229,9 +229,14 @@ class MainStrindexGUI(BaseStrindexGUI):
 	def set_custom_appearance(self):
 		if sys.platform == "win32":
 			self.app.setStyle("Fusion")
-			self.setStyleSheet(f"""QLineEdit{{padding: 2px; margin: 1px 0px;}}""")
+			self.setStyleSheet(
+				f"""QLineEdit{{padding: 3px; margin: 1px 0px;}}"""
+				f"""QCheckBox::indicator:unchecked{{background-color: #2d2d2d; border: 1px solid #222222;}}"""
+			)
 		else:
-			self.setStyleSheet(f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}""")
+			self.setStyleSheet(
+				f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
+			)
 
 		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
 		self.setMinimumSize(500, 0)
