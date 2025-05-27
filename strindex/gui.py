@@ -211,20 +211,27 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 
 class MainStrindexGUI(BaseStrindexGUI):
+	app: QtWidgets.QApplication
+
 	def __init__(self):
-		app = QtWidgets.QApplication([])
+		self.app = QtWidgets.QApplication([])
+		self.app.setApplicationName("Strindex")
+		self.app.setApplicationVersion(VERSION)
+		self.app.setOrganizationName("zWolfrost")
 
 		super().__init__()
 
 		self.show()
 		self.center_window()
 
-		sys.exit(app.exec())
+		sys.exit(self.app.exec())
 
 	def set_custom_appearance(self):
-		WINDOWS_STYLESHEET = f"""QLineEdit{{padding: 2px; margin: 1px 0px;}}"""
-		UNIX_STYLESHEET = f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
-		self.setStyleSheet(WINDOWS_STYLESHEET if sys.platform == "win32" else UNIX_STYLESHEET)
+		if sys.platform == "win32":
+			self.app.setStyle("Fusion")
+			self.setStyleSheet(f"""QLineEdit{{padding: 2px; margin: 1px 0px;}}""")
+		else:
+			self.setStyleSheet(f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}""")
 
 		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
 		self.setMinimumSize(500, 0)
