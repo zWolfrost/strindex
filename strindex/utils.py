@@ -226,7 +226,7 @@ class Strindex():
 					elif next_str_type == "replace":
 						strindex.strings[-1][1] += line
 
-		if strindex.strings[-1] == ['', '']:
+		if strindex.strings and strindex.strings[-1] == ['', '']:
 			strindex.strings.pop()
 			strindex.pointers.pop()
 			strindex.type_order.pop()
