@@ -1,6 +1,6 @@
 import os, sys
 from PySide6 import QtWidgets, QtGui, QtCore
-from strindex.utils import PrintProgress, StrindexSettings
+from strindex.utils import StrindexSettings, PrintProgress
 from strindex.strindex import create, patch, update, filter, delta, spellcheck, VERSION
 
 
@@ -92,7 +92,6 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 			def callback_worker():
 				callback(*self.parse_widgets(self.__widgets__))
-				progress_bar.setValue(100)
 
 			def callback_progress(progress):
 				progress_bar.setValue(progress.percent)
@@ -102,6 +101,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 				callback_finally()
 
 			def callback_else():
+				progress_bar.setValue(100)
 				self.show_message(complete_text, QtWidgets.QMessageBox.Icon.Information)
 				callback_finally()
 

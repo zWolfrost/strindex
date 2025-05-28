@@ -1,5 +1,5 @@
 import os, argparse
-from strindex.utils import PrintProgress, Strindex, StrindexSettings, FileBytearray
+from strindex.utils import Strindex, StrindexSettings, FileBytearray, PrintProgress
 from strindex.filetypes import GenericModule
 
 VERSION = "3.8.0"
@@ -35,11 +35,11 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	MD5_SLICE = 8
 
-	file_filepath_bak = file_filepath + "_" + FileBytearray.read(file_filepath).md5[:MD5_SLICE] + ".bak"
+	orig_file_filepath_bak = file_filepath + "_" + FileBytearray.read(file_filepath).md5[:MD5_SLICE] + ".bak"
 
-	if os.path.exists(file_filepath_bak):
+	if os.path.exists(orig_file_filepath_bak):
 		print(f"Detected backup file, patching that instead.")
-		data = FileBytearray.read(file_filepath_bak)
+		data = FileBytearray.read(orig_file_filepath_bak)
 	else:
 		data = FileBytearray.read(file_filepath)
 
@@ -50,11 +50,11 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	data = GenericModule(data, STRINDEX.settings.force_mode).patch(data, STRINDEX)
 
-	file_filepath_bak = file_filepath + "_" + data.md5[:MD5_SLICE] + ".bak"
+	repl_file_filepath_bak = file_filepath + "_" + data.md5[:MD5_SLICE] + ".bak"
 
 	if not file_patched_filepath:
-		if not os.path.exists(file_filepath_bak):
-			os.rename(file_filepath, file_filepath_bak)
+		if not os.path.exists(repl_file_filepath_bak):
+			os.rename(orig_file_filepath_bak if os.path.exists(orig_file_filepath_bak) else file_filepath, repl_file_filepath_bak)
 		file_patched_filepath = file_filepath
 
 	open(file_patched_filepath, 'wb').write(data)
