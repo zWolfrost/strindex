@@ -231,7 +231,6 @@ class MainStrindexGUI(BaseStrindexGUI):
 			self.app.setStyle("Fusion")
 			self.setStyleSheet(
 				f"""QLineEdit{{padding: 3px; margin: 1px 0px;}}"""
-				f"""QCheckBox::indicator:unchecked{{background-color: #2d2d2d; border: 1px solid #222222;}}"""
 			)
 		else:
 			self.setStyleSheet(
