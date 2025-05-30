@@ -14,7 +14,7 @@ It features various built-in features to help with translation, such as spellche
 
 ## Supported filetypes
 *Support for more types is not planned.*
-- PE files (".exe, ".dll"...) *(direct pointers only)*
+- PE files (".exe", ".dll"...) *(direct pointers only)*
 - Gamemaker data files ("data.win")
 - Forceful replacement in every filetype...
 
@@ -42,9 +42,9 @@ These are the available actions:
   ```sh
   strindex gui
   ```
-- Create a strindex from a PE file and save it to `./strindex.txt`:
+- Create a strindex from a PE file, considering only pointers prefixed by the bytes "24c7442404" or "ec04c70424".
   ```sh
-  strindex create program.exe -o strindex.txt
+  strindex create program.exe -p "24c7442404" -p "ec04c70424"
   ```
 - Patch a PE file with a strindex:
   ```sh
