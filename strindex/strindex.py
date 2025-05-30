@@ -26,7 +26,7 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	STRINDEX.write(strindex_filepath)
 
-	print(f'Created strindex file in "{os.path.dirname(strindex_filepath)}"')
+	print(f'Successfully created strindex file at "{strindex_filepath}"')
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None):
 	"""
@@ -89,7 +89,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	STRINDEX.write(file_updated_filepath)
 
-	print(f'Created strindex file with {updated_pointers} updated pointer(s) in "{os.path.dirname(file_updated_filepath)}".')
+	print(f'Created strindex file with {updated_pointers} updated pointer(s) at "{file_updated_filepath}".')
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 	"""
@@ -135,7 +135,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 		print_progress(index)
 
 	STRINDEX_FILTER.write(strindex_filter_filepath)
-	print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings in "{os.path.dirname(strindex_filter_filepath)}".')
+	print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at "{strindex_filter_filepath}".')
 
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None):
 	"""
@@ -161,7 +161,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
-	print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings in "{os.path.dirname(strindex_delta_filepath)}".')
+	print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at "{strindex_delta_filepath}".')
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None):
 	"""
@@ -193,7 +193,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 
 			print_progress(index)
 
-	print(f'Created spellcheck file in "{os.path.dirname(strindex_spellcheck_filepath)}".')
+	print(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
 
 
 def main(sysargs=None):
