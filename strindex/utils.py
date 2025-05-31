@@ -1,4 +1,4 @@
-import json, re, gzip, hashlib
+import json, re, gzip, hashlib, time
 from typing import Generator, Callable
 
 
@@ -21,12 +21,13 @@ class PrintProgress():
 		self.delta = total // (10 ** (round + 2))
 		self.round = None if round == 0 else round
 		self.percent = 0
+		self.start = time.time()
 		self(0)
 
-	def progress_bar_str(self, iteration: int, bar_length: int = 25) -> str:
+	def progress_bar_str(self, iteration: int, bar_length: int = 30) -> str:
 		""" Returns a string with the progress bar. """
 		progress = round(iteration / self.total * bar_length)
-		return f"\r[{'#' * progress}{'-' * (bar_length - progress)}] {self.percent}%"
+		return f"\r[{'#' * progress}{'-' * (bar_length - progress)}] {self.percent}% "
 
 	def __call__(self, iteration: int):
 		if iteration >= self.limit and self.percent < 100:
@@ -34,7 +35,9 @@ class PrintProgress():
 			self.percent = round(iteration / self.total * 100, self.round)
 			if callable(PrintProgress.callback):
 				PrintProgress.callback(self)
-			print(self.progress_bar_str(iteration), end=("" if self.percent < 100 else "\n"))
+			print(self.progress_bar_str(iteration), end="")
+			if self.percent >= 100:
+				print(f"({time.time() - self.start:.2f}s)")
 
 	@property
 	def callback() -> Callable[["PrintProgress"], None]:
@@ -301,7 +304,7 @@ class FileBytearray(bytearray):
 		Skips strings that contain control characters and ones that are not valid UTF-8.
 		"""
 		SEPARATOR_CH = sep[0]
-		CONTROL_CHARS = (set(range(1, 9)) | set(range(11, 32)) | {127}) - {SEPARATOR_CH}
+		CONTROL_CHARS = bytes([*range(1, 9), *range(11, 32), 127]).replace(sep, b'')
 		start_offset = 0
 		skip = False
 		print_progress = PrintProgress(len(self))
@@ -321,6 +324,7 @@ class FileBytearray(bytearray):
 					start_offset = offset + 1
 					skip = False
 					print_progress(offset)
+		print_progress(len(self))
 
 	def indices_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
@@ -368,11 +372,11 @@ class FileBytearray(bytearray):
 		print_progress = PrintProgress(len(self))
 		mv = memoryview(bytes(self))
 		for offset in range(len(self)):
-			cur_bytes = mv[offset:offset + fixed_length]
-			if cur_bytes in indices_dict:
-				indices_dict[cur_bytes].append(offset + fixed_prefix_length)
+			if mv[offset:offset + fixed_length] in indices_dict:
+				indices_dict[mv[offset:offset + fixed_length]].append(offset + fixed_prefix_length)
 			if offset >= print_progress.limit:
 				print_progress(offset)
+		print_progress(len(self))
 
 		indices = list(indices_dict.values())[::len(prefixes) * len(suffixes)]
 		for search_index, search_string in enumerate(search_lst):
