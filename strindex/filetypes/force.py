@@ -4,16 +4,13 @@ from strindex.utils import Strindex, StrindexSettings, FileBytearray
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	strindex = Strindex()
 
-	for string, offset in data.yield_strings():
-		end_offset = offset + len(string.encode('utf-8'))
-
+	for string, start_offset, end_offset in data.yield_strings(min_length=settings.min_length):
 		if (
-			len(string) >= settings.min_length and
-			any(bytes(data[offset - len(prefix):offset]) == prefix for prefix in settings.prefix_bytes) and
+			any(bytes(data[start_offset - len(prefix):start_offset]) == prefix for prefix in settings.prefix_bytes) and
 			any(bytes(data[end_offset:end_offset + len(suffix)]) == suffix for suffix in settings.suffix_bytes)
 		):
 			strindex.strings.append(string)
-			strindex.pointers.append([offset])
+			strindex.pointers.append([start_offset])
 			strindex.type_order.append("overwrite")
 
 	print(f"Found {len(strindex.strings)} strings.")

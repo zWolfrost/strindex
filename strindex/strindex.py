@@ -127,7 +127,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 
 		valid_language = not STRINDEX.settings.source_language or is_source_language(actual_string)
 		valid_length = len(actual_string) >= STRINDEX.settings.min_length
-		valid_whitelist = not STRINDEX.settings.whitelist or not any(ch not in STRINDEX.settings.whitelist for ch in actual_string)
+		valid_whitelist = not any(ch not in STRINDEX.settings.whitelist for ch in actual_string)
 
 		if all([valid_language, valid_length, valid_whitelist]):
 			STRINDEX_FILTER.append_strindex_index(STRINDEX, index)

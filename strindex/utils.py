@@ -67,11 +67,11 @@ class StrindexSettings():
 
 	def __init__(self, **kwargs):
 		self.md5 = kwargs.get("md5")
-		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist"))
+		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist") or "")
 		self.force_mode = kwargs.get("force_mode") or False
 		self.min_length = int(kwargs.get("min_length") or 1)
-		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes"))
-		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes"))
+		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes") or [])
+		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes") or [])
 		self.patch_replace = kwargs.get("patch_replace") or {}
 		self.clean_pattern = kwargs.get("clean_pattern") or ""
 		self.source_language = kwargs.get("source_language")
@@ -80,7 +80,7 @@ class StrindexSettings():
 
 	@staticmethod
 	def handle_whitelist(whitelist: str) -> set[str]:
-		return set(''.join([StrindexSettings.CHARACTER_CLASSES.get(whitelist, whitelist) for whitelist in (whitelist + ["default"])])) if whitelist else None
+		return set(''.join([StrindexSettings.CHARACTER_CLASSES.get(whitelist, whitelist) for whitelist in (whitelist + ["default"])])) if whitelist else set()
 
 	@staticmethod
 	def handle_bytes_list(bytes_list: list[bytes]) -> list[bytes]:
@@ -163,71 +163,74 @@ class Strindex():
 			stream = open(filepath, 'r', encoding='utf-8')
 
 		with stream as f:
-			previous_line_pos = 0
-			while line := f.readline():
-				if line.lstrip().startswith("{"):
-					strindex_settings_lines = line
-					strindex.full_header += line
-					while True:
+			try:
+				previous_line_pos = 0
+				while line := f.readline():
+					if line.lstrip().startswith("{"):
+						strindex_settings_lines = line
+						strindex.full_header += line
+						while True:
+							try:
+								strindex.settings = StrindexSettings(**json.loads(strindex_settings_lines))
+							except json.JSONDecodeError as e:
+								line = f.readline()
+								if not line:
+									raise ValueError("Error parsing Strindex settings.") from e
+								strindex.full_header += line
+								if line.lstrip().startswith("//"):
+									continue
+								if line.startswith(Strindex.ORIGINAL_DEL):
+									raise ValueError("Error parsing Strindex settings: " + str(e)) from e
+								strindex_settings_lines += line
+							else:
+								break
+					elif line.startswith(Strindex.ORIGINAL_DEL):
+						f.seek(previous_line_pos)
+						break
+					else:
+						previous_line_pos = f.tell()
+						strindex.full_header += line
+
+				next_str_type = ""
+				is_start = True
+				while line := f.readline():
+					line = line.rstrip('\n')
+					if line.startswith(Strindex.ORIGINAL_DEL):
+						is_start = True
+						line = line.lstrip(Strindex.ORIGINAL_DEL)
+
+						if next_str_type == "original":
+							strindex.strings[-1][1] = strindex.strings[-1][0]
+
 						try:
-							strindex.settings = StrindexSettings(**json.loads(strindex_settings_lines))
-						except json.JSONDecodeError as e:
-							line = f.readline()
-							if not line:
-								raise ValueError("Error parsing Strindex settings.")
-							strindex.full_header += line
-							if line.lstrip().startswith("//"):
-								continue
-							if line.startswith(Strindex.ORIGINAL_DEL):
-								raise ValueError("Error parsing Strindex settings: " + str(e))
-							strindex_settings_lines += line
-						else:
-							break
-				elif line.startswith(Strindex.ORIGINAL_DEL):
-					f.seek(previous_line_pos)
-					break
-				else:
-					previous_line_pos = f.tell()
-					strindex.full_header += line
+							if Strindex.POINTERS_DEL in line:
+								next_str_type = "overwrite"
+								strindex.strings.append('')
+								strindex.pointers.append([int(p, 16) for p in line.split(Strindex.POINTERS_DEL)[1:-1] if p])
+								strindex.type_order.append("overwrite")
+							else:
+								next_str_type = "original"
+								strindex.strings.append(['', ''])
+								strindex.pointers.append([bool(int(p)) for p in line.strip(Strindex.POINTERS_SWITCHES_DEL) if p])
+								strindex.type_order.append("compatible")
+						except Exception as e:
+							raise ValueError(f"Error parsing Strindex pointers: {line}") from e
+					elif line == Strindex.REPLACE_DEL and next_str_type == "original":
+						is_start = True
+						next_str_type = "replace"
+					else:
+						if not is_start:
+							line = "\n" + line
+						is_start = False
 
-			next_str_type = ""
-			is_start = True
-			while line := f.readline():
-				line = line.rstrip('\n')
-				if line.startswith(Strindex.ORIGINAL_DEL):
-					is_start = True
-					line = line.lstrip(Strindex.ORIGINAL_DEL)
-
-					if next_str_type == "original":
-						strindex.strings[-1][1] = strindex.strings[-1][0]
-
-					try:
-						if Strindex.POINTERS_DEL in line:
-							next_str_type = "overwrite"
-							strindex.strings.append('')
-							strindex.pointers.append([int(p, 16) for p in line.split(Strindex.POINTERS_DEL)[1:-1] if p])
-							strindex.type_order.append("overwrite")
-						else:
-							next_str_type = "original"
-							strindex.strings.append(['', ''])
-							strindex.pointers.append([bool(int(p)) for p in line.strip(Strindex.POINTERS_SWITCHES_DEL) if p])
-							strindex.type_order.append("compatible")
-					except Exception:
-						raise ValueError(f"Error parsing Strindex pointers: {line}")
-				elif line == Strindex.REPLACE_DEL and next_str_type == "original":
-					is_start = True
-					next_str_type = "replace"
-				else:
-					if not is_start:
-						line = "\n" + line
-					is_start = False
-
-					if next_str_type == "overwrite":
-						strindex.strings[-1] += line
-					elif next_str_type == "original":
-						strindex.strings[-1][0] += line
-					elif next_str_type == "replace":
-						strindex.strings[-1][1] += line
+						if next_str_type == "overwrite":
+							strindex.strings[-1] += line
+						elif next_str_type == "original":
+							strindex.strings[-1][0] += line
+						elif next_str_type == "replace":
+							strindex.strings[-1][1] += line
+			except UnicodeDecodeError as e:
+				raise ValueError(f"Error decoding Strindex at char {f.tell()}") from e
 
 		if strindex.strings and strindex.strings[-1] == ['', '']:
 			strindex.strings.pop()
@@ -298,7 +301,7 @@ class FileBytearray(bytearray):
 
 
 	# Algorithms
-	def yield_strings(self, sep=b'\x00') -> Generator[tuple[str, int], None, None]:
+	def yield_strings(self, sep: bytes = b'\x00', min_length: int = 1) -> Generator[tuple[str, int, int], None, None]:
 		"""
 		Yields all strings in a bytearray, separated by a given separator. Extremely fast.
 		Skips strings that contain control characters and ones that are not valid UTF-8.
@@ -311,15 +314,17 @@ class FileBytearray(bytearray):
 		for offset, char in enumerate(self):
 			if char in CONTROL_CHARS:
 				skip = True
-			if char == SEPARATOR_CH:
+			elif char == SEPARATOR_CH:
 				try:
 					if skip:
 						continue
 					string = self[start_offset:offset].decode('utf-8')
+					if len(string) < min_length:
+						continue
 				except UnicodeDecodeError:
 					continue
 				else:
-					yield string, start_offset
+					yield string, start_offset, offset
 				finally:
 					start_offset = offset + 1
 					skip = False
@@ -445,15 +450,13 @@ class FileBytearray(bytearray):
 	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], bytes]) -> Strindex:
 		temp_strindex = {
 			"original": [],
-			"offsets": [],
 			"pointers": [],
 			"original_bytes": []
 		}
 
-		for string, offset in self.yield_strings():
-			if len(string) >= settings.min_length and (original_bytes := original_bytes_from_offset(offset)):
+		for string, start_offset, _ in self.yield_strings(min_length=settings.min_length):
+			if original_bytes := original_bytes_from_offset(start_offset):
 				temp_strindex["original"].append(string)
-				temp_strindex["offsets"].append(offset)
 				temp_strindex["original_bytes"].append(original_bytes)
 
 		if not temp_strindex["original"]:
@@ -463,7 +466,7 @@ class FileBytearray(bytearray):
 		temp_strindex["pointers"] = self.indices_fixed(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
 		strindex = Strindex()
-		for string, offset, pointers in zip(temp_strindex["original"], temp_strindex["offsets"], temp_strindex["pointers"]):
+		for string, pointers in zip(temp_strindex["original"], temp_strindex["pointers"]):
 			if pointers:
 				strindex.strings.append(string)
 				strindex.pointers.append(pointers)
@@ -474,9 +477,6 @@ class FileBytearray(bytearray):
 		return strindex
 
 	def patch_pointers_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], bytes], replaced_bytes_from_offset: Callable[[int], bytes], data_from_string: Callable[[str], bytearray]) -> bytearray:
-		def data_from_string_wrapper(string: str) -> bytearray:
-			return data_from_string(strindex.settings.patch_replace_string(string))
-
 		new_data = bytearray()
 
 		update_dict = {
@@ -498,7 +498,7 @@ class FileBytearray(bytearray):
 			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
 			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
 			update_dict["switches"].append(strindex_switches[index])
-			new_data += data_from_string_wrapper(strindex_replace[index])
+			new_data += data_from_string(strindex.settings.patch_replace_string(strindex_replace[index]))
 
 		update_dict["pointers"] = self.indices_fixed(update_dict["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
 
@@ -510,7 +510,7 @@ class FileBytearray(bytearray):
 
 		for overwrite in strindex.get_overwrite:
 			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
-			new_data += data_from_string_wrapper(overwrite)
+			new_data += data_from_string(strindex.settings.patch_replace_string(overwrite))
 
 		self.update_references(strindex.get_offsets, update_dict["replaced_bytes"])
 
