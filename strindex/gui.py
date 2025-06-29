@@ -285,6 +285,10 @@ class MainStrindexGUI(BaseStrindexGUI):
 		self.create_grid_layout(1)
 
 		self.setWindowTitle("Strindex")
+		self.setWindowIcon(QtGui.QIcon(
+			os.path.join(os.path.abspath(os.path.dirname(__file__)), "icon.png")
+				if "__compiled__" in globals() else "icon.png"
+		))
 
 		self.set_custom_appearance()
 

@@ -5,6 +5,7 @@
 # nuitka-project: --nofollow-import-to=language_tool_python
 # nuitka-project: --windows-console-mode=hide
 # nuitka-project: --windows-icon-from-ico=icon.png
+# nuitka-project: --include-data-file=icon.png=strindex/
 
 import sys
 from strindex.strindex import main
