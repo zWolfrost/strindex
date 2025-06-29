@@ -1,4 +1,5 @@
-import os, argparse
+import os
+import argparse
 from strindex.utils import Strindex, StrindexSettings, FileBytearray, PrintProgress
 from strindex.filetypes import GenericModule
 
@@ -28,6 +29,7 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	print(f'Successfully created strindex file at "{strindex_filepath}"')
 
+
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None):
 	"""
 		Calls the patch method of the module associated with the file type.
@@ -38,7 +40,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	orig_file_filepath_bak = file_filepath + "_" + FileBytearray.read(file_filepath).md5[:MD5_SLICE] + ".bak"
 
 	if os.path.exists(orig_file_filepath_bak):
-		print(f"Detected backup file, patching that instead.")
+		print("Detected backup file, patching that instead.")
 		data = FileBytearray.read(orig_file_filepath_bak)
 	else:
 		data = FileBytearray.read(file_filepath)
@@ -60,6 +62,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	open(file_patched_filepath, 'wb').write(data)
 
 	print("File was patched successfully.")
+
 
 def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None):
 	"""
@@ -90,6 +93,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 	STRINDEX.write(file_updated_filepath)
 
 	print(f'Created strindex file with {updated_pointers} updated pointer(s) at "{file_updated_filepath}".')
+
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 	"""
@@ -137,6 +141,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 	STRINDEX_FILTER.write(strindex_filter_filepath)
 	print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at "{strindex_filter_filepath}".')
 
+
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None):
 	"""
 		Filters a full strindex file with a delta strindex file, or intersects them.
@@ -162,6 +167,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
 	print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at "{strindex_delta_filepath}".')
+
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None):
 	"""
@@ -236,7 +242,10 @@ def main(sysargs=None):
 			match args.action:
 				case "create":
 					assert_files_num(1)
-					create(args.files[0], args.output, args.compatible,
+					create(
+						args.files[0],
+						args.output,
+						args.compatible,
 						StrindexSettings(**{
 							"force_mode": args.force_mode,
 							"min_length": args.min_length,
@@ -266,6 +275,7 @@ def main(sysargs=None):
 			raise
 		else:
 			print(f"{type(e).__name__}: {e}")
+
 
 if __name__ == "__main__":
 	main()

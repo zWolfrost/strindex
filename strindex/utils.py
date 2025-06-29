@@ -1,4 +1,8 @@
-import json, re, gzip, hashlib, time
+import json
+import re
+import gzip
+import hashlib
+import time
 from typing import Generator, Callable
 
 
@@ -43,10 +47,11 @@ class PrintProgress():
 	def callback() -> Callable[["PrintProgress"], None]:
 		return globals().get("__print_progress_callback__")
 
+
 class StrindexSettings():
 	# These are really limited, so I would really like if you added your language's characters here and open a pull request <3
 	CHARACTER_CLASSES = {
-		"default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\]^_`{|}~… """,
+		"default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~… """,
 		"latin": """ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz""",
 		"spanish": """¡¿ÁÉÍÓÚÜÑáéíóúüñã""",
 		"italian": """ÀÈÉÌÒÓÙàèéìòóù""",
@@ -95,16 +100,17 @@ class StrindexSettings():
 			string = string.replace(key, value)
 		return string
 
+
 class Strindex():
 	""" A class to parse and create strindex files. """
 
-	HEADER = f"You can freely create & delete informational lines in the header like this one.\n\n{{}}\n\n"
+	HEADER = "You can freely create & delete informational lines in the header like this one.\n\n{}\n\n"
 	INFO = f"//{'=' * 78}/pointer(s)/\n"
 	COMPATIBLE_INFO = f"//{'=' * 78}| reallocate pointer(s) if 1 |\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
-	ORIGINAL_DEL = f"{'=' * 80}"
-	REPLACE_DEL = f"{'-' * 80}"
-	POINTERS_DEL = f'/'
-	POINTERS_SWITCHES_DEL = f'|'
+	ORIGINAL_DEL = '=' * 80
+	REPLACE_DEL = '-' * 80
+	POINTERS_DEL = '/'
+	POINTERS_SWITCHES_DEL = '|'
 
 	full_header: str
 	settings: StrindexSettings
@@ -116,15 +122,19 @@ class Strindex():
 	@property
 	def get_overwrite(self) -> list[str]:
 		return [string for string, type in zip(self.strings, self.type_order) if type == "overwrite"]
+
 	@property
 	def get_original(self) -> list[str]:
 		return [string[0] for string, type in zip(self.strings, self.type_order) if type == "compatible"]
+
 	@property
 	def get_replace(self) -> list[str]:
 		return [string[1] for string, type in zip(self.strings, self.type_order) if type == "compatible"]
+
 	@property
 	def get_offsets(self) -> list[list[int]]:
 		return [pointers for pointers, type in zip(self.pointers, self.type_order) if type == "overwrite"]
+
 	@property
 	def get_switches(self) -> list[list[bool]]:
 		return [pointers for pointers, type in zip(self.pointers, self.type_order) if type == "compatible"]
@@ -132,10 +142,10 @@ class Strindex():
 	@property
 	def get_strings_flat_original(self) -> list[str]:
 		return [(string[0] if type == "compatible" else string) for string, type in zip(self.strings, self.type_order)]
+
 	@property
 	def get_strings_flat_replace(self) -> list[str]:
 		return [(string[1] if type == "compatible" else string) for string, type in zip(self.strings, self.type_order)]
-
 
 	def __init__(self):
 		""" Parses a strindex file and returns a dictionary with the data. """
@@ -146,7 +156,6 @@ class Strindex():
 		self.strings = []
 		self.pointers = []
 		self.type_order = []
-
 
 	@classmethod
 	def read(cls, filepath: str) -> "Strindex":
@@ -287,18 +296,17 @@ class Strindex():
 	def assert_data(self):
 		assert len(self.strings) == len(self.pointers) == len(self.type_order), f"Overwrite, pointers and type order lists are not the same length ({len(self.strings)} != {len(self.pointers)} != {len(self.type_order)})."
 
+
 class FileBytearray(bytearray):
 	""" A class to handle bytearrays with additional methods and shorthands focused on file manipulation. """
 	cursor: int = 0
 	byte_length: int
 	byte_order: str
 
-
 	@classmethod
 	def read(cls, filepath: str):
 		with open(filepath, 'rb') as f:
 			return cls(f.read())
-
 
 	# Algorithms
 	def yield_strings(self, sep: bytes = b'\x00', min_length: int = 1) -> Generator[tuple[str, int, int], None, None]:
@@ -390,7 +398,6 @@ class FileBytearray(bytearray):
 
 		return indices
 
-
 	# Shorthands
 	def get(self, byte_length: int = None) -> bytes:
 		byte_slice = self[self.cursor:self.cursor + (byte_length or self.byte_length)]
@@ -444,7 +451,6 @@ class FileBytearray(bytearray):
 			replace_bytes = replace_bytes.ljust(original_length, delimiter)
 
 		self[self.cursor:self.cursor + original_length] = replace_bytes
-
 
 	# Macros
 	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], bytes]) -> Strindex:
@@ -517,17 +523,16 @@ class FileBytearray(bytearray):
 		return new_data
 
 	def update_references(self, pointers: list[list[int]], replaced_bytes: list[bytes], switches: list[list[bool]] = None):
-		if	switches is None:
+		if switches is None:
 			switches = [[True] * len(pointer) for pointer in pointers]
 
 		for index, (pointers, replaced_bytes, switches) in enumerate(zip(pointers, replaced_bytes, switches)):
 			if pointers:
 				for pointer, switch in zip(pointers, switches):
 					if switch:
-						self[pointer:pointer+self.byte_length] = replaced_bytes
+						self[pointer:pointer + self.byte_length] = replaced_bytes
 			else:
 				print(f"No pointers found for line n.{index + 1}")
-
 
 	@property
 	def md5(self) -> str:

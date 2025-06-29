@@ -21,7 +21,7 @@ def pe_add_header_space(pe: pefile.PE) -> pefile.PE:
 
 	# Copying the data between the last section header and SizeOfHeaders to the newly allocated
 	# space.
-	new_section_offset = section_table_offset + pe.FILE_HEADER.NumberOfSections*0x28
+	new_section_offset = section_table_offset + pe.FILE_HEADER.NumberOfSections * 0x28
 	data = pe.get_data(new_section_offset, pe.OPTIONAL_HEADER.SizeOfHeaders - new_section_offset)
 	pe.set_bytes_at_offset(new_section_offset + pe.OPTIONAL_HEADER.FileAlignment, data)
 
@@ -60,12 +60,14 @@ def pe_add_header_space(pe: pefile.PE) -> pefile.PE:
 
 	return pe
 
+
 def pe_new_section_rva(pe: pefile.PE) -> int:
 	""" Returns the base rva for a possibly new PE section. """
 	new_section_base_rva = pe.sections[-1].VirtualAddress + pe.sections[-1].Misc_VirtualSize
 	if (pe.sections[-1].Misc_VirtualSize % pe.OPTIONAL_HEADER.SectionAlignment) != 0:
 		new_section_base_rva += pe.OPTIONAL_HEADER.SectionAlignment - (pe.sections[-1].Misc_VirtualSize % pe.OPTIONAL_HEADER.SectionAlignment)
 	return new_section_base_rva
+
 
 def pe_add_section(pe: pefile.PE, Name: str, Data: str, Characteristics=0xE00000E0) -> pefile.PE:
 	"""
@@ -89,7 +91,6 @@ def pe_add_section(pe: pefile.PE, Name: str, Data: str, Characteristics=0xE00000
 		# Padding the data of the section.
 		Data += b'\x00' * (pe.OPTIONAL_HEADER.FileAlignment - (len(Data) % pe.OPTIONAL_HEADER.FileAlignment))
 
-
 	section_table_offset = pe.DOS_HEADER.e_lfanew + 4 + pe.FILE_HEADER.sizeof() + pe.FILE_HEADER.SizeOfOptionalHeader
 
 	# If the new section header exceeds the SizeOfHeaders there won't be enough space
@@ -97,8 +98,8 @@ def pe_add_section(pe: pefile.PE, Name: str, Data: str, Characteristics=0xE00000
 	# (size of one section header) after the last current section header are filled
 	# with nulls/ are free to use.
 	if (
-		pe.OPTIONAL_HEADER.SizeOfHeaders < section_table_offset + (pe.FILE_HEADER.NumberOfSections+1)*0x28
-		or not all(char == b'\x00' for char in pe.get_data(section_table_offset + (pe.FILE_HEADER.NumberOfSections)*0x28, 0x28))
+		pe.OPTIONAL_HEADER.SizeOfHeaders < section_table_offset + (pe.FILE_HEADER.NumberOfSections + 1) * 0x28 or
+		not all(char == b'\x00' for char in pe.get_data(section_table_offset + (pe.FILE_HEADER.NumberOfSections) * 0x28, 0x28))
 	):
 		# Checking if more space can be added.
 		if pe.OPTIONAL_HEADER.SizeOfHeaders < pe.sections[0].VirtualAddress:
@@ -106,29 +107,27 @@ def pe_add_section(pe: pefile.PE, Name: str, Data: str, Characteristics=0xE00000
 		else:
 			raise ValueError("No more space can be added for the section header.")
 
-
 	# The validity check of RawAddress is done after space for a new section header may
 	# have been added because if space had been added the PointerToRawData of the previous
 	# section would have changed.
 	RawAddress = pe.sections[-1].PointerToRawData + pe.sections[-1].SizeOfRawData
 
-
 	# Appending the data of the new section to the file.
 	pe.__data__ = pe.__data__[:RawAddress] + Data + pe.__data__[RawAddress:]
 
-	section_offset = section_table_offset + pe.FILE_HEADER.NumberOfSections*0x28
+	section_offset = section_table_offset + pe.FILE_HEADER.NumberOfSections * 0x28
 
 	# Manually writing the data of the section header to the file.
 	pe.set_bytes_at_offset(section_offset, Name)
-	pe.set_dword_at_offset(section_offset+0x08, len(Data))
-	pe.set_dword_at_offset(section_offset+0x0C, pe_new_section_rva(pe))
-	pe.set_dword_at_offset(section_offset+0x10, len(Data))
-	pe.set_dword_at_offset(section_offset+0x14, RawAddress)
-	pe.set_dword_at_offset(section_offset+0x18, 0x00000000)
-	pe.set_dword_at_offset(section_offset+0x1C, 0x00000000)
-	pe.set_word_at_offset(section_offset+0x20, 0x0000)
-	pe.set_word_at_offset(section_offset+0x22, 0x0000)
-	pe.set_dword_at_offset(section_offset+0x24, Characteristics)
+	pe.set_dword_at_offset(section_offset + 0x08, len(Data))
+	pe.set_dword_at_offset(section_offset + 0x0C, pe_new_section_rva(pe))
+	pe.set_dword_at_offset(section_offset + 0x10, len(Data))
+	pe.set_dword_at_offset(section_offset + 0x14, RawAddress)
+	pe.set_dword_at_offset(section_offset + 0x18, 0x00000000)
+	pe.set_dword_at_offset(section_offset + 0x1C, 0x00000000)
+	pe.set_word_at_offset(section_offset + 0x20, 0x0000)
+	pe.set_word_at_offset(section_offset + 0x22, 0x0000)
+	pe.set_dword_at_offset(section_offset + 0x24, Characteristics)
 
 	pe.FILE_HEADER.NumberOfSections += 1
 
@@ -163,10 +162,12 @@ def pe_section_exists(pe: pefile.PE, section_name: str) -> bool:
 	""" Checks if a section with the specified name exists. """
 	return any(sect.Name == section_name.ljust(8, b'\x00') for sect in pe.sections)
 
+
 def pe_get_rva_from_offset(pe: pefile.PE, offset: int) -> int:
 	""" Returns the RVA of the specified offset. """
 	rva = pe.get_rva_from_offset(offset)
 	return rva + pe.OPTIONAL_HEADER.ImageBase if rva is not None else None
+
 
 def pe_initialize_data(pe: pefile.PE, data: FileBytearray):
 	data.byte_length = 4 if pe.OPTIONAL_HEADER.Magic == 0x10b else 8
@@ -174,6 +175,7 @@ def pe_initialize_data(pe: pefile.PE, data: FileBytearray):
 
 
 SECTION_NAME = b".strdex"
+
 
 def validate(data: FileBytearray) -> bool:
 	""" Checks if the file is a valid PE file. """
@@ -187,6 +189,7 @@ def validate(data: FileBytearray) -> bool:
 
 	return True
 
+
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	pe = pefile.PE(data=bytes(data))
 
@@ -195,9 +198,11 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 	pe_initialize_data(pe, data)
 
-	return data.create_pointers_macro(settings,
+	return data.create_pointers_macro(
+		settings,
 		lambda offset: data.from_int(pe_get_rva_from_offset(pe, offset))
 	)
+
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	"""
@@ -214,7 +219,8 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 	STRDEX_SECTION_BASE_RVA = pe_new_section_rva(pe) + pe.OPTIONAL_HEADER.ImageBase
 
-	new_data = data.patch_pointers_macro(strindex,
+	new_data = data.patch_pointers_macro(
+		strindex,
 		lambda offset: data.from_int(pe_get_rva_from_offset(pe, offset)),
 		lambda offset: data.from_int(STRDEX_SECTION_BASE_RVA + offset),
 		lambda string: bytearray(string, 'utf-8') + b'\x00'

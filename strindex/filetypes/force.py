@@ -17,6 +17,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 	return strindex
 
+
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	strindex_original = strindex.get_original
 	strindex_replace = strindex.get_replace

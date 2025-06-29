@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 from PySide6 import QtWidgets, QtGui, QtCore
 from strindex.utils import StrindexSettings, PrintProgress
 from strindex.strindex import create, patch, update, filter, delta, spellcheck, VERSION
@@ -22,6 +23,7 @@ class CallbackWorker(QtCore.QThread):
 			self.sig_except.emit(e)
 		else:
 			self.sig_else.emit()
+
 
 class BaseStrindexGUI(QtWidgets.QWidget):
 	__widgets__: list[QtWidgets.QWidget]
@@ -47,10 +49,8 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 				parsed_args.append(arg.isChecked())
 		return parsed_args
 
-
 	def setup(self):
 		pass
-
 
 	def create_file_selection(self, line_text: str, button_text: str = "Browse Files"):
 		file_select = self.create_lineedit(line_text)
@@ -129,7 +129,6 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		for widget in self.__actions__:
 			widget.setEnabled(enabled)
 
-
 	def create_lineedit(self, text: str):
 		line_edit = QtWidgets.QLineEdit()
 		line_edit.setPlaceholderText(text)
@@ -189,7 +188,6 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 	def create_padding(self, padding: int):
 		self.__widgets__ += [None] * padding
 
-
 	def browse_files(self, line: QtWidgets.QLineEdit, caption, filter):
 		if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:
 			line.setText(filepath)
@@ -230,7 +228,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		if sys.platform == "win32":
 			self.app.setStyle("Fusion")
 			self.setStyleSheet(
-				f"""QLineEdit{{padding: 3px; margin: 1px 0px;}}"""
+				"""QLineEdit{padding: 3px; margin: 1px 0px;}"""
 			)
 		else:
 			self.setStyleSheet(
@@ -251,7 +249,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		)
 		self.tab_widget.setTabToolTip(
 			self.tab_widget.addTab(PatchGUI(), "Patch"),
-			"Patch a file with a strindex.\n" \
+			"Patch a file with a strindex.\n"
 			"Strindexes compressed with gzip are also supported for all actions."
 		)
 		self.tab_widget.setTabToolTip(
@@ -260,18 +258,18 @@ class MainStrindexGUI(BaseStrindexGUI):
 		)
 		self.tab_widget.setTabToolTip(
 			self.tab_widget.addTab(FilterGUI(), "Filter"),
-			"Filter a strindex by detected language, wordlist or length.\n" \
+			"Filter a strindex by detected language, wordlist or length.\n"
 			"You can specify those in the strindex settings."
 		)
 		self.tab_widget.setTabToolTip(
 			self.tab_widget.addTab(DeltaGUI(), "Delta"),
-			"Create a delta file between two strindexes,\n" \
+			"Create a delta file between two strindexes,\n"
 			"that only contains the lines of the first strindex missing in the second one (their difference)."
 		)
 		if "__compiled__" not in globals():
 			self.tab_widget.setTabToolTip(
 				self.tab_widget.addTab(SpellcheckGUI(), "Spellcheck"),
-				"Spellcheck a strindex.\n" \
+				"Spellcheck a strindex.\n"
 				"You can specify the target language in the strindex settings as an ISO 639-1 code."
 			)
 
@@ -287,10 +285,11 @@ class MainStrindexGUI(BaseStrindexGUI):
 		self.setWindowTitle("Strindex")
 		self.setWindowIcon(QtGui.QIcon(
 			os.path.join(os.path.abspath(os.path.dirname(__file__)), "icon.png")
-				if "__compiled__" in globals() else "icon.png"
+			if "__compiled__" in globals() else "icon.png"
 		))
 
 		self.set_custom_appearance()
+
 
 class CreateGUI(BaseStrindexGUI):
 	def setup(self):
@@ -306,8 +305,8 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_padding(1)
 
 		self.create_checkbox("Force Mode").setToolTip(
-			"When patching, replace strings at the same offset they were found.\n" \
-			"This means the program will effectively work with any filetype,\n" \
+			"When patching, replace strings at the same offset they were found.\n"
+			"This means the program will effectively work with any filetype,\n"
 			"but the length of the patched strings can't be longer than the original ones."
 		)
 		self.create_padding(1)
@@ -334,6 +333,7 @@ class CreateGUI(BaseStrindexGUI):
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
+
 class PatchGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_file_selection(line_text="*Select a file to patch")
@@ -348,6 +348,7 @@ class PatchGUI(BaseStrindexGUI):
 		self.create_padding(1)
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
+
 
 class UpdateGUI(BaseStrindexGUI):
 	def setup(self):
@@ -364,6 +365,7 @@ class UpdateGUI(BaseStrindexGUI):
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
+
 class FilterGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_strindex_selection(line_text="*Select a strindex to filter")
@@ -377,6 +379,7 @@ class FilterGUI(BaseStrindexGUI):
 		self.create_padding(1)
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
+
 
 class DeltaGUI(BaseStrindexGUI):
 	def setup(self):
@@ -392,6 +395,7 @@ class DeltaGUI(BaseStrindexGUI):
 		self.create_padding(1)
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
+
 
 class SpellcheckGUI(BaseStrindexGUI):
 	def setup(self):

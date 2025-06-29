@@ -17,13 +17,16 @@ def validate(data: FileBytearray) -> bool:
 	""" Checks if the file is an IFF file. """
 	return data[0:4] == b"FORM"
 
+
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	data.byte_length = 4
 	data.byte_order = 'little'
 
-	return data.create_pointers_macro(settings,
+	return data.create_pointers_macro(
+		settings,
 		lambda offset: data.from_int(offset - data.byte_length)
 	)
+
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	"""
@@ -39,7 +42,8 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	data.byte_length = 4
 	data.byte_order = 'little'
 
-	new_data = data.patch_pointers_macro(strindex,
+	new_data = data.patch_pointers_macro(
+		strindex,
 		lambda offset: data.from_int(offset - data.byte_length),
 		lambda offset: data.from_int(len(data) + offset),
 		lambda string: data.from_int(len(string.encode('utf-8'))) + bytearray(string, 'utf-8') + b'\x00'
