@@ -3,6 +3,7 @@ import argparse
 from strindex.utils import Strindex, StrindexSettings, FileBytearray, PrintProgress
 from strindex.filetypes import GenericModule
 
+
 VERSION = "3.8.0"
 
 
