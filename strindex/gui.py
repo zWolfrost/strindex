@@ -201,6 +201,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 	def show_message(self, text: str, icon):
 		msg = QtWidgets.QMessageBox()
 		msg.setWindowTitle(self.windowTitle())
+		msg.setWindowIcon(self.windowIcon())
 		msg.setIcon(icon)
 		msg.setText(text)
 		msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
