@@ -230,15 +230,19 @@ class MainStrindexGUI(BaseStrindexGUI):
 			self.setStyleSheet(
 				"""QLineEdit{padding: 3px; margin: 1px 0px;}"""
 			)
-		else:
+		elif sys.platform == "linux":
 			self.setStyleSheet(
 				f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
 			)
 
 		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
-		self.setMinimumSize(500, 0)
-		self.setMaximumSize(1600, 0)
-		self.resize(800, 0)
+
+		if os.environ.get("XDG_SESSION_TYPE") == "wayland":
+			self.setFixedSize(800, self.sizeHint().height())
+		else:
+			self.setMinimumSize(500, 0)
+			self.setMaximumSize(1600, 0)
+			self.resize(800, 0)
 
 	def setup(self):
 		self.tab_widget = QtWidgets.QTabWidget()
