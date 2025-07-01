@@ -1,5 +1,6 @@
 import os
 import sys
+import signal
 from PySide6 import QtWidgets, QtGui, QtCore
 from strindex.utils import StrindexSettings, PrintProgress
 from strindex.strindex import create, patch, update, filter, delta, spellcheck, VERSION
@@ -213,6 +214,8 @@ class MainStrindexGUI(BaseStrindexGUI):
 	app: QtWidgets.QApplication
 
 	def __init__(self):
+		signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 		self.app = QtWidgets.QApplication([])
 		self.app.setApplicationName("Strindex")
 		self.app.setApplicationVersion(VERSION)
@@ -220,6 +223,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		super().__init__()
 
+		self.setFocus()
 		self.show()
 		self.center_window()
 
