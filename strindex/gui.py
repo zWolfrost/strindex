@@ -223,6 +223,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		super().__init__()
 
+		self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 		self.setFocus()
 		self.show()
 		self.center_window()
