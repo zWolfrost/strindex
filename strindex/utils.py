@@ -3,6 +3,7 @@ import re
 import gzip
 import hashlib
 import time
+import ahocorasick_rs
 from typing import Generator, Callable
 
 
@@ -339,7 +340,7 @@ class FileBytearray(bytearray):
 					print_progress(offset)
 		print_progress(len(self))
 
-	def indices_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
+	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
 		Returns the index of the first occurrence of every search list string in a bytearray.
 		Extremely fast, but can only can work for search lists that are ordered by occurrence order.
@@ -357,46 +358,33 @@ class FileBytearray(bytearray):
 			indices.append(index + prefix_length)
 		return indices
 
-	def indices_fixed(self, search_lst: list[bytes], prefixes: list[bytes] = [b""], suffixes: list[bytes] = [b""]) -> list[list[int]]:
+	def strings_search(self, search_lst: list[bytes], prefixes: list[bytes] = [b""], suffixes: list[bytes] = [b""]) -> list[list[int]]:
 		"""
-		Returns a list containing the indexes of each occurrence of every search list string in a bytearray.
-		Extremely fast, but can only can work for unique search strings of fixed length (length is taken from 1st element).
+		Returns a list containing the indexes of each occurrence of every search list string in the bytearray.
+		Extremely fast, uses Aho-Corasick algorithm.
 		"""
 		if not search_lst:
 			return []
 
-		search_lst_safe = [s for s in search_lst if s is not None]
+		search_lst_safe = [s.encode('utf-8') if isinstance(s, str) else s for s in search_lst if s is not None]
 
-		assert len(search_lst_safe) == len(set(search_lst_safe)), "Search list is not unique."
-		assert all(len(search) == len(search_lst_safe[0]) for search in search_lst_safe), "Search list is not fixed length."
-		assert all(len(prefix) == len(prefixes[0]) for prefix in prefixes), "Prefix list is not fixed length."
-		assert all(len(suffix) == len(suffixes[0]) for suffix in suffixes), "Suffix list is not fixed length."
-
-		fixed_prefix_length = len(prefixes[0])
-		fixed_length = fixed_prefix_length + len(search_lst_safe[0]) + len(suffixes[0])
-
-		indices_dict: dict[bytes, list[int]] = {}
+		search_lst_full: list[bytes] = []
+		search_lst_prefix_length: list[int] = []
+		search_lst_indices: list[list[int]] = []
 		for search_string in search_lst_safe:
-			lst = []
+			search_string_lst = []
 			for prefix in prefixes:
 				for suffix in suffixes:
-					indices_dict[memoryview(bytes(prefix + search_string + suffix))] = lst
+					search_lst_full.append(prefix + search_string + suffix)
+					search_lst_prefix_length.append(len(prefix))
+					search_lst_indices.append(search_string_lst)
 
-		print_progress = PrintProgress(len(self))
-		mv = memoryview(bytes(self))
-		for offset in range(len(self)):
-			if mv[offset:offset + fixed_length] in indices_dict:
-				indices_dict[mv[offset:offset + fixed_length]].append(offset + fixed_prefix_length)
-			if offset >= print_progress.limit:
-				print_progress(offset)
-		print_progress(len(self))
+		ac = ahocorasick_rs.BytesAhoCorasick(search_lst_full)
 
-		indices = list(indices_dict.values())[::len(prefixes) * len(suffixes)]
-		for search_index, search_string in enumerate(search_lst):
-			if search_string is None:
-				indices.insert(search_index, search_string)
+		for index, start, _ in ac.find_matches_as_indexes(self):
+			search_lst_indices[index].append(start + search_lst_prefix_length[index])
 
-		return indices
+		return search_lst_indices[::len(prefixes) * len(suffixes)]
 
 	# Shorthands
 	def get(self, byte_length: int = None) -> bytes:
@@ -469,7 +457,7 @@ class FileBytearray(bytearray):
 			raise ValueError("No strings found in the file.")
 		print(f"(1/2) Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
 
-		temp_strindex["pointers"] = self.indices_fixed(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
+		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
 		strindex = Strindex()
 		for string, pointers in zip(temp_strindex["original"], temp_strindex["pointers"]):
@@ -496,7 +484,7 @@ class FileBytearray(bytearray):
 		strindex_replace = strindex.get_replace
 		strindex_switches = strindex.get_switches
 
-		for index, offset in enumerate(self.indices_ordered(strindex_original)):
+		for index, offset in enumerate(self.strings_search_ordered(strindex_original)):
 			if offset is None:
 				print(f'String not found: "{strindex_original[index]}"')
 				continue
@@ -506,7 +494,7 @@ class FileBytearray(bytearray):
 			update_dict["switches"].append(strindex_switches[index])
 			new_data += data_from_string(strindex.settings.patch_replace_string(strindex_replace[index]))
 
-		update_dict["pointers"] = self.indices_fixed(update_dict["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
+		update_dict["pointers"] = self.strings_search(update_dict["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes)
 
 		self.update_references(update_dict["pointers"], update_dict["replaced_bytes"], update_dict["switches"])
 

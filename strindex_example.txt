@@ -19,7 +19,6 @@ as well as the start of the strings to patch (the body), after which comments ar
     "min_length": 3,
 
     // A list of prefix/suffix bytes that can prefix a pointer.
-    // Bytes strings of the same list MUST BE of the same length.
     // If the pointers for the strings you want to patch always have those,
     // this can help identifying them better and avoiding relocating "false pointers"
     // (sequence of bytes that are the same as a pointer but that aren't one).

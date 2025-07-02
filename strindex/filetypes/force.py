@@ -22,7 +22,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	strindex_original = strindex.get_original
 	strindex_replace = strindex.get_replace
 
-	for index, offset in enumerate(data.indices_ordered(strindex_original)):
+	for index, offset in enumerate(data.strings_search_ordered(strindex_original)):
 		if offset is None:
 			print(f'String not found: "{strindex_original[index]}"')
 			continue

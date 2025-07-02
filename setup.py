@@ -14,6 +14,7 @@ setup(
 	url = "https://github.com/zWolfrost/strindex",
 	packages = ["strindex", "strindex.filetypes"],
 	install_requires=[
+		"ahocorasick_rs>=0.22.0",
 		"pefile>=2024.8.26",
 	],
 	extras_require = {
