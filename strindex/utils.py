@@ -309,6 +309,10 @@ class FileBytearray(bytearray):
 		with open(filepath, 'rb') as f:
 			return cls(f.read())
 
+	def write(self, filepath: str):
+		with open(filepath, 'wb') as f:
+			f.write(self)
+
 	# Algorithms
 	def yield_strings(self, sep: bytes = b'\x00', min_length: int = 1) -> Generator[tuple[str, int, int], None, None]:
 		"""

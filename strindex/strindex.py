@@ -60,7 +60,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 			os.rename(orig_file_filepath_bak if os.path.exists(orig_file_filepath_bak) else file_filepath, repl_file_filepath_bak)
 		file_patched_filepath = file_filepath
 
-	open(file_patched_filepath, 'wb').write(data)
+	data.write(file_patched_filepath)
 
 	print("File was patched successfully.")
 
