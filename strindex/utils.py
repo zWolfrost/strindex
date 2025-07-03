@@ -319,29 +319,21 @@ class FileBytearray(bytearray):
 		Yields all strings in a bytearray, separated by a given separator. Extremely fast.
 		Skips strings that contain control characters and ones that are not valid UTF-8.
 		"""
-		SEPARATOR_CH = sep[0]
-		CONTROL_CHARS = bytes([*range(1, 9), *range(11, 32), 127]).replace(sep, b'')
-		start_offset = 0
-		skip = False
+		SEP_LENGTH = len(sep)
+		CONTROL_CHARS = set(bytes([*range(1, 9), *range(11, 32), 127]).replace(sep, b''))
+
+		offset = 0
 		print_progress = PrintProgress(len(self))
-		for offset, char in enumerate(self):
-			if char in CONTROL_CHARS:
-				skip = True
-			elif char == SEPARATOR_CH:
+		for string in self.split(sep):
+			if len(string) >= min_length and not any(ch in CONTROL_CHARS for ch in string):
 				try:
-					if skip:
-						continue
-					string = self[start_offset:offset].decode('utf-8')
-					if len(string) < min_length:
-						continue
+					string_decoded = string.decode('utf-8')
 				except UnicodeDecodeError:
-					continue
+					pass
 				else:
-					yield string, start_offset, offset
-				finally:
-					start_offset = offset + 1
-					skip = False
+					yield string_decoded, offset, offset + len(string)
 					print_progress(offset)
+			offset += len(string) + SEP_LENGTH
 		print_progress(len(self))
 
 	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
