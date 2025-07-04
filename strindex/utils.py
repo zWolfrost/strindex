@@ -451,7 +451,7 @@ class FileBytearray(bytearray):
 
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
-		print(f"(1/2) Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
+		print(f"Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
 
 		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
@@ -462,7 +462,7 @@ class FileBytearray(bytearray):
 				strindex.pointers.append(pointers)
 				strindex.type_order.append("overwrite")
 
-		print(f"(2/2) Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
+		print(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
 
 		return strindex
 
@@ -482,7 +482,7 @@ class FileBytearray(bytearray):
 
 		for index, offset in enumerate(self.strings_search_ordered(strindex_original)):
 			if offset is None:
-				print(f'String not found: "{strindex_original[index]}"')
+				print(f'String #{index} not found: "{strindex_original[index]}"')
 				continue
 
 			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
@@ -516,7 +516,7 @@ class FileBytearray(bytearray):
 					if switch:
 						self[pointer:pointer + self.byte_length] = replaced_bytes
 			else:
-				print(f"No pointers found for line n.{index + 1}")
+				print(f"No pointers found for string #{index}")
 
 	@property
 	def md5(self) -> str:
