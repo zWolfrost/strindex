@@ -1,4 +1,4 @@
-ahocorasick_rs==0.22.*
+ahocorasick_rs==1.0.*
 language_tool_python==2.9.*
 lingua-language-detector==2.1.*
 Nuitka==2.7.*
