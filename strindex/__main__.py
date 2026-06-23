@@ -1,10 +1,14 @@
-# nuitka-project: --standalone
-# nuitka-project: --onefile
+# nuitka-project: --product-name=strindex
+# nuitka-project: --product-version=3.9.0
+
+# nuitka-project: --mode=app
 # nuitka-project: --enable-plugin=pyside6
 # nuitka-project: --nofollow-import-to=lingua
 # nuitka-project: --nofollow-import-to=language_tool_python
+
 # nuitka-project: --windows-console-mode=hide
 # nuitka-project: --windows-icon-from-ico=icon.png
+# nuitka-project: --linux-icon=icon.png
 
 import sys
 from strindex.strindex import main
