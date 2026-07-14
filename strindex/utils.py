@@ -272,7 +272,7 @@ class Strindex():
 
 		diff_settings = {k: v for k, v in self.settings.__dict__.items() if Strindex().settings.__dict__.get(k) != v}
 
-		with open(filepath, 'w', encoding='utf-8') as f:
+		with open(filepath, 'w', encoding='utf-8', newline='\n') as f:
 			if self.full_header:
 				f.write(self.full_header)
 			else:
@@ -329,7 +329,7 @@ class FileBytearray(bytearray):
 	# Algorithms
 	def yield_strings(self, sep: bytes = b'\x00', min_length: int = 1) -> Generator[tuple[str, int, int], None, None]:
 		"""
-		Yields all strings in a bytearray, separated by a given separator. Extremely fast.
+		Yields all strings in a bytearray, separated by a given separator.
 		Skips strings that contain control characters and ones that are not valid UTF-8.
 		"""
 		SEP_LENGTH = len(sep)
@@ -352,7 +352,7 @@ class FileBytearray(bytearray):
 	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
 		Returns the index of the first occurrence of every search list string in a bytearray.
-		Extremely fast, but can only can work for search lists that are ordered by occurrence order.
+		Can only can work for search lists that are ordered by occurrence order.
 		"""
 		search_lst = [search.encode('utf-8') if isinstance(search, str) else search for search in search_lst]
 		indices = []
@@ -370,7 +370,7 @@ class FileBytearray(bytearray):
 	def strings_search(self, search_lst: list[bytes], prefixes: list[bytes] = [b""], suffixes: list[bytes] = [b""]) -> list[list[int]]:
 		"""
 		Returns a list containing the indexes of each occurrence of every search list string in the bytearray.
-		Extremely fast, uses Aho-Corasick algorithm.
+		Uses Aho-Corasick algorithm.
 		"""
 		if not search_lst:
 			return []
