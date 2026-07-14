@@ -24,8 +24,7 @@ setup(
 	},
 	classifiers = [
 		"Development Status :: 5 - Production/Stable",
-		"Topic :: Utilities",
-		"License :: OSI Approved :: MIT License",
+		"Topic :: Utilities"
 	],
 	entry_points = {
 		"console_scripts": [
