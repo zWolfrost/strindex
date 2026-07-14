@@ -7,6 +7,19 @@ import ahocorasick_rs
 from typing import Generator, Callable
 
 
+class PrintWrapper():
+	"""
+	A wrapper for the print function.
+	"""
+
+	QUIET = False
+
+	@classmethod
+	def print(cls, *args, **kwargs):
+		if not cls.QUIET:
+			print(*args, **kwargs)
+
+
 class PrintProgress():
 	"""
 	Extremely fast class to print progress percentage.
@@ -40,9 +53,9 @@ class PrintProgress():
 			self.percent = round(iteration / self.total * 100, self.round)
 			if callable(PrintProgress.callback):
 				PrintProgress.callback(self)
-			print(self.progress_bar_str(iteration), end="")
+			PrintWrapper.print(self.progress_bar_str(iteration), end="")
 			if self.percent >= 100:
-				print(f"({time.time() - self.start:.2f}s)")
+				PrintWrapper.print(f"({time.time() - self.start:.2f}s)")
 
 	@property
 	def callback() -> Callable[["PrintProgress"], None]:
@@ -429,7 +442,7 @@ class FileBytearray(bytearray):
 		replace_bytes = replace.encode('utf-8')
 
 		if len(replace_bytes) > original_length:
-			print(f'Warning: Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}). Truncating.')
+			PrintWrapper.print(f'Warning: Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}). Truncating.')
 			replace_bytes = replace_bytes[:original_length]
 		else:
 			replace_bytes = replace_bytes.ljust(original_length, delimiter)
@@ -451,7 +464,7 @@ class FileBytearray(bytearray):
 
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
-		print(f"Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
+		PrintWrapper.print(f"Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
 
 		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
@@ -462,7 +475,7 @@ class FileBytearray(bytearray):
 				strindex.pointers.append(pointers)
 				strindex.type_order.append("overwrite")
 
-		print(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
+		PrintWrapper.print(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
 
 		return strindex
 
@@ -482,7 +495,7 @@ class FileBytearray(bytearray):
 
 		for index, offset in enumerate(self.strings_search_ordered(strindex_original)):
 			if offset is None:
-				print(f'String #{index} not found: "{strindex_original[index]}"')
+				PrintWrapper.print(f'String #{index} not found: "{strindex_original[index]}"')
 				continue
 
 			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
@@ -516,7 +529,7 @@ class FileBytearray(bytearray):
 					if switch:
 						self[pointer:pointer + self.byte_length] = replaced_bytes
 			else:
-				print(f"No pointers found for string #{index}")
+				PrintWrapper.print(f"No pointers found for string #{index}")
 
 	@property
 	def md5(self) -> str:

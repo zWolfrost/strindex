@@ -1,4 +1,4 @@
-from strindex.utils import Strindex, StrindexSettings, FileBytearray
+from strindex.utils import Strindex, StrindexSettings, FileBytearray, PrintWrapper
 import pefile
 pefile.fast_load = True
 
@@ -185,7 +185,7 @@ def validate(data: FileBytearray) -> bool:
 		return False
 
 	if b"\0Cabinet.dll\0" in data:
-		print("Warning: This PE file is likely a self-extracting CAB file. You might want to extract the embedded files first.")
+		PrintWrapper.print("Warning: This PE file is likely a self-extracting CAB file. You might want to extract the embedded files first.")
 
 	return True
 
@@ -194,7 +194,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	pe = pefile.PE(data=bytes(data))
 
 	if pe_section_exists(pe, SECTION_NAME):
-		print(f'Warning: this file already contains a "{SECTION_NAME.decode("utf-8")}" section.')
+		PrintWrapper.print(f'Warning: this file already contains a "{SECTION_NAME.decode("utf-8")}" section.')
 
 	pe_initialize_data(pe, data)
 

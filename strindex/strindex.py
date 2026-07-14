@@ -1,6 +1,6 @@
 import os
 import argparse
-from strindex.utils import Strindex, StrindexSettings, FileBytearray, PrintProgress
+from strindex.utils import Strindex, StrindexSettings, FileBytearray, PrintWrapper, PrintProgress
 from strindex.filetypes import GenericModule
 
 
@@ -28,7 +28,7 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	STRINDEX.write(strindex_filepath)
 
-	print(f'Successfully created strindex file at "{strindex_filepath}"')
+	PrintWrapper.print(f'Successfully created strindex file at "{strindex_filepath}"')
 
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None):
@@ -41,7 +41,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	orig_file_filepath_bak = file_filepath + "_" + FileBytearray.read(file_filepath).md5[:MD5_SLICE] + ".bak"
 
 	if os.path.exists(orig_file_filepath_bak):
-		print("Detected backup file, patching that instead.")
+		PrintWrapper.print("Detected backup file, patching that instead.")
 		data = FileBytearray.read(orig_file_filepath_bak)
 	else:
 		data = FileBytearray.read(file_filepath)
@@ -49,7 +49,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	STRINDEX = Strindex.read(strindex_filepath)
 
 	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5:
-		print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
+		PrintWrapper.print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
 
 	data = GenericModule(data, STRINDEX.settings.force_mode).patch(data, STRINDEX)
 
@@ -62,7 +62,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	data.write(file_patched_filepath)
 
-	print("File was patched successfully.")
+	PrintWrapper.print("File was patched successfully.")
 
 
 def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None):
@@ -93,7 +93,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	STRINDEX.write(file_updated_filepath)
 
-	print(f'Created strindex file with {updated_pointers} updated pointer(s) at "{file_updated_filepath}".')
+	PrintWrapper.print(f'Created strindex file with {updated_pointers} updated pointer(s) at "{file_updated_filepath}".')
 
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
@@ -112,7 +112,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 			from lingua import LanguageDetectorBuilder, IsoCode639_1
 		except ImportError:
 			if "__compiled__" in globals():
-				print("Warning: Filtering by language is not supported in compiled builds.")
+				PrintWrapper.print("Warning: Filtering by language is not supported in compiled builds.")
 			else:
 				raise ImportError('Please install the "lingua" package (pip install lingua-language-detector) to filter by language.')
 
@@ -140,7 +140,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 		print_progress(index)
 
 	STRINDEX_FILTER.write(strindex_filter_filepath)
-	print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at "{strindex_filter_filepath}".')
+	PrintWrapper.print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at "{strindex_filter_filepath}".')
 
 
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None):
@@ -167,7 +167,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
-	print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at "{strindex_delta_filepath}".')
+	PrintWrapper.print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at "{strindex_delta_filepath}".')
 
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None):
@@ -189,7 +189,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 		raise ValueError('Please specify the target language to spellcheck in the strindex file ("target_language").')
 
 	lang = LanguageTool(STRINDEX.settings.target_language)
-	print("Created language tool.")
+	PrintWrapper.print("Created language tool.")
 
 	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
 		print_progress = PrintProgress(len(STRINDEX_FLAT_REPLACE))
@@ -200,7 +200,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 
 			print_progress(index)
 
-	print(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
+	PrintWrapper.print(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
 
 
 def main(sysargs=None):
@@ -219,6 +219,7 @@ def main(sysargs=None):
 
 	parser.add_argument("--version", action="version", version=VERSION, help="Show the version of strindex and exit.")
 	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
+	parser.add_argument("-q", "--quiet", action="store_true", help="Suppress all output except for errors.")
 
 	args = parser.parse_args(sysargs)
 
@@ -228,6 +229,9 @@ def main(sysargs=None):
 
 		if "__compiled__" in globals() and args.action == "spellcheck":
 			raise ImportError("Spellchecking is not supported in compiled builds.")
+
+		if args.quiet:
+			PrintWrapper.QUIET = True
 
 		if args.action == "gui":
 			try:
@@ -270,7 +274,7 @@ def main(sysargs=None):
 					assert_files_num(1)
 					spellcheck(args.files[0], args.output)
 	except KeyboardInterrupt:
-		print("Interrupted by user.")
+		PrintWrapper.print("Interrupted by user.")
 	except Exception as e:
 		if args.verbose:
 			raise
