@@ -12,11 +12,15 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 		Calls the create method of the module associated with the file type.
 	"""
 
+	print_progress = PrintProgress(2)
+
 	strindex_filepath = strindex_filepath or (os.path.splitext(file_filepath)[0] + "_strindex.txt")
 
 	data = FileBytearray.read(file_filepath)
 
 	STRINDEX = GenericModule(data, settings.force_mode).create(data, settings)
+
+	print_progress(1)
 
 	if compatible:
 		STRINDEX.type_order = ["compatible"] * len(STRINDEX.strings)
@@ -28,6 +32,8 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	STRINDEX.write(strindex_filepath)
 
+	print_progress(2)
+
 	PrintWrapper.print(f'Successfully created strindex file at "{strindex_filepath}"')
 
 
@@ -36,9 +42,13 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 		Calls the patch method of the module associated with the file type.
 	"""
 
+	print_progress = PrintProgress(5)
+
 	MD5_SLICE = 8
 
 	orig_file_filepath_bak = file_filepath + "_" + FileBytearray.read(file_filepath).md5[:MD5_SLICE] + ".bak"
+
+	print_progress(1)
 
 	if os.path.exists(orig_file_filepath_bak):
 		PrintWrapper.print("Detected backup file, patching that instead.")
@@ -46,21 +56,28 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	else:
 		data = FileBytearray.read(file_filepath)
 
+	print_progress(2)
+
 	STRINDEX = Strindex.read(strindex_filepath)
 
 	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5:
 		PrintWrapper.print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
 
+	print_progress(3)
+
 	data = GenericModule(data, STRINDEX.settings.force_mode).patch(data, STRINDEX)
+
+	print_progress(4)
 
 	repl_file_filepath_bak = file_filepath + "_" + data.md5[:MD5_SLICE] + ".bak"
 
 	if not file_patched_filepath:
-		if not os.path.exists(repl_file_filepath_bak):
-			os.rename(orig_file_filepath_bak if os.path.exists(orig_file_filepath_bak) else file_filepath, repl_file_filepath_bak)
+		os.replace(orig_file_filepath_bak if os.path.exists(orig_file_filepath_bak) else file_filepath, repl_file_filepath_bak)
 		file_patched_filepath = file_filepath
 
 	data.write(file_patched_filepath)
+
+	print_progress(5)
 
 	PrintWrapper.print("File was patched successfully.")
 

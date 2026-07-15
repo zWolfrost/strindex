@@ -4,7 +4,8 @@ import gzip
 import hashlib
 import time
 import ahocorasick_rs
-from typing import Generator, Callable
+from typing import Callable
+from strindex.strings_find_fast import strings_find_fast
 
 
 class PrintWrapper():
@@ -42,7 +43,7 @@ class PrintProgress():
 		self.start = time.time()
 		self(0)
 
-	def progress_bar_str(self, iteration: int, bar_length: int = 30) -> str:
+	def progress_bar_str(self, iteration: int, bar_length: int = 10) -> str:
 		""" Returns a string with the progress bar. """
 		progress = round(iteration / self.total * bar_length)
 		return f"\r[{'#' * progress}{'-' * (bar_length - progress)}] {self.percent}% "
@@ -327,27 +328,14 @@ class FileBytearray(bytearray):
 			f.write(self)
 
 	# Algorithms
-	def yield_strings(self, sep: bytes = b'\x00', min_length: int = 1) -> Generator[tuple[str, int, int], None, None]:
+	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1) -> list[tuple[str, int, int]]:
 		"""
-		Yields all strings in a bytearray, separated by a given separator.
+		Returns all strings in a bytearray, separated by a given separator.
 		Skips strings that contain control characters and ones that are not valid UTF-8.
+		Implemented in C for speed.
 		"""
-		SEP_LENGTH = len(sep)
-		CONTROL_CHARS = set(bytes([*range(1, 9), *range(11, 32), 127]).replace(sep, b''))
 
-		offset = 0
-		print_progress = PrintProgress(len(self))
-		for string in self.split(sep):
-			if len(string) >= min_length and not any(ch in CONTROL_CHARS for ch in string):
-				try:
-					string_decoded = string.decode('utf-8')
-				except UnicodeDecodeError:
-					pass
-				else:
-					yield string_decoded, offset, offset + len(string)
-					print_progress(offset)
-			offset += len(string) + SEP_LENGTH
-		print_progress(len(self))
+		return strings_find_fast(self, int(sep[0]), min_length)
 
 	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
@@ -457,13 +445,14 @@ class FileBytearray(bytearray):
 			"original_bytes": []
 		}
 
-		for string, start_offset, _ in self.yield_strings(min_length=settings.min_length):
+		for string, start_offset, _ in self.strings_find(min_length=settings.min_length):
 			if original_bytes := original_bytes_from_offset(start_offset):
 				temp_strindex["original"].append(string)
 				temp_strindex["original_bytes"].append(original_bytes)
 
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
+
 		PrintWrapper.print(f"Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
 
 		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)

@@ -4,7 +4,7 @@ from strindex.utils import Strindex, StrindexSettings, FileBytearray, PrintWrapp
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	strindex = Strindex()
 
-	for string, start_offset, end_offset in data.yield_strings(min_length=settings.min_length):
+	for string, start_offset, end_offset in data.strings_find(min_length=settings.min_length):
 		if (
 			any(bytes(data[start_offset - len(prefix):start_offset]) == prefix for prefix in settings.prefix_bytes) and
 			any(bytes(data[end_offset:end_offset + len(suffix)]) == suffix for suffix in settings.suffix_bytes)
