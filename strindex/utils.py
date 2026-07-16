@@ -155,12 +155,16 @@ class Strindex():
 		return [pointers for pointers, type in zip(self.pointers, self.type_order) if type == "compatible"]
 
 	@property
-	def get_strings_flat_original(self) -> list[str]:
+	def get_overwrite_and_original(self) -> list[str]:
 		return [(string[0] if type == "compatible" else string) for string, type in zip(self.strings, self.type_order)]
 
 	@property
-	def get_strings_flat_replace(self) -> list[str]:
+	def get_overwrite_and_replace(self) -> list[str]:
 		return [(string[1] if type == "compatible" else string) for string, type in zip(self.strings, self.type_order)]
+	
+	@property
+	def get_identifiers(self) -> list[str]:
+		return [(string[0] if type == "compatible" else ",".join(str(p) for p in pointers)) for string, pointers, type in zip(self.strings, self.pointers, self.type_order)]
 
 	def __init__(self):
 		""" Parses a strindex file and returns a dictionary with the data. """

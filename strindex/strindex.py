@@ -94,13 +94,15 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 	STRINDEX = Strindex.read(strindex_filepath)
 	STRINDEX_UPDATED = GenericModule(data, STRINDEX.settings.force_mode).create(data, STRINDEX.settings)
 
-	STRINDEX_STRINGS_FLAT_ORIGINAL = STRINDEX.get_strings_flat_original
+	STRINDEX_STRINGS_ORIGINAL = STRINDEX.get_overwrite_and_original
 
 	updated_pointers = 0
 	search_index = 0
+	print_progress = PrintProgress(len(STRINDEX.strings))
 	for index in range(len(STRINDEX.strings)):
+		print_progress(index)
 		try:
-			search_index = STRINDEX_UPDATED.strings.index(STRINDEX_STRINGS_FLAT_ORIGINAL[index], search_index)
+			search_index = STRINDEX_UPDATED.strings.index(STRINDEX_STRINGS_ORIGINAL[index], search_index)
 		except ValueError:
 			pass
 		else:
@@ -144,12 +146,10 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 		return confidence.language.iso_code_639_1 == getattr(IsoCode639_1, STRINDEX.settings.source_language.upper()) and confidence.value > 0.5
 
 	print_progress = PrintProgress(len(STRINDEX.strings))
-	for index, (string, type) in enumerate(zip(STRINDEX.strings, STRINDEX.type_order)):
-		actual_string = string[0] if type == "compatible" else string
-
-		valid_language = not STRINDEX.settings.source_language or is_source_language(actual_string)
-		valid_length = len(actual_string) >= STRINDEX.settings.min_length
-		valid_whitelist = not (STRINDEX.settings.whitelist and any(ch not in STRINDEX.settings.whitelist for ch in actual_string))
+	for index, string in enumerate(STRINDEX.get_overwrite_and_original):
+		valid_language = not STRINDEX.settings.source_language or is_source_language(string)
+		valid_length = len(string) >= STRINDEX.settings.min_length
+		valid_whitelist = not (STRINDEX.settings.whitelist and any(ch not in STRINDEX.settings.whitelist for ch in string))
 
 		if all([valid_language, valid_length, valid_whitelist]):
 			STRINDEX_FILTER.append_strindex_index(STRINDEX, index)
@@ -170,16 +170,18 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 	STRINDEX_1 = Strindex.read(strindex_full_filepath)
 	STRINDEX_2 = Strindex.read(strindex_diff_filepath)
 
-	STRINDEX_1_FLAT_ORIGINAL = STRINDEX_1.get_strings_flat_original
-	STRINDEX_2_FLAT_ORIGINAL = STRINDEX_2.get_strings_flat_original
+	STRINDEX_1_ID = STRINDEX_1.get_identifiers
+	STRINDEX_2_ID = STRINDEX_2.get_identifiers
 
 	STRINDEX_DELTA = Strindex()
 	STRINDEX_DELTA.full_header = STRINDEX_1.full_header
 
 	search_index = 0
+	print_progress = PrintProgress(len(STRINDEX_1.strings))
 	for index in range(len(STRINDEX_1.strings)):
+		print_progress(index)
 		try:
-			search_index = STRINDEX_2_FLAT_ORIGINAL.index(STRINDEX_1_FLAT_ORIGINAL[index], search_index)
+			search_index = STRINDEX_2_ID.index(STRINDEX_1_ID[index], search_index)
 		except ValueError:
 			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
 
@@ -200,7 +202,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 		raise ImportError('Please install the "language-tool-python" package (pip install language-tool-python) to use this feature.')
 
 	STRINDEX = Strindex.read(strindex_filepath)
-	STRINDEX_FLAT_REPLACE = STRINDEX.get_strings_flat_replace
+	STRINDEX_STRINGS_REPLACE = STRINDEX.get_overwrite_and_replace
 
 	if not STRINDEX.settings.target_language:
 		raise ValueError('Please specify the target language to spellcheck in the strindex file ("target_language").')
@@ -209,8 +211,8 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	PrintWrapper.print("Created language tool.")
 
 	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
-		print_progress = PrintProgress(len(STRINDEX_FLAT_REPLACE))
-		for index, string in enumerate(STRINDEX_FLAT_REPLACE):
+		print_progress = PrintProgress(len(STRINDEX_STRINGS_REPLACE))
+		for index, string in enumerate(STRINDEX_STRINGS_REPLACE):
 			string_clean = STRINDEX.settings.clean_string(string)
 			for error in lang.check(string_clean):
 				f.write('\n'.join(str(error).split('\n')[-3:]) + '\n')
