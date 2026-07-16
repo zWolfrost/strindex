@@ -3,7 +3,7 @@ import sys
 import signal
 from PySide6 import QtWidgets, QtGui, QtCore
 from strindex.utils import StrindexSettings, PrintProgress
-from strindex.strindex import create, patch, update, filter, delta, spellcheck, VERSION
+import strindex.strindex as strindex
 
 
 class CallbackWorker(QtCore.QThread):
@@ -218,7 +218,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		self.app = QtWidgets.QApplication([])
 		self.app.setApplicationName("Strindex")
-		self.app.setApplicationVersion(VERSION)
+		self.app.setApplicationVersion(strindex.VERSION)
 		self.app.setOrganizationName("zWolfrost")
 
 		super().__init__()
@@ -283,7 +283,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 				"You can specify the target language in the strindex settings as an ISO 639-1 code."
 			)
 
-		version_label = QtWidgets.QLabel(f"<a href='https://github.com/zWolfrost/strindex'>v{VERSION}</a>")
+		version_label = QtWidgets.QLabel(f"<a href='https://github.com/zWolfrost/strindex'>v{strindex.VERSION}</a>")
 		version_label.setOpenExternalLinks(True)
 		version_label.setContentsMargins(3, 3, 3, 3)
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
@@ -345,7 +345,7 @@ class CreateGUI(BaseStrindexGUI):
 			text="Create strindex",
 			progress_text="Creating... %p%",
 			complete_text="Strindex created successfully.",
-			callback=lambda file, length, prefix, suffix, force, comp: create(
+			callback=lambda file, length, prefix, suffix, force, comp: strindex.create(
 				file, None, comp, StrindexSettings(**{
 					"force_mode": force,
 					"min_length": length,
@@ -368,11 +368,24 @@ class PatchGUI(BaseStrindexGUI):
 			text="Patch file",
 			progress_text="Patching... %p%",
 			complete_text="File patched successfully.",
-			callback=lambda file, strdex: patch(file, strdex, None)
+			callback=lambda file, strdex: strindex.patch(file, strdex, None)
+		)
+		self.create_padding(1)
+
+		self.create_action_button(
+			text="Unpatch file",
+			progress_text="Unpatching... %p%",
+			complete_text="File unpatched successfully.",
+			callback=lambda file, _: strindex.unpatch(file)
 		)
 		self.create_padding(1)
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
+
+	def update_action_button(self):
+		enabled = [os.path.isfile(file_select.text()) for file_select in self.__required__]
+		self.__actions__[0].setEnabled(all(enabled))
+		self.__actions__[1].setEnabled(enabled[0])
 
 
 class UpdateGUI(BaseStrindexGUI):
@@ -384,7 +397,7 @@ class UpdateGUI(BaseStrindexGUI):
 			text="Update strindex",
 			progress_text="Updating... %p%",
 			complete_text="Created an updated strindex successfully.",
-			callback=lambda file, strdex: update(file, strdex, None)
+			callback=lambda file, strdex: strindex.update(file, strdex, None)
 		)
 		self.create_padding(1)
 
@@ -415,7 +428,7 @@ class DeltaGUI(BaseStrindexGUI):
 			text="Delta strindex",
 			progress_text="Updating... %p%",
 			complete_text="Created a delta strindex successfully.",
-			callback=lambda strdex1, strdex2: delta(strdex1, strdex2, None)
+			callback=lambda strdex1, strdex2: strindex.delta(strdex1, strdex2, None)
 		)
 		self.create_padding(1)
 
@@ -430,7 +443,7 @@ class SpellcheckGUI(BaseStrindexGUI):
 			text="Spellcheck strindex",
 			progress_text="Spellchecking... %p%",
 			complete_text="Created a spellcheck file of a strindex successfully.",
-			callback=lambda strdex: spellcheck(strdex, None)
+			callback=lambda strdex: strindex.spellcheck(strdex, None)
 		)
 		self.create_padding(1)
 

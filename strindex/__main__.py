@@ -11,10 +11,10 @@
 # nuitka-project: --linux-icon=icon.png
 
 import sys
-from strindex.strindex import main
+import strindex.strindex as strindex
 
 if __name__ == "__main__":
 	if "__compiled__" in globals() and len(sys.argv) <= 1:
-		main(["gui", "--verbose"])
+		strindex.main(["gui", "--verbose"])
 	else:
-		main()
+		strindex.main()

@@ -44,9 +44,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	print_progress = PrintProgress(5)
 
-	MD5_SLICE = 8
-
-	orig_file_filepath_bak = file_filepath + "_" + FileBytearray.read(file_filepath).md5[:MD5_SLICE] + ".bak"
+	orig_file_filepath_bak = file_filepath + FileBytearray.read(file_filepath).md5_backup_suffix
 
 	print_progress(1)
 
@@ -69,7 +67,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	print_progress(4)
 
-	repl_file_filepath_bak = file_filepath + "_" + data.md5[:MD5_SLICE] + ".bak"
+	repl_file_filepath_bak = file_filepath + data.md5_backup_suffix
 
 	if not file_patched_filepath:
 		os.replace(orig_file_filepath_bak if os.path.exists(orig_file_filepath_bak) else file_filepath, repl_file_filepath_bak)
@@ -80,6 +78,22 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	print_progress(5)
 
 	PrintWrapper.print("File was patched successfully.")
+
+
+def unpatch(file_filepath: str):
+	"""
+		Restores a backup file if it exists.
+	"""
+
+	data = FileBytearray.read(file_filepath)
+
+	repl_file_filepath_bak = file_filepath + data.md5_backup_suffix
+
+	if not os.path.exists(repl_file_filepath_bak):
+		raise FileNotFoundError("No backup file was found to restore.")
+
+	os.replace(repl_file_filepath_bak, file_filepath)
+	PrintWrapper.print("Backup file was restored successfully.")
 
 
 def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None):
@@ -225,7 +239,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 def main(sysargs=None):
 	parser = argparse.ArgumentParser(prog="strindex", description="A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.")
 
-	parser.add_argument("action", type=str, choices=["create", "patch", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
+	parser.add_argument("action", type=str, choices=["create", "patch", "unpatch", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
 
@@ -280,6 +294,9 @@ def main(sysargs=None):
 				case "patch":
 					assert_files_num(2)
 					patch(args.files[0], args.files[1], args.output)
+				case "unpatch":
+					assert_files_num(1)
+					unpatch(args.files[0])
 				case "update":
 					assert_files_num(2)
 					update(args.files[0], args.files[1], args.output)

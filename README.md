@@ -31,6 +31,7 @@ You can run the program with the command `strindex <action> <input file(s)> [arg
 These are the available actions:
 - `create`: Create a list of strings (a strindex) extracted from a file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-c` to create a strindex that uses the original strings as references, instead of pointers.
 - `patch`: Patch a file with a strindex. Strindexes compressed with gzip are also supported for all actions.
+- `unpatch`: Unpatch a file that was patched with a strindex, using the backup file.
 - `update` Update a strindex file pointers' with the updated version of a file.
 - `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
 - `delta`: Create a delta file between two strindexes, that only contains the lines of the first strindex missing in the second one (their difference).

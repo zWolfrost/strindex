@@ -161,7 +161,7 @@ class Strindex():
 	@property
 	def get_overwrite_and_replace(self) -> list[str]:
 		return [(string[1] if type == "compatible" else string) for string, type in zip(self.strings, self.type_order)]
-	
+
 	@property
 	def get_identifiers(self) -> list[str]:
 		return [(string[0] if type == "compatible" else ",".join(str(p) for p in pointers)) for string, pointers, type in zip(self.strings, self.pointers, self.type_order)]
@@ -527,3 +527,8 @@ class FileBytearray(bytearray):
 	@property
 	def md5(self) -> str:
 		return hashlib.md5(self).hexdigest()
+
+	@property
+	def md5_backup_suffix(self) -> str:
+		MD5_SLICE_LENGTH = 8
+		return "_" + self.md5[:MD5_SLICE_LENGTH] + ".bak"
