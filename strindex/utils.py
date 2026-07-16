@@ -378,7 +378,7 @@ class FileBytearray(bytearray):
 
 		ac = ahocorasick_rs.BytesAhoCorasick(search_lst_full)
 
-		for index, start, _ in ac.find_matches_as_indexes(self):
+		for index, start, _ in ac.find_matches_as_indexes(self, overlapping=True):
 			search_lst_indices[index].append(start + search_lst_prefix_length[index])
 
 		return search_lst_indices[::len(prefixes) * len(suffixes)]
