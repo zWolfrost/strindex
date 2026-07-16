@@ -1,6 +1,8 @@
-ahocorasick_rs==1.0.*
-language_tool_python==3.4.0
-lingua-language-detector==2.2.*
-Nuitka==4.1.*
+ahocorasick_rs==1.*
+imageio==2.*; sys_platform == 'win32'
+language_tool_python==3.*
+lingua-language-detector==2.*
+Nuitka==4.*
 pefile==2024.8.26
-PySide6==6.11.*
+PySide6==6.*
+setuptools==83.*
