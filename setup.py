@@ -15,7 +15,7 @@ setup(
 	packages = ["strindex", "strindex.filetypes"],
 	ext_modules=[Extension("strindex.strings_find_fast", sources=["strindex/strings_find_fast.c"])],
 	install_requires=[
-		"ahocorasick_rs>=0.22.0",
+		"ahocorasick_rs>=1.0.0",
 		"pefile>=2024.8.26",
 	],
 	extras_require = {
