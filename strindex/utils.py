@@ -275,7 +275,8 @@ class Strindex():
 
 		self.assert_data()
 
-		diff_settings = {k: v for k, v in self.settings.__dict__.items() if Strindex().settings.__dict__.get(k) != v}
+		DEFAULT_SETTINGS = Strindex().settings.__dict__
+		diff_settings = {k: v for k, v in self.settings.__dict__.items() if DEFAULT_SETTINGS.get(k) != v}
 
 		with open(filepath, 'w', encoding='utf-8', newline='\n') as f:
 			if self.full_header:
@@ -299,7 +300,7 @@ class Strindex():
 				else:
 					f.write(
 						Strindex.ORIGINAL_DEL + Strindex.POINTERS_DEL +
-						Strindex.POINTERS_DEL.join(hex(p or 0).lstrip("0x").rjust(HEX_RJUST, '0') for p in pointers) +
+						Strindex.POINTERS_DEL.join(f"{p or 0:0{HEX_RJUST}x}" for p in pointers) +
 						Strindex.POINTERS_DEL + "\n" +
 						strings + "\n"
 					)
