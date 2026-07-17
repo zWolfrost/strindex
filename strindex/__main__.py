@@ -1,5 +1,5 @@
 # nuitka-project: --product-name=strindex
-# nuitka-project: --product-version=3.9.0
+# nuitka-project: --product-version=3.10.0
 
 # nuitka-project: --mode=app
 # nuitka-project: --enable-plugin=pyside6

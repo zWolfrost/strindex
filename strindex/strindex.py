@@ -4,7 +4,7 @@ from strindex.utils import Strindex, StrindexSettings, FileBytearray, PrintWrapp
 from strindex.filetypes import GenericModule
 
 
-VERSION = "3.9.0"
+VERSION = "3.10.0"
 
 
 def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, settings: StrindexSettings):
