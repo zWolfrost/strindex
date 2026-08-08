@@ -17,7 +17,7 @@ class GenericModule():
 
 		for module in MODULES:
 			self.module = module
-			if self.validate(data):
+			if self.match(data):
 				module.FILETYPE = module.__name__.split(".")[-1]
 				PrintWrapper.print(f'Detected filetype: "{module.FILETYPE}".')
 				return
@@ -30,7 +30,7 @@ class GenericModule():
 			raise NotImplementedError(f'Action "{action}" is not available for module "{module.FILETYPE}".')
 		return getattr(module, action)
 
-	def validate(self, data: FileBytearray) -> bool:
+	def match(self, data: FileBytearray) -> bool:
 		""" Checks if the file is of the target filetype. """
 		pass
 

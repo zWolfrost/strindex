@@ -96,6 +96,45 @@ def unpatch(file_filepath: str):
 	PrintWrapper.print("Backup file was restored successfully.")
 
 
+def affixes(file_filepath: str, strindex_filepath: str):
+	"""
+		List the most common bytes that can prefix or suffix a pointer in a file.
+	"""
+
+	MAX_COUNT = 10
+	MAX_LENGTH = 10
+
+	data = FileBytearray.read(file_filepath)
+
+	STRINDEX = Strindex.read(strindex_filepath)
+
+	def print_affixes(start_fun, end_fun):
+		got_any = False
+
+		affixes = set()
+		length = 1
+		while True:
+			for offsets in [x for xs in STRINDEX.get_offsets for x in xs]:
+				affixes.add(bytes(data[start_fun(offsets, length) : end_fun(offsets, length)]))
+
+			if len(affixes) >= MAX_COUNT or length >= MAX_LENGTH:
+				return got_any
+
+			got_any = True
+			PrintWrapper.print(f"Length {length*2}: " + ", ".join(a.hex() for a in affixes))
+
+			affixes.clear()
+			length += 1
+
+	PrintWrapper.print("PREFIXES:")
+	if not print_affixes(lambda o, l: o - l, lambda o, l: o):
+		PrintWrapper.print("No suitable prefixes found.")
+
+	PrintWrapper.print("\nSUFFIXES:")
+	if not print_affixes(lambda o, l: o + 4, lambda o, l: o + 4 + l):
+		PrintWrapper.print("No suitable suffixes found.")
+
+
 def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None):
 	"""
 		Update a strindex file with newly created pointers.
@@ -239,7 +278,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 def main(sysargs=None):
 	parser = argparse.ArgumentParser(prog="strindex", description="A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.")
 
-	parser.add_argument("action", type=str, choices=["create", "patch", "unpatch", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
+	parser.add_argument("action", type=str, choices=["create", "patch", "unpatch", "affixes", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
 
@@ -249,6 +288,7 @@ def main(sysargs=None):
 	parser.add_argument("-m", "--min-length", type=int, help="Minimum length of the strings to be included.")
 	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes that can prefix a pointer.")
 	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[], help="Suffix bytes that can suffix a pointer.")
+	parser.add_argument("-r", "--range", type=str, action="append", default=[], help="Range of the hex code offsets to search for strings, in the format 'start:end'. Can be specified multiple times.")
 
 	parser.add_argument("--version", action="version", version=VERSION, help="Show the version of strindex and exit.")
 	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
@@ -288,7 +328,8 @@ def main(sysargs=None):
 							"force_mode": args.force_mode,
 							"min_length": args.min_length,
 							"prefix_bytes": args.prefix_bytes,
-							"suffix_bytes": args.suffix_bytes
+							"suffix_bytes": args.suffix_bytes,
+							"ranges": args.range,
 						})
 					)
 				case "patch":
@@ -297,6 +338,9 @@ def main(sysargs=None):
 				case "unpatch":
 					assert_files_num(1)
 					unpatch(args.files[0])
+				case "affixes":
+					assert_files_num(2)
+					affixes(args.files[0], args.files[1])
 				case "update":
 					assert_files_num(2)
 					update(args.files[0], args.files[1], args.output)
@@ -315,7 +359,7 @@ def main(sysargs=None):
 		if args.verbose:
 			raise
 		else:
-			print(f"{type(e).__name__}: {e}")
+			PrintWrapper.print(f"{type(e).__name__}: {e}")
 
 
 if __name__ == "__main__":

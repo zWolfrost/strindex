@@ -177,7 +177,7 @@ def pe_initialize_data(pe: pefile.PE, data: FileBytearray):
 SECTION_NAME = b".strdex"
 
 
-def validate(data: FileBytearray) -> bool:
+def match(data: FileBytearray) -> bool:
 	""" Checks if the file is a valid PE file. """
 	try:
 		pefile.PE(data=bytes(data))

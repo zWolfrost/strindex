@@ -6,8 +6,9 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 	for string, start_offset, end_offset in data.strings_find(min_length=settings.min_length):
 		if (
-			any(bytes(data[start_offset - len(prefix):start_offset]) == prefix for prefix in settings.prefix_bytes) and
-			any(bytes(data[end_offset:end_offset + len(suffix)]) == suffix for suffix in settings.suffix_bytes)
+			settings.matches_prefix(data, start_offset) and
+			settings.matches_suffix(data, end_offset) and
+			settings.is_in_any_range(start_offset)
 		):
 			strindex.strings.append(string)
 			strindex.pointers.append([start_offset])

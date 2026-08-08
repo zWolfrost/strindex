@@ -13,7 +13,7 @@ def get_last_chunk_pointer(data: FileBytearray) -> int:
 	return prev_offset
 
 
-def validate(data: FileBytearray) -> bool:
+def match(data: FileBytearray) -> bool:
 	""" Checks if the file is an IFF file. """
 	return data[0:4] == b"FORM"
 

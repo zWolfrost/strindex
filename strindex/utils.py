@@ -79,6 +79,7 @@ class StrindexSettings():
 	min_length: int
 	prefix_bytes: list[bytes]
 	suffix_bytes: list[bytes]
+	ranges: list[range]
 	patch_replace: dict[str, str]
 	clean_pattern: str
 	source_language: str
@@ -92,6 +93,7 @@ class StrindexSettings():
 		self.min_length = int(kwargs.get("min_length") or 1)
 		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes") or [])
 		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes") or [])
+		self.ranges = StrindexSettings.handle_ranges(kwargs.get("ranges") or [])
 		self.patch_replace = kwargs.get("patch_replace") or {}
 		self.clean_pattern = kwargs.get("clean_pattern") or ""
 		self.source_language = kwargs.get("source_language")
@@ -106,6 +108,21 @@ class StrindexSettings():
 	def handle_bytes_list(bytes_list: list[bytes]) -> list[bytes]:
 		return [bytes.fromhex(prefix) for prefix in (bytes_list or [''])]
 
+	@staticmethod
+	def handle_ranges(ranges: list[str]) -> list[tuple[int, int]]:
+		parsed_ranges = []
+		for range_str in ranges:
+			try:
+				beg_str, end_str = range_str.split(":")
+				beg = int(beg_str, 16)
+				end = int(end_str, 16)
+				if beg > end:
+					raise ValueError(f"Invalid range: {range_str}. Start must be less than or equal to end.")
+				parsed_ranges.append(range(beg, end))
+			except ValueError as e:
+				raise ValueError(f"Invalid range format: {range_str}. Expected format is 'start:end'.") from e
+		return parsed_ranges
+
 	def clean_string(self, string: str) -> str:
 		return re.sub(self.clean_pattern, "", string)
 
@@ -114,6 +131,18 @@ class StrindexSettings():
 		for key, value in self.patch_replace.items():
 			string = string.replace(key, value)
 		return string
+
+	def matches_prefix(self, data: bytearray, beg_offset: int) -> bool:
+		""" Checks if the data at the given offset matches any of the prefixes. """
+		return any(data[beg_offset - len(prefix):beg_offset] == prefix for prefix in self.prefix_bytes)
+
+	def matches_suffix(self, data: bytearray, end_offset: int) -> bool:
+		""" Checks if the data at the given offset matches any of the suffixes. """
+		return any(data[end_offset:end_offset + len(suffix)] == suffix for suffix in self.suffix_bytes)
+
+	def is_in_any_range(self, val: int) -> bool:
+		""" Checks if the value is in any of the ranges. """
+		return any(val in range for range in self.ranges) if self.ranges else True
 
 
 class Strindex():
@@ -394,12 +423,6 @@ class FileBytearray(bytearray):
 		self.cursor += byte_length or self.byte_length
 		return bytes(byte_slice)
 
-	def get_del(self, delimiter: bytes = b'\x00') -> bytes:
-		byte_string = b''
-		while (char := self.get(1)) != delimiter:
-			byte_string += char
-		return byte_string
-
 	def put(self, value: bytes, byte_length: int = None) -> bytes:
 		if not isinstance(value, bytes):
 			value = bytes(value, 'utf-8')
@@ -452,8 +475,9 @@ class FileBytearray(bytearray):
 
 		for string, start_offset, _ in self.strings_find(min_length=settings.min_length):
 			if original_bytes := original_bytes_from_offset(start_offset):
-				temp_strindex["original"].append(string)
-				temp_strindex["original_bytes"].append(original_bytes)
+				if settings.is_in_any_range(start_offset):
+					temp_strindex["original"].append(string)
+					temp_strindex["original_bytes"].append(original_bytes)
 
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
