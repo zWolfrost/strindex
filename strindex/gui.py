@@ -241,10 +241,10 @@ class MainStrindexGUI(BaseStrindexGUI):
 				f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
 			)
 
-		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
-
+	def set_custom_size(self):
 		if os.environ.get("XDG_SESSION_TYPE") == "wayland":
-			self.setFixedSize(800, self.sizeHint().height())
+			# 52 is approx. the height of the tab bar
+			self.setFixedSize(800, self.tab_widget.currentWidget().sizeHint().height() + 52)
 		else:
 			self.setMinimumSize(500, 0)
 			self.setMaximumSize(1600, 0)
@@ -288,6 +288,9 @@ class MainStrindexGUI(BaseStrindexGUI):
 		version_label.setContentsMargins(3, 3, 3, 3)
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
 
+		self.tab_widget.currentChanged.connect(self.set_custom_size)
+		self.tab_widget.currentChanged.emit(0)
+
 		self.__widgets__.append(self.tab_widget)
 
 		self.create_grid_layout(1)
@@ -313,6 +316,8 @@ class MainStrindexGUI(BaseStrindexGUI):
 		icon.loadFromData(QtCore.QByteArray.fromBase64(ICON_BASE64), "PNG")
 		self.setWindowIcon(icon)
 
+		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
+
 		self.set_custom_appearance()
 
 
@@ -320,13 +325,16 @@ class CreateGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_file_selection(line_text="*Select a file")
 
-		self.create_lineedit("Minimum length of strings")
+		self.create_lineedit("(Optional) Minimum length of strings")
 		self.create_padding(1)
 
-		self.create_lineedit("Prefix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
+		self.create_lineedit("(Optional) Prefix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
 		self.create_padding(1)
 
-		self.create_lineedit("Suffix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
+		self.create_lineedit("(Optional) Suffix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
+		self.create_padding(1)
+
+		self.create_lineedit("(Optional) Range offsets hex (comma-separated) e.g.: 018bc5ec:01a09fbd")
 		self.create_padding(1)
 
 		self.create_checkbox("Force Mode").setToolTip(
@@ -350,7 +358,8 @@ class CreateGUI(BaseStrindexGUI):
 					"force_mode": force,
 					"min_length": length,
 					"prefix_bytes": prefix.split(","),
-					"suffix_bytes": suffix.split(",")
+					"suffix_bytes": suffix.split(","),
+					"ranges": range.split(",")
 				})
 			)
 		)

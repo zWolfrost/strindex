@@ -288,7 +288,7 @@ def main(sysargs=None):
 	parser.add_argument("-m", "--min-length", type=int, help="Minimum length of the strings to be included.")
 	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes that can prefix a pointer.")
 	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[], help="Suffix bytes that can suffix a pointer.")
-	parser.add_argument("-r", "--range", type=str, action="append", default=[], help="Range of the hex code offsets to search for strings, in the format 'start:end'. Can be specified multiple times.")
+	parser.add_argument("-r", "--range", type=str, action="append", default=[], help="Range of the hexadecimal offsets to search for strings, in the format 'start:end'. Can be specified multiple times.")
 
 	parser.add_argument("--version", action="version", version=VERSION, help="Show the version of strindex and exit.")
 	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
