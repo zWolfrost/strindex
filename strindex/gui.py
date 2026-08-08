@@ -285,6 +285,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		version_label.setOpenExternalLinks(True)
 		version_label.setContentsMargins(3, 3, 3, 3)
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
+		self.tab_widget.currentChanged.connect(self.set_custom_size)
 
 		self.__widgets__.append(self.tab_widget)
 
@@ -317,7 +318,6 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		self.resize(800, 0)
 
-		self.tab_widget.currentChanged.connect(self.set_custom_size)
 		self.tab_widget.currentChanged.emit(0)
 
 
