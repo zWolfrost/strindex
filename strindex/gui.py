@@ -233,22 +233,20 @@ class MainStrindexGUI(BaseStrindexGUI):
 	def set_custom_appearance(self):
 		if sys.platform == "win32":
 			self.app.setStyle("Fusion")
-			self.setStyleSheet(
-				"""QLineEdit{padding: 3px; margin: 1px 0px;}"""
-			)
-		elif sys.platform == "linux":
-			self.setStyleSheet(
-				f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}"""
-			)
+			self.setStyleSheet(f"""QLineEdit{{padding: 3px; margin: 1px 0px;}}""")
+		else:
+			self.setStyleSheet(f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}""")
 
 	def set_custom_size(self):
-		if os.environ.get("XDG_SESSION_TYPE") == "wayland":
-			# 52 is approx. the height of the tab bar
-			self.setFixedSize(800, self.tab_widget.currentWidget().sizeHint().height() + 52)
+		# 52 is the approx. height of the tab bar
+		height_hint = self.tab_widget.currentWidget().sizeHint().height() + 52
+
+		if sys.platform == "win32":
+			self.setMinimumWidth(500)
+			self.setMaximumWidth(1600)
+			self.setFixedHeight(height_hint)
 		else:
-			self.setMinimumSize(500, 0)
-			self.setMaximumSize(1600, 0)
-			self.resize(800, 0)
+			self.setFixedSize(800, height_hint)
 
 	def setup(self):
 		self.tab_widget = QtWidgets.QTabWidget()
@@ -288,9 +286,6 @@ class MainStrindexGUI(BaseStrindexGUI):
 		version_label.setContentsMargins(3, 3, 3, 3)
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
 
-		self.tab_widget.currentChanged.connect(self.set_custom_size)
-		self.tab_widget.currentChanged.emit(0)
-
 		self.__widgets__.append(self.tab_widget)
 
 		self.create_grid_layout(1)
@@ -319,6 +314,11 @@ class MainStrindexGUI(BaseStrindexGUI):
 		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
 
 		self.set_custom_appearance()
+
+		self.resize(800, 0)
+
+		self.tab_widget.currentChanged.connect(self.set_custom_size)
+		self.tab_widget.currentChanged.emit(0)
 
 
 class CreateGUI(BaseStrindexGUI):
@@ -379,7 +379,6 @@ class PatchGUI(BaseStrindexGUI):
 			complete_text="File patched successfully.",
 			callback=lambda file, strdex: strindex.patch(file, strdex, None)
 		)
-		self.create_padding(1)
 
 		self.create_action_button(
 			text="Unpatch file",
@@ -387,7 +386,6 @@ class PatchGUI(BaseStrindexGUI):
 			complete_text="File unpatched successfully.",
 			callback=lambda file, _: strindex.unpatch(file)
 		)
-		self.create_padding(1)
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
