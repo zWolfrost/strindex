@@ -34,7 +34,7 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	print_progress(2)
 
-	PrintWrapper.print(f'Successfully created strindex file at "{strindex_filepath}"')
+	PrintWrapper.print(f'Successfully created strindex file at:\n{strindex_filepath}')
 
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None):
@@ -90,10 +90,10 @@ def unpatch(file_filepath: str):
 	repl_file_filepath_bak = file_filepath + data.md5_backup_suffix
 
 	if not os.path.exists(repl_file_filepath_bak):
-		raise FileNotFoundError("No backup file was found to restore.")
+		raise FileNotFoundError("No backup file was found to restore from.")
 
 	os.replace(repl_file_filepath_bak, file_filepath)
-	PrintWrapper.print("Backup file was restored successfully.")
+	PrintWrapper.print("File was restored from backup successfully.")
 
 
 def affixes(file_filepath: str, strindex_filepath: str):
@@ -165,7 +165,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	STRINDEX.write(file_updated_filepath)
 
-	PrintWrapper.print(f'Created strindex file with {updated_pointers} updated pointer(s) at "{file_updated_filepath}".')
+	PrintWrapper.print(f'Created strindex file with {updated_pointers} updated pointer(s) at:\n{file_updated_filepath}')
 
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
@@ -210,7 +210,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 		print_progress(index)
 
 	STRINDEX_FILTER.write(strindex_filter_filepath)
-	PrintWrapper.print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at "{strindex_filter_filepath}".')
+	PrintWrapper.print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at:\n{strindex_filter_filepath}')
 
 
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None):
@@ -239,7 +239,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
-	PrintWrapper.print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at "{strindex_delta_filepath}".')
+	PrintWrapper.print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at:\n{strindex_delta_filepath}')
 
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None):

@@ -54,9 +54,9 @@ class PrintProgress():
 			self.percent = round(iteration / self.total * 100, self.round)
 			if callable(PrintProgress.callback):
 				PrintProgress.callback(self)
-			PrintWrapper.print(self.progress_bar_str(iteration), end="")
+			#PrintWrapper.print(self.progress_bar_str(iteration), end="")
 			if self.percent >= 100:
-				PrintWrapper.print(f"({time.time() - self.start:.2f}s)")
+				PrintWrapper.print(f"Action completed in {time.time() - self.start:.2f}s.")
 
 	@property
 	def callback() -> Callable[["PrintProgress"], None]:
@@ -373,14 +373,14 @@ class FileBytearray(bytearray):
 			f.write(self)
 
 	# Algorithms
-	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1) -> list[tuple[str, int, int]]:
+	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1, ranges: list[range] = []) -> list[tuple[str, int, int]]:
 		"""
 		Returns all strings in a bytearray, separated by a given separator.
 		Skips strings that contain control characters and ones that are not valid UTF-8.
 		Implemented in C for speed.
 		"""
 
-		return strings_find_fast(self, int(sep[0]), min_length)
+		return strings_find_fast(self, int(sep[0]), min_length, [(r.start, r.stop) for r in ranges])
 
 	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
@@ -484,11 +484,10 @@ class FileBytearray(bytearray):
 			"original_bytes": []
 		}
 
-		for string, start_offset, _ in self.strings_find(min_length=settings.min_length):
+		for string, start_offset, _ in self.strings_find(min_length=settings.min_length, ranges=settings.ranges):
 			if original_bytes := original_bytes_from_offset(start_offset):
-				if settings.is_in_any_range(start_offset):
-					temp_strindex["original"].append(string)
-					temp_strindex["original_bytes"].append(original_bytes)
+				temp_strindex["original"].append(string)
+				temp_strindex["original_bytes"].append(original_bytes)
 
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
