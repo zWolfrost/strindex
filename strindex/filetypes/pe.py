@@ -194,7 +194,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	pe = pefile.PE(data=bytes(data))
 
 	if pe_section_exists(pe, SECTION_NAME):
-		PrintWrapper.print(f'Warning: this file already contains a "{SECTION_NAME.decode("utf-8")}" section.')
+		PrintWrapper.print(f'Warning: This file contains a "{SECTION_NAME.decode("utf-8")}" section. It\'s likely already patched.')
 
 	pe_initialize_data(pe, data)
 
@@ -213,7 +213,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	pe = pefile.PE(data=bytes(data))
 
 	if pe_section_exists(pe, SECTION_NAME):
-		raise ValueError(f'This file already contains a "{SECTION_NAME.decode("utf-8")}" section.')
+		raise ValueError(f'This file already contains a "{SECTION_NAME.decode("utf-8")}" section. It can\'t be patched again.')
 
 	pe_initialize_data(pe, data)
 
