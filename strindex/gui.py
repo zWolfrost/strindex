@@ -353,13 +353,13 @@ class CreateGUI(BaseStrindexGUI):
 			text="Create strindex",
 			progress_text="Creating... %p%",
 			complete_text="Strindex created successfully.",
-			callback=lambda file, length, prefix, suffix, force, comp: strindex.create(
-				file, None, comp, StrindexSettings(**{
-					"force_mode": force,
-					"min_length": length,
+			callback=lambda file, min_length, prefix, suffix, ranges, force_mode, comp_mode: strindex.create(
+				file, None, comp_mode, StrindexSettings(**{
+					"force_mode": force_mode,
+					"min_length": min_length,
 					"prefix_bytes": prefix.split(","),
 					"suffix_bytes": suffix.split(","),
-					"ranges": range.split(",")
+					"ranges": ranges.split(",")
 				})
 			)
 		)

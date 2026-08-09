@@ -91,8 +91,8 @@ class StrindexSettings():
 		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist") or "")
 		self.force_mode = kwargs.get("force_mode") or False
 		self.min_length = int(kwargs.get("min_length") or 1)
-		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes") or [])
-		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes") or [])
+		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes") or [''])
+		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes") or [''])
 		self.ranges = StrindexSettings.handle_ranges(kwargs.get("ranges") or [])
 		self.patch_replace = kwargs.get("patch_replace") or {}
 		self.clean_pattern = kwargs.get("clean_pattern") or ""
@@ -106,12 +106,16 @@ class StrindexSettings():
 
 	@staticmethod
 	def handle_bytes_list(bytes_list: list[bytes]) -> list[bytes]:
-		return [bytes.fromhex(prefix) for prefix in (bytes_list or [''])]
+		assert all(len(bytes_str) % 2 == 0 for bytes_str in bytes_list), "All of the hex byte strings must contain an even number of characters."
+		return [bytes.fromhex(bytes_str) for bytes_str in bytes_list]
 
 	@staticmethod
 	def handle_ranges(ranges: list[str]) -> list[tuple[int, int]]:
 		parsed_ranges = []
 		for range_str in ranges:
+			if range_str == "":
+				continue
+
 			try:
 				beg_str, end_str = range_str.split(":")
 				beg = int(beg_str, 16)
@@ -307,11 +311,18 @@ class Strindex():
 		DEFAULT_SETTINGS = Strindex().settings.__dict__
 		diff_settings = {k: v for k, v in self.settings.__dict__.items() if DEFAULT_SETTINGS.get(k) != v}
 
+		def encode_formatter(obj):
+			if isinstance(obj, bytes):
+				return obj.hex()
+			elif isinstance(obj, range):
+				return f"{obj.start:x}:{obj.stop:x}"
+			return json.JSONEncoder().default(obj)
+
 		with open(filepath, 'w', encoding='utf-8', newline='\n') as f:
 			if self.full_header:
 				f.write(self.full_header)
 			else:
-				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4, default=lambda x: x.hex() if isinstance(x, bytes) else str(x))))
+				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4, default=encode_formatter)))
 
 				if len(self.type_order) > 0:
 					f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
