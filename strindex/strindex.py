@@ -96,10 +96,12 @@ def unpatch(file_filepath: str):
 	PrintWrapper.print("File was restored from backup successfully.")
 
 
-def affixes(file_filepath: str, strindex_filepath: str):
+def infer(file_filepath: str, strindex_filepath: str):
 	"""
-		List the most common bytes that can prefix or suffix a pointer in a file.
+		List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range.
 	"""
+
+	flat_list = lambda l: [x for xs in l for x in xs]
 
 	MAX_COUNT = 10
 	MAX_LENGTH = 10
@@ -108,13 +110,16 @@ def affixes(file_filepath: str, strindex_filepath: str):
 
 	STRINDEX = Strindex.read(strindex_filepath)
 
+	STRINDEX_OFFSETS = flat_list(STRINDEX.get_offsets)
+	STRINDEX_OVERWRITE_AND_ORIGINAL = STRINDEX.get_overwrite_and_original
+
 	def print_affixes(start_fun, end_fun):
 		got_any = False
 
 		affixes = set()
 		length = 1
 		while True:
-			for offsets in [x for xs in STRINDEX.get_offsets for x in xs]:
+			for offsets in STRINDEX_OFFSETS:
 				affixes.add(bytes(data[start_fun(offsets, length) : end_fun(offsets, length)]))
 
 			if len(affixes) >= MAX_COUNT or length >= MAX_LENGTH:
@@ -126,13 +131,25 @@ def affixes(file_filepath: str, strindex_filepath: str):
 			affixes.clear()
 			length += 1
 
-	PrintWrapper.print("PREFIXES:")
-	if not print_affixes(lambda o, l: o - l, lambda o, l: o):
-		PrintWrapper.print("No suitable prefixes found.")
+	if STRINDEX_OFFSETS:
+		PrintWrapper.print("PREFIXES:")
+		if not print_affixes(lambda o, l: o - l, lambda o, l: o):
+			PrintWrapper.print("No suitable prefixes found.")
 
-	PrintWrapper.print("\nSUFFIXES:")
-	if not print_affixes(lambda o, l: o + 4, lambda o, l: o + 4 + l):
-		PrintWrapper.print("No suitable suffixes found.")
+		PrintWrapper.print("\nSUFFIXES:")
+		if not print_affixes(lambda o, l: o + 4, lambda o, l: o + 4 + l):
+			PrintWrapper.print("No suitable suffixes found.")
+
+	if STRINDEX_OVERWRITE_AND_ORIGINAL:
+		lowest_range = len(data)
+		highest_range = 0
+
+		for offset in data.strings_search_ordered(STRINDEX_OVERWRITE_AND_ORIGINAL):
+			if offset is not None:
+				lowest_range = min(lowest_range, offset)
+				highest_range = max(highest_range, offset)
+
+		PrintWrapper.print(f"\nRANGE:\n{lowest_range:08x}:{highest_range:08x}")
 
 
 def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None):
@@ -278,7 +295,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 def main(sysargs=None):
 	parser = argparse.ArgumentParser(prog="strindex", description="A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.")
 
-	parser.add_argument("action", type=str, choices=["create", "patch", "unpatch", "affixes", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
+	parser.add_argument("action", type=str, choices=["create", "patch", "unpatch", "infer", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
 
@@ -338,9 +355,9 @@ def main(sysargs=None):
 				case "unpatch":
 					assert_files_num(1)
 					unpatch(args.files[0])
-				case "affixes":
+				case "infer":
 					assert_files_num(2)
-					affixes(args.files[0], args.files[1])
+					infer(args.files[0], args.files[1])
 				case "update":
 					assert_files_num(2)
 					update(args.files[0], args.files[1], args.output)

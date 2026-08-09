@@ -39,10 +39,12 @@ static int parse_range_list(PyObject *list, RangeList *rl) {
 }
 
 static int is_in_ranges(Py_ssize_t start, Py_ssize_t end, const RangeList *rl) {
+    // "end" is unused in this function, but we keep it for consistency
+
     if (rl->count == 0) return 1;
 
     for (Py_ssize_t r = 0; r < rl->count; r++) {
-        if (start >= rl->items[r].start && end <= rl->items[r].stop)
+        if (start >= rl->items[r].start && start <= rl->items[r].stop)
             return 1;
     }
     return 0;
