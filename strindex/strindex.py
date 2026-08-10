@@ -7,7 +7,7 @@ from strindex.filetypes import GenericModule
 VERSION = "3.10.0"
 
 
-def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, settings: StrindexSettings):
+def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, settings: StrindexSettings) -> str:
 	"""
 		Calls the create method of the module associated with the file type.
 	"""
@@ -34,10 +34,10 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	print_progress(2)
 
-	PrintWrapper.print(f'Successfully created strindex file at:\n{strindex_filepath}')
+	return PrintWrapper.print(f'Successfully created strindex file at:\n{strindex_filepath}')
 
 
-def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None):
+def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None) -> str:
 	"""
 		Calls the patch method of the module associated with the file type.
 	"""
@@ -77,10 +77,10 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	print_progress(5)
 
-	PrintWrapper.print("File was patched successfully.")
+	return PrintWrapper.print("File was patched successfully.")
 
 
-def unpatch(file_filepath: str):
+def unpatch(file_filepath: str) -> str:
 	"""
 		Restores a backup file if it exists.
 	"""
@@ -93,13 +93,16 @@ def unpatch(file_filepath: str):
 		raise FileNotFoundError("No backup file was found to restore from.")
 
 	os.replace(repl_file_filepath_bak, file_filepath)
-	PrintWrapper.print("File was restored from backup successfully.")
+
+	return PrintWrapper.print("File was restored from backup successfully.")
 
 
-def infer(file_filepath: str, strindex_filepath: str):
+def infer(file_filepath: str, strindex_filepath: str) -> str:
 	"""
-		List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range.
+		List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range to use.
 	"""
+
+	infer_output = ""
 
 	flat_list = lambda l: [x for xs in l for x in xs]
 
@@ -114,6 +117,8 @@ def infer(file_filepath: str, strindex_filepath: str):
 	STRINDEX_OVERWRITE_AND_ORIGINAL = STRINDEX.get_overwrite_and_original
 
 	def print_affixes(start_fun, end_fun):
+		nonlocal infer_output
+
 		got_any = False
 
 		affixes = set()
@@ -126,19 +131,19 @@ def infer(file_filepath: str, strindex_filepath: str):
 				return got_any
 
 			got_any = True
-			PrintWrapper.print(f"Length {length*2}: " + ", ".join(a.hex() for a in affixes))
+			infer_output += f"Length {length*2}: " + ", ".join(a.hex() for a in affixes) + "\n"
 
 			affixes.clear()
 			length += 1
 
 	if STRINDEX_OFFSETS:
-		PrintWrapper.print("PREFIXES:")
+		infer_output += "PREFIXES:\n"
 		if not print_affixes(lambda o, l: o - l, lambda o, l: o):
-			PrintWrapper.print("No suitable prefixes found.")
+			infer_output += "No suitable prefixes found.\n"
 
-		PrintWrapper.print("\nSUFFIXES:")
+		infer_output += "\nSUFFIXES:\n"
 		if not print_affixes(lambda o, l: o + 4, lambda o, l: o + 4 + l):
-			PrintWrapper.print("No suitable suffixes found.")
+			infer_output += "No suitable suffixes found.\n"
 
 	if STRINDEX_OVERWRITE_AND_ORIGINAL:
 		lowest_range = len(data)
@@ -149,10 +154,12 @@ def infer(file_filepath: str, strindex_filepath: str):
 				lowest_range = min(lowest_range, offset)
 				highest_range = max(highest_range, offset)
 
-		PrintWrapper.print(f"\nRANGE:\n{lowest_range:08x}:{highest_range:08x}")
+		infer_output += f"\nRANGE:\n{lowest_range:08x}:{highest_range:08x}"
+
+	return PrintWrapper.print(infer_output)
 
 
-def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None):
+def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None) -> str:
 	"""
 		Update a strindex file with newly created pointers.
 	"""
@@ -182,10 +189,10 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	STRINDEX.write(file_updated_filepath)
 
-	PrintWrapper.print(f'Created strindex file with {updated_pointers} updated pointer(s) at:\n{file_updated_filepath}')
+	return PrintWrapper.print(f'Created strindex file with {updated_pointers} updated pointer(s) at:\n{file_updated_filepath}')
 
 
-def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
+def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 	"""
 		Filters a strindex file with respect to length, whitelist and source language.
 	"""
@@ -227,10 +234,11 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None):
 		print_progress(index)
 
 	STRINDEX_FILTER.write(strindex_filter_filepath)
-	PrintWrapper.print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at:\n{strindex_filter_filepath}')
+
+	return PrintWrapper.print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at:\n{strindex_filter_filepath}')
 
 
-def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None):
+def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None) -> str:
 	"""
 		Filters a full strindex file with a delta strindex file, or intersects them.
 	"""
@@ -256,10 +264,11 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
-	PrintWrapper.print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at:\n{strindex_delta_filepath}')
+
+	return PrintWrapper.print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at:\n{strindex_delta_filepath}')
 
 
-def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None):
+def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None) -> str:
 	"""
 		Creates a spellcheck file from a strindex file, for the specified language.
 	"""
@@ -289,7 +298,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 
 			print_progress(index)
 
-	PrintWrapper.print(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
+	return PrintWrapper.print(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
 
 
 def main(sysargs=None):

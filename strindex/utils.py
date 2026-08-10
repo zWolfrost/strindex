@@ -19,6 +19,7 @@ class PrintWrapper():
 	def print(cls, *args, **kwargs):
 		if not cls.QUIET:
 			print(*args, **kwargs)
+		return "".join(str(arg) for arg in args)
 
 
 class PrintProgress():

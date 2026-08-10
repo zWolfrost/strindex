@@ -9,7 +9,7 @@ import strindex.strindex as strindex
 class CallbackWorker(QtCore.QThread):
 	sig_progress = QtCore.Signal(PrintProgress)
 	sig_except = QtCore.Signal(Exception)
-	sig_else = QtCore.Signal()
+	sig_else = QtCore.Signal(object)
 
 	def __init__(self, callback):
 		super().__init__()
@@ -19,11 +19,11 @@ class CallbackWorker(QtCore.QThread):
 		PrintProgress.callback = lambda progress: self.sig_progress.emit(progress)
 
 		try:
-			self.callback()
+			result = self.callback()
 		except Exception as e:
 			self.sig_except.emit(e)
 		else:
-			self.sig_else.emit()
+			self.sig_else.emit(result)
 
 
 class BaseStrindexGUI(QtWidgets.QWidget):
@@ -75,7 +75,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 		return strindex_select, strindex_browse
 
-	def create_action_button(self, text: str, progress_text: str, complete_text: str, callback):
+	def create_action_button(self, text: str, progress_text: str, callback):
 		action_button = QtWidgets.QPushButton(text)
 		action_button.setEnabled(False)
 
@@ -92,7 +92,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 			QtWidgets.QApplication.processEvents()
 
 			def callback_worker():
-				callback(*self.parse_widgets(self.__widgets__))
+				return callback(*self.parse_widgets(self.__widgets__))
 
 			def callback_progress(progress):
 				progress_bar.setValue(progress.percent)
@@ -101,9 +101,9 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 				self.show_message(str(e), QtWidgets.QMessageBox.Icon.Critical)
 				callback_finally()
 
-			def callback_else():
+			def callback_else(result):
 				progress_bar.setValue(100)
-				self.show_message(complete_text, QtWidgets.QMessageBox.Icon.Information)
+				self.show_message(str(result), QtWidgets.QMessageBox.Icon.Information)
 				callback_finally()
 
 			def callback_finally():
@@ -265,6 +265,11 @@ class MainStrindexGUI(BaseStrindexGUI):
 			"Update a strindex file pointers' with the updated version of a file."
 		)
 		self.tab_widget.setTabToolTip(
+			self.tab_widget.addTab(InferGUI(), "Infer"),
+			"List the most common bytes that can prefix or suffix a pointer in a file,\n"
+			"as well as the most suitable range to use."
+		)
+		self.tab_widget.setTabToolTip(
 			self.tab_widget.addTab(FilterGUI(), "Filter"),
 			"Filter a strindex by detected language, wordlist or length.\n"
 			"You can specify those in the strindex settings."
@@ -352,7 +357,6 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Create strindex",
 			progress_text="Creating... %p%",
-			complete_text="Strindex created successfully.",
 			callback=lambda file, min_length, prefix, suffix, ranges, force_mode, comp_mode: strindex.create(
 				file, None, comp_mode, StrindexSettings(**{
 					"force_mode": force_mode,
@@ -376,14 +380,12 @@ class PatchGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Patch file",
 			progress_text="Patching... %p%",
-			complete_text="File patched successfully.",
 			callback=lambda file, strdex: strindex.patch(file, strdex, None)
 		)
 
 		self.create_action_button(
 			text="Unpatch file",
 			progress_text="Unpatching... %p%",
-			complete_text="File unpatched successfully.",
 			callback=lambda file, _: strindex.unpatch(file)
 		)
 
@@ -403,8 +405,22 @@ class UpdateGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Update strindex",
 			progress_text="Updating... %p%",
-			complete_text="Created an updated strindex successfully.",
 			callback=lambda file, strdex: strindex.update(file, strdex, None)
+		)
+		self.create_padding(1)
+
+		self.create_grid_layout(2).setColumnStretch(0, 1)
+
+
+class InferGUI(BaseStrindexGUI):
+	def setup(self):
+		self.create_file_selection(line_text="*Select a file to infer from")
+		self.create_strindex_selection(line_text="*Select a strindex file to infer from")
+
+		self.create_action_button(
+			text="Infer",
+			progress_text="Inferring... %p%",
+			callback=lambda file, strdex: strindex.infer(file, strdex)
 		)
 		self.create_padding(1)
 
@@ -418,8 +434,7 @@ class FilterGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Filter strindex",
 			progress_text="Filtering... %p%",
-			complete_text="Created a filtered strindex successfully.",
-			callback=lambda strdex: filter(strdex, None)
+			callback=lambda strdex: strindex.filter(strdex, None)
 		)
 		self.create_padding(1)
 
@@ -434,7 +449,6 @@ class DeltaGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Delta strindex",
 			progress_text="Updating... %p%",
-			complete_text="Created a delta strindex successfully.",
 			callback=lambda strdex1, strdex2: strindex.delta(strdex1, strdex2, None)
 		)
 		self.create_padding(1)
@@ -449,7 +463,6 @@ class SpellcheckGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Spellcheck strindex",
 			progress_text="Spellchecking... %p%",
-			complete_text="Created a spellcheck file of a strindex successfully.",
 			callback=lambda strdex: strindex.spellcheck(strdex, None)
 		)
 		self.create_padding(1)
