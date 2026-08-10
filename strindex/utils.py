@@ -152,11 +152,13 @@ class StrindexSettings():
 class Strindex():
 	""" A class to parse and create strindex files. """
 
-	HEADER = "You can freely create & delete informational lines in the header like this one.\n\n{}\n\n"
-	INFO = f"//{'=' * 78}/pointer(s)/\n"
-	COMPATIBLE_INFO = f"//{'=' * 78}| reallocate pointer(s) if 1 |\n// replace this string...\n//{'-' * 78}\n// ...with this string!\n"
-	ORIGINAL_DEL = '=' * 80
-	REPLACE_DEL = '-' * 80
+	SEP_COUNT = 80
+
+	HEADER = "You can freely create & delete informational lines in the header like these ones and the example below.\nFor more information about strindex files see:\nhttps://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt\n\n{}\n\n"
+	INFO = f"EXAMPLE OF REPLACEMENT:\n//{'=' * SEP_COUNT}/pointer(s)/\n// replace the string that was previously reported with this one!\n\n"
+	COMPATIBLE_INFO = f"EXAMPLE OF REPLACEMENT:\n//{'=' * SEP_COUNT}|reallocate pointer(s) if 1, or skip if 0|\n// replace this string...\n//{'-' * SEP_COUNT}\n// ...with this string!\n\n"
+	ORIGINAL_DEL = '=' * SEP_COUNT
+	REPLACE_DEL = '-' * SEP_COUNT
 	POINTERS_DEL = '/'
 	POINTERS_SWITCHES_DEL = '|'
 
