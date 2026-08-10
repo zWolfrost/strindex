@@ -258,7 +258,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		self.tab_widget.setTabToolTip(
 			self.tab_widget.addTab(PatchGUI(), "Patch"),
 			"Patch a file with a strindex.\n"
-			"Strindexes compressed with gzip are also supported for all actions."
+			"Strindex files compressed with gzip are also supported for all actions."
 		)
 		self.tab_widget.setTabToolTip(
 			self.tab_widget.addTab(UpdateGUI(), "Update"),
@@ -271,7 +271,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		)
 		self.tab_widget.setTabToolTip(
 			self.tab_widget.addTab(DeltaGUI(), "Delta"),
-			"Create a delta file between two strindexes,\n"
+			"Create a delta file between two strindex files,\n"
 			"that only contains the lines of the first strindex missing in the second one (their difference)."
 		)
 		if "__compiled__" not in globals():
