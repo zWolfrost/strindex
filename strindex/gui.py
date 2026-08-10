@@ -239,7 +239,10 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 	def set_custom_size(self):
 		# 52 is the approx. height of the tab bar
-		height_hint = self.tab_widget.currentWidget().sizeHint().height() + 52
+		height_hint = (
+			self.tab_widget.currentWidget().sizeHint().height() + 52
+			if hasattr(self, "tab_widget") else self.sizeHint().height()
+		)
 
 		if sys.platform == "win32":
 			self.setMinimumWidth(500)
