@@ -311,18 +311,18 @@ class Strindex():
 		DEFAULT_SETTINGS = Strindex().settings.__dict__
 		diff_settings = {k: v for k, v in self.settings.__dict__.items() if DEFAULT_SETTINGS.get(k) != v}
 
-		def encode_formatter(obj):
+		def formatter(obj):
 			if isinstance(obj, bytes):
 				return obj.hex()
-			elif isinstance(obj, range):
-				return f"{obj.start:x}:{obj.stop:x}"
+			if isinstance(obj, range):
+				return f"{obj.start:0{HEX_RJUST}x}:{obj.stop:0{HEX_RJUST}x}"
 			return json.JSONEncoder().default(obj)
 
 		with open(filepath, 'w', encoding='utf-8', newline='\n') as f:
 			if self.full_header:
 				f.write(self.full_header)
 			else:
-				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4, default=encode_formatter)))
+				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4, default=formatter)))
 
 				if len(self.type_order) > 0:
 					f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
