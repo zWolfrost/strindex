@@ -155,7 +155,7 @@ class Strindex():
 	SEP_COUNT = 80
 
 	HEADER = "You can freely create & delete informational lines in the header like these ones and the example below.\nFor more information about strindex files see:\nhttps://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt\n\n{}\n\n"
-	INFO = f"EXAMPLE OF REPLACEMENT:\n//{'=' * SEP_COUNT}/pointer(s)/\n// replace the string that was previously reported with this one!\n\n"
+	INFO = f"EXAMPLE OF REPLACEMENT:\n//{'=' * SEP_COUNT}/pointer(s)/\n// replace the string that was previously provided with this one!\n\n"
 	COMPATIBLE_INFO = f"EXAMPLE OF REPLACEMENT:\n//{'=' * SEP_COUNT}|reallocate pointer(s) if 1, or skip if 0|\n// replace this string...\n//{'-' * SEP_COUNT}\n// ...with this string!\n\n"
 	ORIGINAL_DEL = '=' * SEP_COUNT
 	REPLACE_DEL = '-' * SEP_COUNT
