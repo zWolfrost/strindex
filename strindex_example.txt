@@ -1,5 +1,6 @@
 This strindex contains the translation for the first 10 lines of the videogame "Katana ZERO"
 from the Spanish language, to Italian, specifically for its ".exe" file.
+
 The strindex parser automatically detects the start of the settings (in the header),
 as well as the start of the strings to patch (the body), inside which comments are not supported.
 
