@@ -324,7 +324,7 @@ def main(sysargs=None):
 
 	try:
 		if not all(os.path.isfile(file) for file in args.files):
-			raise FileNotFoundError("One or more files do not exist.")
+			raise FileNotFoundError("One or more specified files do not exist.")
 
 		if "__compiled__" in globals() and args.action == "spellcheck":
 			raise ImportError("Spellchecking is not supported in compiled builds.")
@@ -341,7 +341,7 @@ def main(sysargs=None):
 			MainStrindexGUI()
 		else:
 			def assert_files_num(n: int):
-				assert len(args.files) == n, f"Expected {n} files, got {len(args.files)}."
+				assert len(args.files) == n, f"Expected {n} file(s) for \"{args.action}\" action, got {len(args.files)}."
 
 			match args.action:
 				case "create":

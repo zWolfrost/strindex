@@ -5,4 +5,4 @@ lingua-language-detector==2.*
 Nuitka==4.*
 pefile==2024.8.26
 PySide6==6.*
-setuptools==83.*
+setuptools==84.*
