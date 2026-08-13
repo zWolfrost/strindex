@@ -49,7 +49,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	print_progress(1)
 
 	if os.path.exists(orig_file_filepath_bak):
-		PrintWrapper.print("Detected backup file, patching that instead.")
+		PrintWrapper.print("Detected backup file, patching that one instead.")
 		data = FileBytearray.read(orig_file_filepath_bak)
 	else:
 		data = FileBytearray.read(file_filepath)
@@ -116,7 +116,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 	STRINDEX_OFFSETS = flat_list(STRINDEX.get_offsets)
 	STRINDEX_OVERWRITE_AND_ORIGINAL = STRINDEX.get_overwrite_and_original
 
-	def print_affixes(start_fun, end_fun):
+	def infer_affixes(start_fun, end_fun):
 		nonlocal infer_output
 
 		got_any = False
@@ -138,11 +138,11 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 	if STRINDEX_OFFSETS:
 		infer_output += "PREFIXES:\n"
-		if not print_affixes(lambda o, l: o - l, lambda o, l: o):
+		if not infer_affixes(lambda o, l: o - l, lambda o, l: o):
 			infer_output += "No suitable prefixes found.\n"
 
 		infer_output += "\nSUFFIXES:\n"
-		if not print_affixes(lambda o, l: o + 4, lambda o, l: o + 4 + l):
+		if not infer_affixes(lambda o, l: o + 4, lambda o, l: o + 4 + l):
 			infer_output += "No suitable suffixes found.\n"
 
 	if STRINDEX_OVERWRITE_AND_ORIGINAL:
@@ -154,7 +154,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 				lowest_range = min(lowest_range, offset)
 				highest_range = max(highest_range, offset)
 
-		infer_output += f"\nRANGE:\n{lowest_range:08x}:{highest_range:08x}"
+		infer_output += f"\nLOWEST RANGE:\n{lowest_range:08x}:{highest_range:08x}"
 
 	return PrintWrapper.print(infer_output)
 

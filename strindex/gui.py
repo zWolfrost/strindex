@@ -84,14 +84,14 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		progress_bar.setFormat(progress_text)
 		progress_bar.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-		def callback_wrapper():
+		def callback_worker_start():
 			self.window().setEnabled(False)
 			progress_bar.setValue(0)
 			self.layout().replaceWidget(action_button, progress_bar)
 			action_button.setParent(None)
 			QtWidgets.QApplication.processEvents()
 
-			def callback_worker():
+			def callback_wrapper():
 				return callback(*self.parse_widgets(self.__widgets__))
 
 			def callback_progress(progress):
@@ -112,13 +112,13 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 				self.window().setEnabled(True)
 				QtWidgets.QApplication.processEvents()
 
-			self.__callback_worker__ = CallbackWorker(callback_worker)
+			self.__callback_worker__ = CallbackWorker(callback_wrapper)
 			self.__callback_worker__.sig_progress.connect(callback_progress)
 			self.__callback_worker__.sig_except.connect(callback_except)
 			self.__callback_worker__.sig_else.connect(callback_else)
 			self.__callback_worker__.start()
 
-		action_button.clicked.connect(callback_wrapper)
+		action_button.clicked.connect(callback_worker_start)
 
 		self.__widgets__.append(action_button)
 		self.__actions__.append(action_button)
