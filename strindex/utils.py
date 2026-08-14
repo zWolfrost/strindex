@@ -320,7 +320,7 @@ class Strindex():
 				if isinstance(val, bytes):
 					return f"\"{val.hex()}\""
 				if isinstance(val, range):
-					return f"\"{val.start:0{HEX_RJUST}x}:{val.stop:0{HEX_RJUST}x}\""
+					return f"\"{val.start:0{HEX_RJUST}x}:{val.stop - 1:0{HEX_RJUST}x}\""
 				return JSONEncoder().encode(val)
 
 			dumps = ""
