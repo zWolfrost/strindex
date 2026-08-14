@@ -1,4 +1,5 @@
-import json
+import tomllib
+from json import JSONEncoder
 import re
 import gzip
 import hashlib
@@ -154,10 +155,6 @@ class Strindex():
 	""" A class to parse and create strindex files. """
 
 	SEP_COUNT = 80
-
-	HEADER = "You can freely create & delete informational lines in the header like these ones and the example below.\nFor more information about strindex files see:\nhttps://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt\n\n{}\n\n"
-	INFO = f"EXAMPLE OF REPLACEMENT:\n//{'=' * SEP_COUNT}/pointer(s)/\n// replace the string that was previously provided with this one!\n\n"
-	COMPATIBLE_INFO = f"EXAMPLE OF REPLACEMENT:\n//{'=' * SEP_COUNT}|reallocate pointer(s) if 1, or skip if 0|\n// replace this string...\n//{'-' * SEP_COUNT}\n// ...with this string!\n\n"
 	ORIGINAL_DEL = '=' * SEP_COUNT
 	REPLACE_DEL = '-' * SEP_COUNT
 	POINTERS_DEL = '/'
@@ -230,30 +227,13 @@ class Strindex():
 			try:
 				previous_line_pos = 0
 				while line := f.readline():
-					if line.lstrip().startswith("{"):
-						strindex_settings_lines = line
-						strindex.full_header += line
-						while True:
-							try:
-								strindex.settings = StrindexSettings(**json.loads(strindex_settings_lines))
-							except json.JSONDecodeError as e:
-								line = f.readline()
-								if not line:
-									raise ValueError("Error parsing Strindex settings.") from e
-								strindex.full_header += line
-								if line.lstrip().startswith("//"):
-									continue
-								if line.startswith(Strindex.ORIGINAL_DEL):
-									raise ValueError("Error parsing Strindex settings: " + str(e)) from e
-								strindex_settings_lines += line
-							else:
-								break
-					elif line.startswith(Strindex.ORIGINAL_DEL):
+					if line.startswith(Strindex.ORIGINAL_DEL):
 						f.seek(previous_line_pos)
 						break
-					else:
-						previous_line_pos = f.tell()
-						strindex.full_header += line
+					previous_line_pos = f.tell()
+					strindex.full_header += line
+
+				strindex.settings = StrindexSettings(**tomllib.loads(strindex.full_header))
 
 				next_str_type = ""
 				is_start = True
@@ -307,28 +287,40 @@ class Strindex():
 
 	def write(self, filepath: str):
 		""" Saves the strindex data to a file. """
+
+		HEADER_INFO = "# You can freely create & delete comments in the header like these ones and the example below.\n# For more information about strindex files settings and syntax see:\n# https://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt\n"
+		OVERWRITE_INFO = f"# EXAMPLE OF REPLACEMENT:\n# {'=' * Strindex.SEP_COUNT}/pointer(s)/\n# replace the string that was previously provided with this one!\n\n"
+		COMPATIBLE_INFO = f"# EXAMPLE OF REPLACEMENT:\n# {'=' * Strindex.SEP_COUNT}|reallocate pointer(s) if 1, or skip if 0|\n# replace this string...\n# {'-' * Strindex.SEP_COUNT}\n# ...with this string!\n\n"
+
 		HEX_RJUST = 8
 
 		self.assert_data()
 
-		DEFAULT_SETTINGS = Strindex().settings.__dict__
-		diff_settings = {k: v for k, v in self.settings.__dict__.items() if DEFAULT_SETTINGS.get(k) != v}
+		def toml_dumps_hack(obj: dict) -> str:
+			def formatter(val):
+				if isinstance(val, list):
+					return "[ " + ", ".join(formatter(v) for v in val) + " ]"
+				if isinstance(val, bytes):
+					return f"\"{val.hex()}\""
+				if isinstance(val, range):
+					return f"\"{val.start:0{HEX_RJUST}x}:{val.stop:0{HEX_RJUST}x}\""
+				return JSONEncoder().encode(val)
 
-		def formatter(obj):
-			if isinstance(obj, bytes):
-				return obj.hex()
-			if isinstance(obj, range):
-				return f"{obj.start:0{HEX_RJUST}x}:{obj.stop:0{HEX_RJUST}x}"
-			return json.JSONEncoder().default(obj)
+			dumps = ""
+			for key, value in obj.items():
+				dumps += f"{key} = {formatter(value)}\n"
+			return dumps
 
 		with open(filepath, 'w', encoding='utf-8', newline='\n') as f:
 			if self.full_header:
 				f.write(self.full_header)
 			else:
-				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4, default=formatter)))
+				DEFAULT_SETTINGS = StrindexSettings().__dict__
+				diff_settings = {k: v for k, v in self.settings.__dict__.items() if DEFAULT_SETTINGS.get(k) != v}
+				f.write(HEADER_INFO + "\n" + toml_dumps_hack(diff_settings) + "\n")
 
 				if len(self.type_order) > 0:
-					f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
+					f.write(COMPATIBLE_INFO if self.type_order[0] == "compatible" else OVERWRITE_INFO)
 
 			for strings, pointers, type in zip(self.strings, self.pointers, self.type_order):
 				if type == "compatible":

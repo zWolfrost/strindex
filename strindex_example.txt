@@ -1,94 +1,89 @@
-This strindex contains the translation for the first 10 lines of the videogame "Katana ZERO"
-from the Spanish language, to Italian, specifically for its ".exe" file.
-
-The strindex parser automatically detects the start of the settings (in the header),
-as well as the start of the strings to patch (the body), inside which comments are not supported.
-
-
-{
-    // The md5 hash of the file this strindex was created with.
-    // Useful for many reasons, such as debugging, but mainly to avoid patching the wrong file.
-    "md5": "29ed1f9e450d43815c2d1a0cab168da3",
-
-    // Whether the strindex was created using the "force" mode.
-    // This mode tells the program hard-replace strings at the same offset they were found,
-    // instead of elegantly relocating them somewhere else.
-    // This means the program will effectively work with any filetype,
-    // but the length of the patched strings can't be longer than the original ones.
-    "force_mode": true,
-
-    // The minimum length of strings that should be considered when creating or updating the strindex.
-    "min_length": 3,
-
-    // A list of prefix/suffix bytes that can prefix a pointer.
-    // If the pointers for the strings you want to patch always have those,
-    // this can help identifying them better and avoiding relocating "false pointers"
-    // (sequence of bytes that are the same as a pointer but that aren't one).
-    // When relocating false pointers, there's a high chance of the program crashing.
-    // You can also give those in the "create" action arguments, as it follows:
-    // -p "24c7442404" -p "ec04c70424"
-    "prefix_bytes": ["24c7442404", "ec04c70424"],
-    "suffix_bytes": [],
-
-    // The starting and ending offsets of the sections of the file that should be scanned
-    // for strings to patch, in hexadecimal format, specifically written as "start:end".
-    // If not specified, the whole file will be scanned.
-    "ranges": ["018bc5ec:01a09fb1"],
-
-    // A table which replaces characters (or other sequences of letters) in strings to patch.
-    // Useful for when the program doesn't support some characters (in this case, "ìÌòÒ")
-    // and you still want to be grammatically correct.
-    "patch_replace": {
-        "ì": "í",
-        "Ì": "Í",
-        "ò": "ó",
-        "Ò": "Ó"
-    },
-
-    // Pattern used by the "spellcheck" action, which removes trash characters to spellcheck correctly.
-    // In this case, this removes characters used to handle the game dialog boxes color, speed etc.
-    "clean_pattern": "\\[.*?\\]|\\*",
-
-    // Used by the "filter" action to whitelist specific language character lists.
-    // You can see those in the "utils.py" file, in the Strindex class.
-    "whitelist": ["latin", "spanish", "cyrillic"],
-
-    // Used in the "filter" action to filter a Strindex by detected language.
-    "source_language": "es",
-
-    // Used in the "spellcheck" action to define which language are the Strindex lines translating to.
-    "target_language": "it",
-
-    // Used in the "filter" action to help identifying the languages better, giving it fewer choice.
-    "among_languages": ["en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh"]
-}
+# This strindex contains the translation for the first 10 lines of the videogame "Katana ZERO"
+# from the Spanish language, to Italian, specifically for its ".exe" file.
+#
+# The strindex parser automatically parses the settings formatted in TOML (the header),
+# as well as the start of the strings to patch (the body), inside which comments are not supported.
+#
+# You can freely create, edit & delete comments and settings in the header.
 
 
-You can replace strings in two ways (which can be mixed in the same strindex file):
+# The md5 hash of the file this strindex was created with.
+# Useful for many reasons, such as debugging, but mainly to avoid patching the wrong file.
+md5 = "29ed1f9e450d43815c2d1a0cab168da3"
 
-//================================================================================|reallocate pointer(s) if 1, or skip if 0|
-// replace this string...
-//--------------------------------------------------------------------------------
-// ...with this string!
+# Whether the strindex was created using the "force" mode.
+# This mode tells the program hard-replace strings at the same offset they were found,
+# instead of elegantly relocating them somewhere else.
+# This means the program will effectively work with any filetype,
+# but the length of the patched strings can't be longer than the original ones.
+force_mode = true
 
-or
+# The minimum length of strings that should be considered when creating or updating the strindex.
+min_length = 3
 
-//================================================================================/pointer(s)/
-// replace the string that was previously provided with this one!
+# A list of prefix/suffix bytes that can prefix a pointer.
+# If the pointers for the strings you want to patch always have those,
+# this can help identifying them better and avoiding relocating "false pointers"
+# (sequence of bytes that are the same as a pointer but that aren't one).
+# When relocating false pointers, there's a high chance of the program crashing.
+# You can also give those in the "create" action arguments, as it follows:
+# -p "24c7442404" -p "ec04c70424"
+prefix_bytes = [ "24c7442404", "ec04c70424" ]
+suffix_bytes = [ ]
+
+# The starting and ending offsets of the sections of the file that should be scanned
+# for strings to patch, in hexadecimal format, specifically written as "start:end".
+# If not specified, the whole file will be scanned.
+ranges = [ "018bc5ec:01a09fb1" ]
+
+# A table which replaces characters (or other sequences of letters) in strings to patch.
+# Useful for when the program doesn't support some characters (in this case, "ìÌòÒ")
+# and you still want to be grammatically correct.
+patch_replace = { "ì" = "í", "Ì" = "Í", "ò" = "ó", "Ò" = "Ó" }
+
+# Pattern used by the "spellcheck" action, which removes trash characters to spellcheck correctly.
+# In this case, this removes characters used to handle the game dialog boxes color, speed etc.
+clean_pattern = "\\[.*?\\]|\\*"
+
+# Used by the "filter" action to whitelist specific language character lists.
+# You can see those in the "utils.py" file, in the Strindex class.
+# If this list is empty, any utf-8 character (excluding most control characters) will be accepted.
+whitelist = [ "latin", "spanish", "cyrillic" ]
+
+# Used in the "filter" action to filter a Strindex by detected language.
+source_language = "es"
+
+# Used in the "spellcheck" action to define which language are the Strindex lines translating to.
+target_language = "it"
+
+# Used in the "filter" action to help identifying the languages better, giving it fewer choice.
+among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 
 
-The term "pointers" is generic by design, as they can possess different meaning
-depending on the file format that's being patched.
+# You can replace strings in two ways (which can be mixed in the same strindex file):
+#
+# ================================================================================|reallocate pointer(s) if 1, or skip if 0|
+#  replace this string...
+# --------------------------------------------------------------------------------
+#  ...with this string!
+#
+# or
+#
+# ================================================================================/pointer(s)/
+# replace the string that was previously provided with this one!
 
-What's important is that each pointer represents a different "reference" of that same string in the file,
-and deleting a pointer (or, like in the first example, setting it to 0),
-will make the program skip the reallocation of that one "reference".
 
-When using original strings to replace the patched ones (like in the first example),
-they must be in order of appearance in the file, or else they will be skipped.
-
-Below lies the start of the body of the strindex, detected by the 80 consecutive "═" characters...
-
+# The term "pointers" is generic by design, as they can possess different meaning
+# depending on the file format that's being patched.
+#
+# What's important is that each pointer represents a different "reference" of that same string in the file,
+# and deleting a pointer (or, like in the first example, setting it to 0),
+# will make the program skip the reallocation of that one "reference".
+#
+# When using original strings to replace the patched ones (like in the first example),
+# they must be in order of appearance in the file, or else they will be skipped.
+#
+# Below lies the start of the body of the strindex, detected by the 80 consecutive "═" characters...
 
 
 ================================================================================|11|
