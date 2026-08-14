@@ -75,6 +75,7 @@ class StrindexSettings():
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""",
 	}
 
+	raw_settings: str
 	md5: str
 	whitelist: set[str]
 	force_mode: bool
@@ -89,6 +90,7 @@ class StrindexSettings():
 	among_languages: list[str]
 
 	def __init__(self, **kwargs):
+		self.raw_settings = None
 		self.md5 = kwargs.get("md5")
 		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist") or "")
 		self.force_mode = kwargs.get("force_mode") or False
@@ -101,6 +103,19 @@ class StrindexSettings():
 		self.source_language = kwargs.get("source_language")
 		self.target_language = kwargs.get("target_language")
 		self.among_languages = kwargs.get("among_languages") or []
+
+	@classmethod
+	def read_from_toml_str(cls, toml_str: str) -> "StrindexSettings":
+		""" Reads the settings from a TOML string. """
+		settings = cls(**tomllib.loads(toml_str))
+		settings.raw_settings = toml_str
+		return settings
+
+	def get_changed(self) -> dict:
+		""" Returns a dictionary with the settings that are different from the default settings. """
+		CURRENT_SETTINGS = vars(self)
+		DEFAULT_SETTINGS = vars(StrindexSettings())
+		return {k: v for k, v in CURRENT_SETTINGS.items() if DEFAULT_SETTINGS.get(k) != v}
 
 	@staticmethod
 	def handle_whitelist(whitelist: str) -> set[str]:
@@ -150,6 +165,9 @@ class StrindexSettings():
 		""" Checks if the value is in any of the ranges. """
 		return any(val in range for range in self.ranges) if self.ranges else True
 
+	def __repr__(self) -> str:
+		return str(vars(self))
+
 
 class Strindex():
 	""" A class to parse and create strindex files. """
@@ -160,7 +178,6 @@ class Strindex():
 	POINTERS_DEL = '/'
 	POINTERS_SWITCHES_DEL = '|'
 
-	full_header: str
 	settings: StrindexSettings
 
 	strings: list[str | list[str, str]]
@@ -202,7 +219,6 @@ class Strindex():
 	def __init__(self):
 		""" Parses a strindex file and returns a dictionary with the data. """
 
-		self.full_header = ""
 		self.settings = StrindexSettings()
 
 		self.strings = []
@@ -225,15 +241,16 @@ class Strindex():
 
 		with stream as f:
 			try:
+				full_header = ""
 				previous_line_pos = 0
 				while line := f.readline():
 					if line.startswith(Strindex.ORIGINAL_DEL):
 						f.seek(previous_line_pos)
 						break
 					previous_line_pos = f.tell()
-					strindex.full_header += line
+					full_header += line
 
-				strindex.settings = StrindexSettings(**tomllib.loads(strindex.full_header))
+				strindex.settings = StrindexSettings.read_from_toml_str(full_header)
 
 				next_str_type = ""
 				is_start = True
@@ -312,12 +329,10 @@ class Strindex():
 			return dumps
 
 		with open(filepath, 'w', encoding='utf-8', newline='\n') as f:
-			if self.full_header:
-				f.write(self.full_header)
+			if self.settings.raw_settings:
+				f.write(self.settings.raw_settings)
 			else:
-				DEFAULT_SETTINGS = StrindexSettings().__dict__
-				diff_settings = {k: v for k, v in self.settings.__dict__.items() if DEFAULT_SETTINGS.get(k) != v}
-				f.write(HEADER_INFO + "\n" + toml_dumps_hack(diff_settings) + "\n")
+				f.write(HEADER_INFO + "\n" + toml_dumps_hack(self.settings.get_changed()) + "\n")
 
 				if len(self.type_order) > 0:
 					f.write(COMPATIBLE_INFO if self.type_order[0] == "compatible" else OVERWRITE_INFO)

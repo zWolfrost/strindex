@@ -189,7 +189,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	STRINDEX.write(file_updated_filepath)
 
-	return PrintWrapper.print(f'Created strindex file with {updated_pointers} updated pointer(s) at:\n{file_updated_filepath}')
+	return PrintWrapper.print(f'Created strindex file with {updated_pointers} / {len(STRINDEX.strings)} updated pointer(s) at:\n{file_updated_filepath}')
 
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
@@ -201,7 +201,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 
 	STRINDEX = Strindex.read(strindex_filepath)
 	STRINDEX_FILTER = Strindex()
-	STRINDEX_FILTER.full_header = STRINDEX.full_header
+	STRINDEX_FILTER.settings = STRINDEX.settings
 
 	if STRINDEX.settings.source_language:
 		try:
@@ -212,7 +212,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 			else:
 				raise ImportError('Please install the "lingua" package (pip install lingua-language-detector) to filter by language.')
 
-		ALL_LANGUAGES = [code for code in IsoCode639_1.__dict__.values() if isinstance(code, IsoCode639_1)]
+		ALL_LANGUAGES = [code for code in vars(IsoCode639_1).values() if isinstance(code, IsoCode639_1)]
 		SETTINGS_LANGUAGES = [getattr(IsoCode639_1, code.upper()) for code in STRINDEX.settings.among_languages or []]
 
 		detector = LanguageDetectorBuilder.from_iso_codes_639_1(*(SETTINGS_LANGUAGES or ALL_LANGUAGES)).build()
@@ -225,7 +225,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 	print_progress = PrintProgress(len(STRINDEX.strings))
 	for index, string in enumerate(STRINDEX.get_overwrite_and_original):
 		valid_language = not STRINDEX.settings.source_language or is_source_language(string)
-		valid_length = len(string) >= STRINDEX.settings.min_length
+		valid_length = len(string.encode('utf-8')) >= STRINDEX.settings.min_length
 		valid_whitelist = not (STRINDEX.settings.whitelist and any(ch not in STRINDEX.settings.whitelist for ch in string))
 
 		if all([valid_language, valid_length, valid_whitelist]):
@@ -252,7 +252,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 	STRINDEX_2_ID = STRINDEX_2.get_identifiers
 
 	STRINDEX_DELTA = Strindex()
-	STRINDEX_DELTA.full_header = STRINDEX_1.full_header
+	STRINDEX_DELTA.settings = STRINDEX_1.settings
 
 	search_index = 0
 	print_progress = PrintProgress(len(STRINDEX_1.strings))
