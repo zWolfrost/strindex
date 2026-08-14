@@ -136,7 +136,7 @@ class StrindexSettings():
 			try:
 				beg_str, end_str = range_str.split(":")
 				beg = int(beg_str, 16)
-				end = int(end_str, 16)
+				end = int(end_str, 16) + 1
 				if beg > end:
 					raise ValueError(f"Invalid range: {range_str}. Start must be less than or equal to end.")
 				parsed_ranges.append(range(beg, end))
