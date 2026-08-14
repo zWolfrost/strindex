@@ -13,10 +13,12 @@ Aside from using pointers to replace strings, there's also an option to use the 
 It features various built-in features to help with translation, such as spellchecking & filtering strings by length and character set.
 
 ## Supported filetypes
-*Support for more types is not planned.*
-- PE files (".exe", ".dll"...) *(direct pointers only)*
+*Support for more filetypes is not planned.*
+- PE files (".exe", ".dll"...) *(direct pointers only!)*
 - Gamemaker data files ("data.win")
-- Forceful replacement in every filetype...
+- Every filetype, if using force mode*...
+
+**Force mode doesn't allow the replaced strings to be bigger in length than the original strings.*
 
 ## Installation
 You can install the program with the command `pip install strindex`.
