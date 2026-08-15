@@ -114,25 +114,27 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 		affixes = set()
 		length = 1
-		while True:
+		while length <= MAX_LENGTH:
 			for offsets in STRINDEX_OFFSETS:
 				affixes.add(bytes(data[start_fun(offsets, length) : end_fun(offsets, length)]))
 
-			if len(affixes) >= MAX_COUNT or length >= MAX_LENGTH:
-				return got_any
+			if len(affixes) >= MAX_COUNT:
+				break
 
 			got_any = True
-			infer_output += f"Length {length*2}: " + ", ".join(a.hex() for a in affixes) + "\n"
+			infer_output += f"Length {length*2:02}: " + ", ".join(a.hex() for a in affixes) + "\n"
 
 			affixes.clear()
 			length += 1
 
+		return got_any
+
 	if STRINDEX_OFFSETS:
-		infer_output += "PREFIXES:\n"
+		infer_output += "[PREFIXES]\n"
 		if not infer_affixes(lambda o, l: o - l, lambda o, l: o):
 			infer_output += "No suitable prefixes found.\n"
 
-		infer_output += "\nSUFFIXES:\n"
+		infer_output += "\n[SUFFIXES]\n"
 		if not infer_affixes(lambda o, l: o + 4, lambda o, l: o + 4 + l):
 			infer_output += "No suitable suffixes found.\n"
 
@@ -147,9 +149,10 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 				lowest_range = min(lowest_range, offset)
 				highest_range = max(highest_range, offset)
 
-		infer_output += f"\nLOWEST RANGE:\n{lowest_range:08x}:{highest_range:08x}"
+		infer_output += f"\n[LOWEST RANGE]\n{lowest_range:08x}:{highest_range:08x}"
 
 	Progress.global_instance()
+	Print.debug("")
 
 	return Print.info(infer_output)
 
