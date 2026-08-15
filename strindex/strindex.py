@@ -329,14 +329,14 @@ def main(sysargs=None):
 	args = parser.parse_args(sysargs)
 
 	try:
+		Print.quiet_mode = args.quiet
+		Print.color_mode = sys.stdout.isatty()
+
 		if not all(os.path.isfile(file) for file in args.files):
 			raise FileNotFoundError("One or more specified files do not exist.")
 
 		if "__compiled__" in globals() and args.action == "spellcheck":
 			raise ImportError("Spellchecking is not supported in compiled builds.")
-
-		Print.quiet_mode = args.quiet
-		Print.color_mode = sys.stdout.isatty()
 
 		if args.action == "gui":
 			try:
