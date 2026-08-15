@@ -5,6 +5,7 @@ import gzip
 import hashlib
 import time
 import ahocorasick_rs
+from functools import wraps
 from typing import Callable
 from strindex.strings_find_fast import strings_find_fast
 
@@ -14,55 +15,61 @@ class PrintWrapper():
 	A wrapper for the print function.
 	"""
 
-	QUIET = False
+	quiet_mode = False
 
 	@classmethod
 	def print(cls, *args, **kwargs):
-		if not cls.QUIET:
+		if not cls.quiet_mode:
 			print(*args, **kwargs)
 		return "".join(str(arg) for arg in args)
 
 
 class PrintProgress():
 	"""
-	Extremely fast class to print progress percentage.
-	Only takes ~0.1 seconds every 1'000'000 calls,
-	or half of that if "iteration >= self.limit" is checked within the loop.
+	A class to handle progress printing.
 	"""
+
+	global_instance: "PrintProgress"
+	global_callback: Callable[["PrintProgress"], None]
 
 	total: int
 	limit: int
 	delta: int
 	round: int
 	percent: float
+	start: float
 
-	def __init__(self, total: int, round: int = 0):
+	def __init__(self, total: int, decimals: int = 0):
 		self.total = total
 		self.limit = 0
-		self.delta = total // (10 ** (round + 2))
-		self.round = None if round == 0 else round
+		self.delta = max(1, total // (10 ** (decimals + 2)))
+		self.round = None if decimals == 0 else decimals
 		self.percent = 0
 		self.start = time.time()
 		self(0)
 
-	def progress_bar_str(self, iteration: int, bar_length: int = 10) -> str:
-		""" Returns a string with the progress bar. """
-		progress = round(iteration / self.total * bar_length)
-		return f"\r[{'#' * progress}{'-' * (bar_length - progress)}] {self.percent}% "
-
-	def __call__(self, iteration: int):
+	def __call__(self, iteration: int = None):
+		if not iteration:
+			iteration = self.limit
 		if iteration >= self.limit and self.percent < 100:
 			self.limit += self.delta
 			self.percent = round(iteration / self.total * 100, self.round)
-			if callable(PrintProgress.callback):
-				PrintProgress.callback(self)
-			#PrintWrapper.print(self.progress_bar_str(iteration), end="")
+			if hasattr(PrintProgress, "global_instance") and self is PrintProgress.global_instance \
+		 		and hasattr(PrintProgress, "global_callback"):
+				PrintProgress.global_callback(self)
 			if self.percent >= 100:
 				PrintWrapper.print(f"Action completed in {time.time() - self.start:.2f}s.")
 
-	@property
-	def callback() -> Callable[["PrintProgress"], None]:
-		return globals().get("__print_progress_callback__")
+	@classmethod
+	def global_mark(cls, func: Callable) -> Callable:
+		""" Decorator to mark a function for progress printing. """
+		@wraps(func)
+		def wrapper(*args, **kwargs):
+			result = func(*args, **kwargs)
+			if hasattr(PrintProgress, "global_instance"):
+				PrintProgress.global_instance()
+			return result
+		return wrapper
 
 
 class StrindexSettings():
@@ -226,6 +233,7 @@ class Strindex():
 		self.type_order = []
 
 	@classmethod
+	@PrintProgress.global_mark
 	def read(cls, filepath: str) -> "Strindex":
 		""" Parses a strindex file and returns a dictionary with the data. """
 
@@ -302,6 +310,7 @@ class Strindex():
 
 		return strindex
 
+	@PrintProgress.global_mark
 	def write(self, filepath: str):
 		""" Saves the strindex data to a file. """
 
@@ -374,15 +383,18 @@ class FileBytearray(bytearray):
 	byte_order: str
 
 	@classmethod
+	@PrintProgress.global_mark
 	def read(cls, filepath: str):
 		with open(filepath, 'rb') as f:
 			return cls(f.read())
 
+	@PrintProgress.global_mark
 	def write(self, filepath: str):
 		with open(filepath, 'wb') as f:
 			f.write(self)
 
 	# Algorithms
+	@PrintProgress.global_mark
 	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1, ranges: list[range] = []) -> list[tuple[str, int, int]]:
 		"""
 		Returns all strings in a bytearray, separated by a given separator.
@@ -392,6 +404,7 @@ class FileBytearray(bytearray):
 
 		return strings_find_fast(self, int(sep[0]), min_length, [(r.start, r.stop) for r in ranges])
 
+	@PrintProgress.global_mark
 	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
 		Returns the index of the first occurrence of every search list string in a bytearray.
@@ -410,6 +423,7 @@ class FileBytearray(bytearray):
 			indices.append(index + prefix_length)
 		return indices
 
+	@PrintProgress.global_mark
 	def strings_search(self, search_lst: list[bytes], prefixes: list[bytes] = [b""], suffixes: list[bytes] = [b""]) -> list[list[int]]:
 		"""
 		Returns a list containing the indexes of each occurrence of every search list string in the bytearray.

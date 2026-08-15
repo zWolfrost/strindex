@@ -12,15 +12,13 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 		Calls the create method of the module associated with the file type.
 	"""
 
-	print_progress = PrintProgress(2)
+	PrintProgress.global_instance = PrintProgress(4)
 
 	strindex_filepath = strindex_filepath or (os.path.splitext(file_filepath)[0] + "_strindex.txt")
 
 	data = FileBytearray.read(file_filepath)
 
 	STRINDEX = GenericModule(data, settings.force_mode).create(data, settings)
-
-	print_progress(1)
 
 	if compatible:
 		STRINDEX.type_order = ["compatible"] * len(STRINDEX.strings)
@@ -32,8 +30,6 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	STRINDEX.write(strindex_filepath)
 
-	print_progress(2)
-
 	return PrintWrapper.print(f'Successfully created strindex file at:\n{strindex_filepath}')
 
 
@@ -42,11 +38,9 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 		Calls the patch method of the module associated with the file type.
 	"""
 
-	print_progress = PrintProgress(5)
+	PrintProgress.global_instance = PrintProgress(6)
 
 	orig_file_filepath_bak = file_filepath + FileBytearray.read(file_filepath).md5_backup_suffix
-
-	print_progress(1)
 
 	if os.path.exists(orig_file_filepath_bak):
 		PrintWrapper.print("Detected backup file, patching that one instead.")
@@ -54,18 +48,12 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	else:
 		data = FileBytearray.read(file_filepath)
 
-	print_progress(2)
-
 	STRINDEX = Strindex.read(strindex_filepath)
 
 	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5:
 		PrintWrapper.print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
 
-	print_progress(3)
-
 	data = GenericModule(data, STRINDEX.settings.force_mode).patch(data, STRINDEX)
-
-	print_progress(4)
 
 	repl_file_filepath_bak = file_filepath + data.md5_backup_suffix
 
@@ -75,8 +63,6 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	data.write(file_patched_filepath)
 
-	print_progress(5)
-
 	return PrintWrapper.print("File was patched successfully.")
 
 
@@ -84,6 +70,8 @@ def unpatch(file_filepath: str) -> str:
 	"""
 		Restores a backup file if it exists.
 	"""
+
+	PrintProgress.global_instance = PrintProgress(2)
 
 	data = FileBytearray.read(file_filepath)
 
@@ -94,6 +82,8 @@ def unpatch(file_filepath: str) -> str:
 
 	os.replace(repl_file_filepath_bak, file_filepath)
 
+	PrintProgress.global_instance()
+
 	return PrintWrapper.print("File was restored from backup successfully.")
 
 
@@ -101,6 +91,8 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 	"""
 		List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range to use.
 	"""
+
+	PrintProgress.global_instance = PrintProgress(5)
 
 	infer_output = ""
 
@@ -145,6 +137,8 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 		if not infer_affixes(lambda o, l: o + 4, lambda o, l: o + 4 + l):
 			infer_output += "No suitable suffixes found.\n"
 
+	PrintProgress.global_instance()
+
 	if STRINDEX_OVERWRITE_AND_ORIGINAL:
 		lowest_range = len(data)
 		highest_range = 0
@@ -156,6 +150,8 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 		infer_output += f"\nLOWEST RANGE:\n{lowest_range:08x}:{highest_range:08x}"
 
+	PrintProgress.global_instance()
+
 	return PrintWrapper.print(infer_output)
 
 
@@ -163,6 +159,8 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 	"""
 		Update a strindex file with newly created pointers.
 	"""
+
+	PrintProgress.global_instance = PrintProgress(6)
 
 	file_updated_filepath = file_updated_filepath or (os.path.splitext(strindex_filepath)[0] + "_updated.txt")
 
@@ -175,9 +173,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	updated_pointers = 0
 	search_index = 0
-	print_progress = PrintProgress(len(STRINDEX.strings))
 	for index in range(len(STRINDEX.strings)):
-		print_progress(index)
 		try:
 			search_index = STRINDEX_UPDATED.strings.index(STRINDEX_STRINGS_ORIGINAL[index], search_index)
 		except ValueError:
@@ -186,6 +182,8 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 			if len(STRINDEX.pointers[index]) != len(STRINDEX_UPDATED.pointers[search_index]):
 				updated_pointers += 1
 				STRINDEX.pointers[index] = STRINDEX_UPDATED.pointers[search_index]
+
+	PrintProgress.global_instance()
 
 	STRINDEX.write(file_updated_filepath)
 
@@ -196,6 +194,8 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 	"""
 		Filters a strindex file with respect to length, whitelist and source language.
 	"""
+
+	PrintProgress.global_instance = PrintProgress(4)
 
 	strindex_filter_filepath = strindex_filter_filepath or (os.path.splitext(strindex_filepath)[0] + "_filtered.txt")
 
@@ -217,12 +217,13 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 
 		detector = LanguageDetectorBuilder.from_iso_codes_639_1(*(SETTINGS_LANGUAGES or ALL_LANGUAGES)).build()
 
+	PrintProgress.global_instance()
+
 	def is_source_language(string: str) -> bool:
 		string_clean = STRINDEX.settings.clean_string(string)
 		confidence = detector.compute_language_confidence_values(string_clean)[0]
 		return confidence.language.iso_code_639_1 == getattr(IsoCode639_1, STRINDEX.settings.source_language.upper()) and confidence.value > 0.5
 
-	print_progress = PrintProgress(len(STRINDEX.strings))
 	for index, string in enumerate(STRINDEX.get_overwrite_and_original):
 		valid_language = not STRINDEX.settings.source_language or is_source_language(string)
 		valid_length = len(string.encode('utf-8')) >= STRINDEX.settings.min_length
@@ -231,7 +232,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 		if all([valid_language, valid_length, valid_whitelist]):
 			STRINDEX_FILTER.append_strindex_index(STRINDEX, index)
 
-		print_progress(index)
+	PrintProgress.global_instance()
 
 	STRINDEX_FILTER.write(strindex_filter_filepath)
 
@@ -242,6 +243,8 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 	"""
 		Filters a full strindex file with a delta strindex file, or intersects them.
 	"""
+
+	PrintProgress.global_instance = PrintProgress(4)
 
 	strindex_delta_filepath = strindex_delta_filepath or (os.path.splitext(strindex_full_filepath)[0] + "_delta.txt")
 
@@ -255,13 +258,13 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 	STRINDEX_DELTA.settings = STRINDEX_1.settings
 
 	search_index = 0
-	print_progress = PrintProgress(len(STRINDEX_1.strings))
 	for index in range(len(STRINDEX_1.strings)):
-		print_progress(index)
 		try:
 			search_index = STRINDEX_2_ID.index(STRINDEX_1_ID[index], search_index)
 		except ValueError:
 			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
+
+	PrintProgress.global_instance()
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
 
@@ -272,6 +275,8 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	"""
 		Creates a spellcheck file from a strindex file, for the specified language.
 	"""
+
+	PrintProgress.global_instance = PrintProgress(2)
 
 	strindex_spellcheck_filepath = strindex_spellcheck_filepath or (os.path.splitext(strindex_filepath)[0] + "_spellcheck.txt")
 
@@ -290,13 +295,12 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	PrintWrapper.print("Created language tool.")
 
 	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
-		print_progress = PrintProgress(len(STRINDEX_STRINGS_REPLACE))
-		for index, string in enumerate(STRINDEX_STRINGS_REPLACE):
+		for string in STRINDEX_STRINGS_REPLACE:
 			string_clean = STRINDEX.settings.clean_string(string)
 			for error in lang.check(string_clean):
 				f.write('\n'.join(str(error).split('\n')[-3:]) + '\n')
 
-			print_progress(index)
+	PrintProgress.global_instance()
 
 	return PrintWrapper.print(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
 
@@ -330,7 +334,7 @@ def main(sysargs=None):
 			raise ImportError("Spellchecking is not supported in compiled builds.")
 
 		if args.quiet:
-			PrintWrapper.QUIET = True
+			PrintWrapper.quiet_mode = True
 
 		if args.action == "gui":
 			try:

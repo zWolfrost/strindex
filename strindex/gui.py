@@ -16,7 +16,7 @@ class CallbackWorker(QtCore.QThread):
 		self.callback = callback
 
 	def run(self):
-		PrintProgress.callback = lambda progress: self.sig_progress.emit(progress)
+		PrintProgress.global_callback = lambda progress: self.sig_progress.emit(progress)
 
 		try:
 			result = self.callback()
