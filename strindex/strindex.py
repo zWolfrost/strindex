@@ -71,7 +71,7 @@ def unpatch(file_filepath: str) -> str:
 		Restores a backup file if it exists.
 	"""
 
-	Progress.global_instance = Progress(2)
+	Progress.global_instance = Progress(1)
 
 	data = FileBytearray.read(file_filepath)
 
@@ -81,8 +81,6 @@ def unpatch(file_filepath: str) -> str:
 		raise FileNotFoundError("No backup file was found to restore from.")
 
 	os.replace(repl_file_filepath_bak, file_filepath)
-
-	Progress.global_instance()
 
 	return Print.print("File was restored from backup successfully.")
 

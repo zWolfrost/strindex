@@ -4,10 +4,11 @@ import re
 import gzip
 import hashlib
 import time
-import ahocorasick_rs
+import sys
+from ahocorasick_rs import BytesAhoCorasick, Implementation
+from strindex.strings_find_fast import strings_find_fast
 from functools import wraps
 from typing import Callable
-from strindex.strings_find_fast import strings_find_fast
 
 
 class Print():
@@ -445,7 +446,7 @@ class FileBytearray(bytearray):
 					search_lst_prefix_length.append(len(prefix))
 					search_lst_indices.append(search_string_lst)
 
-		ac = ahocorasick_rs.BytesAhoCorasick(search_lst_full)
+		ac = BytesAhoCorasick(search_lst_full, implementation=Implementation.ContiguousNFA)
 
 		for index, start, _ in ac.find_matches_as_indexes(self, overlapping=True):
 			search_lst_indices[index].append(start + search_lst_prefix_length[index])
@@ -516,7 +517,10 @@ class FileBytearray(bytearray):
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
 
-		Print.print(f"Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
+		Print.print(f"Created search list with {len(temp_strindex['original_bytes'])} strings.")
+
+		if sys.getsizeof(temp_strindex['original_bytes']) > 10 * 1024**2:
+			Print.print(f"Warning: The search list is huge ({sys.getsizeof(temp_strindex['original_bytes']) / (1024**2):.2f}MB)!\nThis may take a minute to process; consider increasing the minimum string length.")
 
 		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
