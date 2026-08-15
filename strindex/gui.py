@@ -2,12 +2,12 @@ import os
 import sys
 import signal
 from PySide6 import QtWidgets, QtGui, QtCore
-from strindex.utils import StrindexSettings, PrintProgress
+from strindex.utils import StrindexSettings, Progress
 import strindex.strindex as strindex
 
 
 class CallbackWorker(QtCore.QThread):
-	sig_progress = QtCore.Signal(PrintProgress)
+	sig_progress = QtCore.Signal(Progress)
 	sig_except = QtCore.Signal(Exception)
 	sig_else = QtCore.Signal(object)
 
@@ -16,7 +16,7 @@ class CallbackWorker(QtCore.QThread):
 		self.callback = callback
 
 	def run(self):
-		PrintProgress.global_callback = lambda progress: self.sig_progress.emit(progress)
+		Progress.global_callback = lambda progress: self.sig_progress.emit(progress)
 
 		try:
 			result = self.callback()

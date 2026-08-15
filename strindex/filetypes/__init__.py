@@ -1,4 +1,4 @@
-from strindex.utils import FileBytearray, Strindex, StrindexSettings, PrintWrapper
+from strindex.utils import FileBytearray, Strindex, StrindexSettings, Print
 from strindex.filetypes import force, pe, iff
 
 
@@ -10,7 +10,7 @@ class GenericModule():
 	def __init__(self, data: FileBytearray, use_force: bool):
 		if use_force:
 			self.module = force
-			PrintWrapper.print("Force mode enabled.")
+			Print.print("Force mode enabled.")
 			return
 
 		MODULES = [pe, iff]
@@ -19,7 +19,7 @@ class GenericModule():
 			self.module = module
 			if self.match(data):
 				module.FILETYPE = module.__name__.split(".")[-1]
-				PrintWrapper.print(f'Detected filetype: "{module.FILETYPE}".')
+				Print.print(f'Detected filetype: "{module.FILETYPE}".')
 				return
 
 		raise NotImplementedError("This file type has no associated module, or the required libraries to handle it are not installed.")

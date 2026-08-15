@@ -10,7 +10,7 @@ from typing import Callable
 from strindex.strings_find_fast import strings_find_fast
 
 
-class PrintWrapper():
+class Print():
 	"""
 	A wrapper for the print function.
 	"""
@@ -24,13 +24,13 @@ class PrintWrapper():
 		return "".join(str(arg) for arg in args)
 
 
-class PrintProgress():
+class Progress():
 	"""
 	A class to handle progress printing.
 	"""
 
-	global_instance: "PrintProgress"
-	global_callback: Callable[["PrintProgress"], None]
+	global_instance: "Progress"
+	global_callback: Callable[["Progress"], None]
 
 	total: int
 	limit: int
@@ -54,11 +54,11 @@ class PrintProgress():
 		if iteration >= self.limit and self.percent < 100:
 			self.limit += self.delta
 			self.percent = round(iteration / self.total * 100, self.round)
-			if hasattr(PrintProgress, "global_instance") and self is PrintProgress.global_instance \
-		 		and hasattr(PrintProgress, "global_callback"):
-				PrintProgress.global_callback(self)
+			if hasattr(Progress, "global_instance") and self is Progress.global_instance \
+		 		and hasattr(Progress, "global_callback"):
+				Progress.global_callback(self)
 			if self.percent >= 100:
-				PrintWrapper.print(f"Action completed in {time.time() - self.start:.2f}s.")
+				Print.print(f"Action completed in {time.time() - self.start:.2f}s.")
 
 	@classmethod
 	def global_mark(cls, func: Callable) -> Callable:
@@ -66,8 +66,8 @@ class PrintProgress():
 		@wraps(func)
 		def wrapper(*args, **kwargs):
 			result = func(*args, **kwargs)
-			if hasattr(PrintProgress, "global_instance"):
-				PrintProgress.global_instance()
+			if hasattr(Progress, "global_instance"):
+				Progress.global_instance()
 			return result
 		return wrapper
 
@@ -233,7 +233,7 @@ class Strindex():
 		self.type_order = []
 
 	@classmethod
-	@PrintProgress.global_mark
+	@Progress.global_mark
 	def read(cls, filepath: str) -> "Strindex":
 		""" Parses a strindex file and returns a dictionary with the data. """
 
@@ -310,7 +310,7 @@ class Strindex():
 
 		return strindex
 
-	@PrintProgress.global_mark
+	@Progress.global_mark
 	def write(self, filepath: str):
 		""" Saves the strindex data to a file. """
 
@@ -383,18 +383,18 @@ class FileBytearray(bytearray):
 	byte_order: str
 
 	@classmethod
-	@PrintProgress.global_mark
+	@Progress.global_mark
 	def read(cls, filepath: str):
 		with open(filepath, 'rb') as f:
 			return cls(f.read())
 
-	@PrintProgress.global_mark
+	@Progress.global_mark
 	def write(self, filepath: str):
 		with open(filepath, 'wb') as f:
 			f.write(self)
 
 	# Algorithms
-	@PrintProgress.global_mark
+	@Progress.global_mark
 	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1, ranges: list[range] = []) -> list[tuple[str, int, int]]:
 		"""
 		Returns all strings in a bytearray, separated by a given separator.
@@ -404,7 +404,7 @@ class FileBytearray(bytearray):
 
 		return strings_find_fast(self, int(sep[0]), min_length, [(r.start, r.stop) for r in ranges])
 
-	@PrintProgress.global_mark
+	@Progress.global_mark
 	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
 		Returns the index of the first occurrence of every search list string in a bytearray.
@@ -423,7 +423,7 @@ class FileBytearray(bytearray):
 			indices.append(index + prefix_length)
 		return indices
 
-	@PrintProgress.global_mark
+	@Progress.global_mark
 	def strings_search(self, search_lst: list[bytes], prefixes: list[bytes] = [b""], suffixes: list[bytes] = [b""]) -> list[list[int]]:
 		"""
 		Returns a list containing the indexes of each occurrence of every search list string in the bytearray.
@@ -493,7 +493,7 @@ class FileBytearray(bytearray):
 		replace_bytes = replace.encode('utf-8')
 
 		if len(replace_bytes) > original_length:
-			PrintWrapper.print(f'Warning: Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}). Truncating.')
+			Print.print(f'Warning: Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}). Truncating.')
 			replace_bytes = replace_bytes[:original_length]
 		else:
 			replace_bytes = replace_bytes.ljust(original_length, delimiter)
@@ -516,7 +516,7 @@ class FileBytearray(bytearray):
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
 
-		PrintWrapper.print(f"Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
+		Print.print(f"Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
 
 		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
@@ -527,7 +527,7 @@ class FileBytearray(bytearray):
 				strindex.pointers.append(pointers)
 				strindex.type_order.append("overwrite")
 
-		PrintWrapper.print(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
+		Print.print(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
 
 		return strindex
 
@@ -547,7 +547,7 @@ class FileBytearray(bytearray):
 
 		for index, offset in enumerate(self.strings_search_ordered(strindex_original)):
 			if offset is None:
-				PrintWrapper.print(f'String #{index} not found: "{strindex_original[index]}"')
+				Print.print(f'String #{index} not found: "{strindex_original[index]}"')
 				continue
 
 			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
@@ -581,7 +581,7 @@ class FileBytearray(bytearray):
 					if switch:
 						self[pointer:pointer + self.byte_length] = replaced_bytes
 			else:
-				PrintWrapper.print(f"No pointers found for string #{index}")
+				Print.print(f"No pointers found for string #{index}")
 
 	@property
 	def md5(self) -> str:
