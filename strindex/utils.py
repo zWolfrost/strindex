@@ -16,13 +16,38 @@ class Print():
 	A wrapper for the print function.
 	"""
 
-	quiet_mode = False
+	class PrintLevel():
+		DEBUG = ""
+		INFO = "\033[1m"
+		WARNING = "\033[93m"
+		ERROR = "\033[91m"
+		RESET = "\033[0m"
+
+	quiet_mode = True
+	color_mode = True
 
 	@classmethod
-	def print(cls, *args, **kwargs):
+	def print(cls, msg: str, tag: str = None, level: PrintLevel = None, **kwargs):
 		if not cls.quiet_mode:
-			print(*args, **kwargs)
-		return "".join(str(arg) for arg in args)
+			tag = f"[{tag}] " if tag and not msg.startswith("[") else ""
+			if cls.color_mode and level:
+				print(level, tag, msg, cls.PrintLevel.RESET, sep="", **kwargs)
+			else:
+				print(tag, msg, sep="", **kwargs)
+		return msg
+
+	@classmethod
+	def debug(cls, msg: str, **kwargs) -> str:
+		return cls.print(msg, level=cls.PrintLevel.DEBUG, **kwargs)
+	@classmethod
+	def info(cls, msg: str, **kwargs) -> str:
+		return cls.print(msg, level=cls.PrintLevel.INFO, **kwargs)
+	@classmethod
+	def warning(cls, msg: str, **kwargs) -> str:
+		return cls.print(msg, tag="Warning", level=cls.PrintLevel.WARNING, **kwargs)
+	@classmethod
+	def error(cls, msg: str, **kwargs) -> str:
+		return cls.print(msg, tag="Error", level=cls.PrintLevel.ERROR, **kwargs)
 
 
 class Progress():
@@ -59,7 +84,7 @@ class Progress():
 		 		and hasattr(Progress, "global_callback"):
 				Progress.global_callback(self)
 			if self.percent >= 100:
-				Print.print(f"Action completed in {time.time() - self.start:.2f}s.")
+				Print.debug(f"Action completed in {time.time() - self.start:.2f}s.")
 
 	@classmethod
 	def global_mark(cls, func: Callable) -> Callable:
@@ -494,7 +519,7 @@ class FileBytearray(bytearray):
 		replace_bytes = replace.encode('utf-8')
 
 		if len(replace_bytes) > original_length:
-			Print.print(f'Warning: Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}). Truncating.')
+			Print.warning(f'Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}); Truncating.')
 			replace_bytes = replace_bytes[:original_length]
 		else:
 			replace_bytes = replace_bytes.ljust(original_length, delimiter)
@@ -517,10 +542,11 @@ class FileBytearray(bytearray):
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
 
-		Print.print(f"Created search list with {len(temp_strindex['original_bytes'])} strings.")
+		Print.debug(f"Created search list with {len(temp_strindex['original_bytes'])} strings.")
 
-		if sys.getsizeof(temp_strindex['original_bytes']) > 10 * 1024**2:
-			Print.print(f"Warning: The search list is huge ({sys.getsizeof(temp_strindex['original_bytes']) / (1024**2):.2f}MB)!\nThis may take a minute to process; consider increasing the minimum string length.")
+		size_in_mb = sys.getsizeof(temp_strindex['original_bytes']) / (1024**2)
+		if size_in_mb > 10:
+			Print.warning(f"The search list is huge! ({size_in_mb:.2f}MB)\nThis may take a minute to process;\nconsider increasing the minimum string length.")
 
 		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
@@ -531,7 +557,7 @@ class FileBytearray(bytearray):
 				strindex.pointers.append(pointers)
 				strindex.type_order.append("overwrite")
 
-		Print.print(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
+		Print.debug(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
 
 		return strindex
 
@@ -551,7 +577,7 @@ class FileBytearray(bytearray):
 
 		for index, offset in enumerate(self.strings_search_ordered(strindex_original)):
 			if offset is None:
-				Print.print(f'String #{index} not found: "{strindex_original[index]}"')
+				Print.warning(f'String #{index} not found: "{strindex_original[index]}"')
 				continue
 
 			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
@@ -585,7 +611,7 @@ class FileBytearray(bytearray):
 					if switch:
 						self[pointer:pointer + self.byte_length] = replaced_bytes
 			else:
-				Print.print(f"No pointers found for string #{index}")
+				Print.warning(f"No pointers found for string #{index}")
 
 	@property
 	def md5(self) -> str:

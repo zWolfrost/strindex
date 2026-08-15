@@ -14,7 +14,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 			strindex.pointers.append([start_offset])
 			strindex.type_order.append("overwrite")
 
-	Print.print(f"Found {len(strindex.strings)} strings.")
+	Print.debug(f"Found {len(strindex.strings)} strings.")
 
 	return strindex
 
@@ -25,7 +25,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 	for index, offset in enumerate(data.strings_search_ordered(strindex_original)):
 		if offset is None:
-			Print.print(f'String not found: "{strindex_original[index]}"')
+			Print.warning(f'String not found: "{strindex_original[index]}"')
 			continue
 
 		data.cursor = offset

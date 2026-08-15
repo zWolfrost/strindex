@@ -188,7 +188,7 @@ def match(data: FileBytearray) -> bool:
 		return False
 
 	if b"\0Cabinet.dll\0" in data:
-		Print.print("Warning: This PE file is likely a self-extracting CAB file. You might want to extract the embedded files first.")
+		Print.warning("This PE file is likely a self-extracting CAB file;\nYou might want to extract the embedded files first.")
 
 	return True
 
@@ -197,7 +197,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	pe = PEFileWrapper(data)
 
 	if pe.section_exists(SECTION_NAME):
-		Print.print(f"Warning: This file contains a \"{SECTION_NAME.decode('utf-8')}\" section. It's likely already patched.")
+		Print.warning(f"This file contains a \"{SECTION_NAME.decode('utf-8')}\" section;\nIt has likely already been patched once.")
 
 	data.byte_length = pe.byte_length
 	data.byte_order = 'little'

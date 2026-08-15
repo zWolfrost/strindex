@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 from strindex.utils import Strindex, StrindexSettings, FileBytearray, Print, Progress
 from strindex.filetypes import GenericModule
@@ -30,7 +31,7 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	STRINDEX.write(strindex_filepath)
 
-	return Print.print(f'Successfully created strindex file at:\n{strindex_filepath}')
+	return Print.info(f'Successfully created strindex file at\n{strindex_filepath}')
 
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None) -> str:
@@ -43,7 +44,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	orig_file_filepath_bak = file_filepath + FileBytearray.read(file_filepath).md5_backup_suffix
 
 	if os.path.exists(orig_file_filepath_bak):
-		Print.print("Detected backup file, patching that one instead.")
+		Print.debug("Detected backup file, patching that one instead.")
 		data = FileBytearray.read(orig_file_filepath_bak)
 	else:
 		data = FileBytearray.read(file_filepath)
@@ -51,7 +52,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	STRINDEX = Strindex.read(strindex_filepath)
 
 	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5:
-		Print.print("MD5 hash does not match the one the strindex was created for. You may encounter issues.")
+		Print.warning("MD5 hash does not match the one the strindex was created for.\nYou may encounter issues.")
 
 	data = GenericModule(data, STRINDEX.settings.force_mode).patch(data, STRINDEX)
 
@@ -63,7 +64,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	data.write(file_patched_filepath)
 
-	return Print.print("File was patched successfully.")
+	return Print.info("File was patched successfully.")
 
 
 def unpatch(file_filepath: str) -> str:
@@ -82,7 +83,7 @@ def unpatch(file_filepath: str) -> str:
 
 	os.replace(repl_file_filepath_bak, file_filepath)
 
-	return Print.print("File was restored from backup successfully.")
+	return Print.info("File was restored from backup successfully.")
 
 
 def infer(file_filepath: str, strindex_filepath: str) -> str:
@@ -150,7 +151,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 	Progress.global_instance()
 
-	return Print.print(infer_output)
+	return Print.info(infer_output)
 
 
 def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None) -> str:
@@ -185,7 +186,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	STRINDEX.write(file_updated_filepath)
 
-	return Print.print(f'Created strindex file with {updated_pointers} / {len(STRINDEX.strings)} updated pointer(s) at:\n{file_updated_filepath}')
+	return Print.info(f'Created strindex file with {updated_pointers} / {len(STRINDEX.strings)} updated pointer(s) at\n{file_updated_filepath}')
 
 
 def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
@@ -206,7 +207,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 			from lingua import LanguageDetectorBuilder, IsoCode639_1
 		except ImportError:
 			if "__compiled__" in globals():
-				Print.print("Warning: Filtering by language is not supported in compiled builds.")
+				Print.warning("Filtering by language is not supported in compiled builds.")
 			else:
 				raise ImportError('Please install the "lingua" package (pip install lingua-language-detector) to filter by language.')
 
@@ -234,7 +235,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 
 	STRINDEX_FILTER.write(strindex_filter_filepath)
 
-	return Print.print(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at:\n{strindex_filter_filepath}')
+	return Print.info(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at\n{strindex_filter_filepath}')
 
 
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None) -> str:
@@ -266,7 +267,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 
 	STRINDEX_DELTA.write(strindex_delta_filepath)
 
-	return Print.print(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at:\n{strindex_delta_filepath}')
+	return Print.info(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at\n{strindex_delta_filepath}')
 
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None) -> str:
@@ -290,7 +291,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 		raise ValueError('Please specify the target language to spellcheck in the strindex file ("target_language").')
 
 	lang = LanguageTool(STRINDEX.settings.target_language)
-	Print.print("Created language tool.")
+	Print.debug("Created language tool.")
 
 	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
 		for string in STRINDEX_STRINGS_REPLACE:
@@ -300,7 +301,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 
 	Progress.global_instance()
 
-	return Print.print(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
+	return Print.info(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
 
 
 def main(sysargs=None):
@@ -331,8 +332,8 @@ def main(sysargs=None):
 		if "__compiled__" in globals() and args.action == "spellcheck":
 			raise ImportError("Spellchecking is not supported in compiled builds.")
 
-		if args.quiet:
-			Print.quiet_mode = True
+		Print.quiet_mode = args.quiet
+		Print.color_mode = sys.stdout.isatty()
 
 		if args.action == "gui":
 			try:
@@ -382,12 +383,12 @@ def main(sysargs=None):
 					assert_files_num(1)
 					spellcheck(args.files[0], args.output)
 	except KeyboardInterrupt:
-		Print.print("Interrupted by user.")
+		Print.info("Interrupted by user.")
 	except Exception as e:
 		if args.verbose:
 			raise
 		else:
-			Print.print(f"{type(e).__name__}: {e}")
+			Print.error(f"[{type(e).__name__}] {e}\nPlease use -v / --verbose to see the full traceback.")
 
 
 if __name__ == "__main__":
