@@ -239,7 +239,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 			self.setStyleSheet(f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}""")
 
 	def set_custom_size(self):
-		# 52 is the approx. height of the tab bar
+		# 52 is the approx. height of the tab bar + other stuff
 		height_hint = (
 			self.tab_widget.currentWidget().sizeHint().height() + 52
 			if hasattr(self, "tab_widget") else self.sizeHint().height()
