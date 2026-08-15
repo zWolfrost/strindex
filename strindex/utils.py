@@ -544,9 +544,8 @@ class FileBytearray(bytearray):
 
 		Print.debug(f"Created search list with {len(temp_strindex['original_bytes'])} strings.")
 
-		size_in_mb = sys.getsizeof(temp_strindex['original_bytes']) / (1024**2)
-		if size_in_mb > 10:
-			Print.warning(f"The search list is huge! ({size_in_mb:.2f}MB)\nThis may take a minute to process;\nconsider increasing the minimum string length.")
+		if len(temp_strindex['original_bytes']) > 10**6:
+			Print.warning(f"The search list is very large!\nThis may take a bit to process;\nconsider increasing the minimum string length.")
 
 		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 

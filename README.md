@@ -50,7 +50,7 @@ These are the available actions:
   ```sh
   strindex create program.exe -p "24c7442404" -p "ec04c70424"
   ```
-- Create a strindex from a PE file, considering only strings longer than 3 characters and that are present between offsets 0x018bc5ec and 0x01a09fb1.
+- Create a strindex from a PE file, considering only strings that are present between offsets 0x018bc5ec and 0x01a09fb1.
   ```sh
   strindex create program.exe -m 3 -r "018bc5ec:01a09fb1"
   ```
