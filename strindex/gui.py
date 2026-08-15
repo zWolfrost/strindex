@@ -2,6 +2,7 @@ import os
 import sys
 import signal
 from PySide6 import QtWidgets, QtGui, QtCore
+from PySide6.QtCore import QTimer
 from strindex.utils import StrindexSettings, Progress
 import strindex.strindex as strindex
 
@@ -293,7 +294,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		version_label.setOpenExternalLinks(True)
 		version_label.setContentsMargins(3, 3, 3, 3)
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
-		self.tab_widget.currentChanged.connect(self.set_custom_size)
+		self.tab_widget.currentChanged.connect(lambda _: QTimer.singleShot(0, self.set_custom_size))
 
 		self.__widgets__.append(self.tab_widget)
 
@@ -303,21 +304,21 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		# Horrible implementation, but really convenient for now...
 		ICON_BASE64 = (
-			b"iVBORw0KGgoAAAANSUhEUgAAAIAAAACABAMAAAAxEHz4AAAAJFBMVEUAAAAwMDAwMDAwMDAvLy8vLy8vLy8wMDCgoKBoaGhMTEyE"
-			b"hIRek547AAAAB3RSTlMAfzm/31+fnXZsNAAAAv9JREFUaN6lmUFy2kAQRUWSCluxSLFlly1ZecvOR8g2RxgZ7Bb4AJoyBwBOADcg"
-			b"x4unRs4vmJF6+vtXeexNP7/pkQQ01Uhm0udHRWQiN6nJcmSzsNTPJZOn4vIvks+a1UcWbD0IbD0I5P4RDSAI1cnfSrl2mlMpyFJt"
-			b"AN+GhzLAk7IBfhNSmg0pgDilg1wff1oAjhRAlA4wCmIMKYCsBgQugljuyq8Ss/NdKWGRPcOL91wbpU/ryxXyLfTlCn+SB5FRwSU7"
-			b"sCokO7Aq1MkZGBVcsgOjwiZ5MbIq3LXAGxWwh3lf10HBBkCZVQEtQJlJAS0gFZa4CjgFhxZwCg0ApAJ6SCqgh6RCDQCn4OJ1yCs4"
-			b"9JBTaAAgFQAgFXCKpAIOgVSoAUjK2hIFB0Ci4N/TmQFQaH2IDphLRqH/FVgmABT6VVdwlUhOoV90hSYCUoXwE1kmABT6Sl0hC2hx"
-			b"glAoBEChf8/k36wAmMc/rgQA5t7v5bWzAaDQ//rrTQAo9OtrgJgAULiEJVBMACjsQmlkGQG4GTs5Q6EcgMtRdh4KpQAohDYoXVgD"
-			b"wN2UzQigjY+FcYUGD5Q0exFVwSkf+FUFp39YwgOOBLR4NPGAYYWlDjiGykGFupoU9QAK6cu7DjgIFCgAzjMLeCwD5BWe9bnBdvT9"
-			b"ghv52I0ygQIH6IYV6oLRhR9TKBk9XMYUSuZXuwEFzLSmvIIDgFOoMQDiFNQBDhTOOYW1OsPC/93nFJw+AsL/fcsoLDEF0xX8NVUw"
-			b"TLGO74TDvcKLZYzl/xOg4G7HUOpdnTyaFqZJXOtjJ6GwMQ4jLz7kDAWXGaVtT6fT7brDGgn+EBXuhmkCz9t167G2Hrkf5011wEcn"
-			b"PzxcMlHVACFHADJTcR0ARDIf/yblOR39VepPDmXX9FgYNyKvgKuQV1hVmbAdgALZAeSxtL5Ja/XHQjqT5r9icNVgyA4i3y0bYE9i"
-			b"ZfiyVPmWijrLl0oN20CErUcelCtQz5zsHzIZGeazEs8VQiB+VVRmsfWzaiT/AM1F2qNcOsZmAAAAAElFTkSuQmCC"
+			"iVBORw0KGgoAAAANSUhEUgAAAIAAAACABAMAAAAxEHz4AAAAJFBMVEUAAAAwMDAwMDAwMDAvLy8vLy8vLy8wMDCgoKBoaGhMTEyE"
+			"hIRek547AAAAB3RSTlMAfzm/31+fnXZsNAAAAv9JREFUaN6lmUFy2kAQRUWSCluxSLFlly1ZecvOR8g2RxgZ7Bb4AJoyBwBOADcg"
+			"x4unRs4vmJF6+vtXeexNP7/pkQQ01Uhm0udHRWQiN6nJcmSzsNTPJZOn4vIvks+a1UcWbD0IbD0I5P4RDSAI1cnfSrl2mlMpyFJt"
+			"AN+GhzLAk7IBfhNSmg0pgDilg1wff1oAjhRAlA4wCmIMKYCsBgQugljuyq8Ss/NdKWGRPcOL91wbpU/ryxXyLfTlCn+SB5FRwSU7"
+			"sCokO7Aq1MkZGBVcsgOjwiZ5MbIq3LXAGxWwh3lf10HBBkCZVQEtQJlJAS0gFZa4CjgFhxZwCg0ApAJ6SCqgh6RCDQCn4OJ1yCs4"
+			"9JBTaAAgFQAgFXCKpAIOgVSoAUjK2hIFB0Ci4N/TmQFQaH2IDphLRqH/FVgmABT6VVdwlUhOoV90hSYCUoXwE1kmABT6Sl0hC2hx"
+			"glAoBEChf8/k36wAmMc/rgQA5t7v5bWzAaDQ//rrTQAo9OtrgJgAULiEJVBMACjsQmlkGQG4GTs5Q6EcgMtRdh4KpQAohDYoXVgD"
+			"wN2UzQigjY+FcYUGD5Q0exFVwSkf+FUFp39YwgOOBLR4NPGAYYWlDjiGykGFupoU9QAK6cu7DjgIFCgAzjMLeCwD5BWe9bnBdvT9"
+			"ghv52I0ygQIH6IYV6oLRhR9TKBk9XMYUSuZXuwEFzLSmvIIDgFOoMQDiFNQBDhTOOYW1OsPC/93nFJw+AsL/fcsoLDEF0xX8NVUw"
+			"TLGO74TDvcKLZYzl/xOg4G7HUOpdnTyaFqZJXOtjJ6GwMQ4jLz7kDAWXGaVtT6fT7brDGgn+EBXuhmkCz9t167G2Hrkf5011wEcn"
+			"PzxcMlHVACFHADJTcR0ARDIf/yblOR39VepPDmXX9FgYNyKvgKuQV1hVmbAdgALZAeSxtL5Ja/XHQjqT5r9icNVgyA4i3y0bYE9i"
+			"ZfiyVPmWijrLl0oN20CErUcelCtQz5zsHzIZGeazEs8VQiB+VVRmsfWzaiT/AM1F2qNcOsZmAAAAAElFTkSuQmCC"
 		)
 		icon = QtGui.QPixmap()
-		icon.loadFromData(QtCore.QByteArray.fromBase64(ICON_BASE64), "PNG")
+		icon.loadFromData(QtCore.QByteArray.fromBase64(ICON_BASE64.encode()), "PNG")
 		self.setWindowIcon(icon)
 
 		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
