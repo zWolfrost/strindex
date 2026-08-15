@@ -1,2 +1,2 @@
-python setup.py build_ext --inplace
+python -m build
 python -m nuitka strindex

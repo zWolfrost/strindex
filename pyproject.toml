@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=84", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "strindex"
+version = "4.0.0"
+description = "A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [ { name = "zWolfrost", email = "zwolfrost@gmail.com" } ]
+keywords = ["PE", "strings", "patching", "translation"]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "ahocorasick_rs>=1.0.0",
+    "pefile>=2024.8.26",
+]
+
+[project.optional-dependencies]
+lang = [
+    "lingua-language-detector==2.*",
+    "language-tool-python==3.*"
+]
+gui = [
+    "pyside6==6.*"
+]
+dev = [
+    "build",
+    "twine",
+    "Nuitka==4.*",
+    "imageio==2.*; sys_platform == 'win32'"
+]
+
+[project.urls]
+Homepage = "https://github.com/zWolfrost/strindex"
+
+[project.scripts]
+strindex = "strindex.strindex:main"
+
+[tool.setuptools]
+packages = ["strindex", "strindex.filetypes"]
+
+[[tool.setuptools.ext-modules]]
+name = "strindex.strings_find_fast"
+sources = ["strindex/strings_find_fast.c"]
