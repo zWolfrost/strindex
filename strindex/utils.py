@@ -108,7 +108,7 @@ class StrindexSettings():
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""",
 	}
 
-	raw_settings: str
+	_raw: str
 	md5: str
 	whitelist: set[str]
 	force_mode: bool
@@ -123,9 +123,10 @@ class StrindexSettings():
 	among_languages: list[str]
 
 	def __init__(self, **kwargs):
-		self.raw_settings = kwargs.get("raw_settings")
+		self._raw = kwargs.get("_raw")
 		self.md5 = kwargs.get("md5")
-		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist") or "")
+		self.whitelist = kwargs.get("whitelist") or ""
+		self._whitelist = self.handle_whitelist(self.whitelist)
 		self.force_mode = kwargs.get("force_mode") or False
 		self.min_length = int(kwargs.get("min_length") or 1)
 		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes") or [''])
@@ -140,12 +141,12 @@ class StrindexSettings():
 	@classmethod
 	def read_from_toml_str(cls, toml_str: str) -> "StrindexSettings":
 		""" Reads the settings from a TOML string. """
-		return cls(**tomllib.loads(toml_str), raw_settings=toml_str)
+		return cls(**tomllib.loads(toml_str), _raw=toml_str)
 
 	def get_changed(self) -> dict:
 		""" Returns a dictionary with the settings that are different from the default settings. """
-		CURRENT_SETTINGS = vars(self)
-		DEFAULT_SETTINGS = vars(StrindexSettings())
+		CURRENT_SETTINGS = self.get_dict()
+		DEFAULT_SETTINGS = StrindexSettings().get_dict()
 		return {k: v for k, v in CURRENT_SETTINGS.items() if DEFAULT_SETTINGS.get(k) != v}
 
 	@staticmethod
@@ -196,8 +197,15 @@ class StrindexSettings():
 		""" Checks if the value is in any of the ranges. """
 		return any(val in range for range in self.ranges) if self.ranges else True
 
+	def is_in_whitelist(self, string: str) -> bool:
+		""" Checks if the string is whitelisted. """
+		return all(char in self._whitelist for char in string) if self._whitelist else True
+
+	def get_dict(self) -> dict:
+		return {k: v for k, v in vars(self).items() if not k.startswith("_")}
+
 	def __repr__(self) -> str:
-		return str(vars(self))
+		return str(self.get_dict())
 
 
 class Strindex():
@@ -350,6 +358,8 @@ class Strindex():
 			def formatter(val):
 				if isinstance(val, list):
 					return "[ " + ", ".join(formatter(v) for v in val) + " ]"
+				if isinstance(val, dict):
+					return "{ " + ", ".join(f'"{k}" = "{v}"' for k, v in val.items()) + " }"
 				if isinstance(val, bytes):
 					return f"\"{val.hex()}\""
 				if isinstance(val, range):
@@ -364,8 +374,8 @@ class Strindex():
 		stream = open(filepath, 'w', encoding='utf-8', newline='\n') if filepath else StringIO()
 
 		with stream as f:
-			if self.settings.raw_settings is not None:
-				f.write(self.settings.raw_settings)
+			if self.settings._raw is not None:
+				f.write(self.settings._raw)
 			else:
 				f.write(HEADER_INFO + "\n" + toml_dumps_hack(self.settings.get_changed()) + "\n")
 

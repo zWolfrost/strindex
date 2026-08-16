@@ -452,7 +452,7 @@ class DeltaGUI(BaseStrindexGUI):
 
 		self.create_action_button(
 			text="Delta strindex",
-			progress_text="Updating... %p%",
+			progress_text="Subtracting... %p%",
 			callback=lambda strdex1, strdex2: strindex.delta(strdex1, strdex2, None)
 		)
 		self.create_padding(1)

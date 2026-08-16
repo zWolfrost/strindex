@@ -229,7 +229,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 	for index, string in enumerate(STRINDEX.get_overwrite_and_original):
 		valid_language = not STRINDEX.settings.source_language or is_source_language(string)
 		valid_length = len(string.encode('utf-8')) >= STRINDEX.settings.min_length
-		valid_whitelist = not STRINDEX.settings.whitelist or all(ch in STRINDEX.settings.whitelist for ch in string)
+		valid_whitelist = STRINDEX.settings.is_in_whitelist(string)
 
 		if all([valid_language, valid_length, valid_whitelist]):
 			STRINDEX_FILTER.append_strindex_index(STRINDEX, index)
