@@ -47,7 +47,7 @@ def part_kz_strindex(kz_data: FileBytearray) -> Strindex:
 
 
 def test_strindex_rw(strindex_example: Strindex):
-	assert get_text_md5(strindex_example.write(None)) == get_text_md5(get_file_path("strindex_example.txt"))
+	assert get_text_md5(strindex_example.write(None)) == FileBytearray.read(get_file_path("strindex_example.txt")).md5
 
 def test_strindex_settings_rw(strindex_example: Strindex):
 	strindex_example.settings.raw_settings = None
