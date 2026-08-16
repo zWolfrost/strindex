@@ -7,15 +7,16 @@ from strindex.utils import Strindex, StrindexSettings, FileBytearray
 
 # FILES NEEDED FOR TESTING (in ./tests/data/ folder):
 # strindex_example.txt
-# Katana ZERO.exe
+# Katana ZERO.exe (from Katana ZERO)
 # kz_exe.gz
+# data.win (from Undertale)
 
 
 def get_file_path(filename: str) -> str:
 	return os.path.join(os.path.dirname(__file__), "data", filename)
 
-def get_file_md5(filepath: str) -> None:
-	FileBytearray.read(filepath).md5
+def get_file_md5(filepath: str) -> str:
+	return FileBytearray.read(filepath).md5
 
 
 @pytest.fixture
@@ -35,16 +36,25 @@ def full_kz_strindex() -> Strindex:
 @pytest.fixture
 def part_kz_strindex() -> Strindex:
 	return get_kz_strindex(StrindexSettings(
-		min_length=3,
-		prefix_bytes=["24c7442404", "ec04c70424"],
-		ranges=["018bc5ec:01a09fb1"]
+		min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["018bc5ec:01a09fb1"]
+	))
+
+def get_datawin_strindex(settings: StrindexSettings) -> Strindex:
+	with temp_open() as temp_strindex:
+		create(get_file_path("data.win"), temp_strindex.name, False, settings)
+		return Strindex.read(temp_strindex.name)
+
+@pytest.fixture
+def part_datawin_strindex() -> Strindex:
+	return get_datawin_strindex(StrindexSettings(
+		_raw="", prefix_bytes=["d000"], ranges=["00d00172:00d1002e"]
 	))
 
 
 def test_strindex_rw(strindex_example: Strindex):
 	with temp_open() as temp_strindex:
 		strindex_example.write(temp_strindex.name)
-		get_file_md5(temp_strindex.name) == FileBytearray.read(get_file_path("strindex_example.txt")).md5
+		assert get_file_md5(temp_strindex.name) == FileBytearray.read(get_file_path("strindex_example.txt")).md5
 
 def test_strindex_settings_rw(strindex_example: Strindex):
 	strindex_example.settings._raw = None
@@ -55,35 +65,50 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 
 	with temp_open() as temp_strindex:
 		strindex_example.write(temp_strindex.name)
-		get_file_md5(temp_strindex.name) == "30220881f3ad9a2fbad5e7c5ee526c03"
+		assert get_file_md5(temp_strindex.name) == "30220881f3ad9a2fbad5e7c5ee526c03"
 
-def test_create():
+def test_create_pe():
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, True, StrindexSettings(_raw=""))
-		get_file_md5(temp_strindex_created.name) == "b5a10f300c3becd2021a83ef918de8c7"
+		assert get_file_md5(temp_strindex_created.name) == "b5a10f300c3becd2021a83ef918de8c7"
+
+	with temp_open() as temp_strindex_created:
+		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, False, (StrindexSettings(
+			_raw="", min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["018bc5ec:01a09fb1"]
+		)))
+		assert get_file_md5(temp_strindex_created.name) == "7ba82e99bf64110fec068e46faf0d055"
 
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, False, StrindexSettings(_raw=""))
-		get_file_md5(temp_strindex_created.name) == "7ba82e99bf64110fec068e46faf0d055"
+		assert get_file_md5(temp_strindex_created.name) == "a4dee6d4c6f64931fdbb7e7bdb2c1b66"
 
+def test_create_iff():
 	with temp_open() as temp_strindex_created:
-		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, False, StrindexSettings(_raw=""))
-		get_file_md5(temp_strindex_created.name) == "a4dee6d4c6f64931fdbb7e7bdb2c1b66"
+		create(get_file_path("data.win"), temp_strindex_created.name, False, StrindexSettings(
+			_raw="", prefix_bytes=["d000"], ranges=["00d00172:00d1002e"]
+		))
+		assert get_file_md5(temp_strindex_created.name) == "01a0fee0d4191649dc50bce91f5f3444"
 
-def test_patch(full_kz_strindex: Strindex, part_kz_strindex: Strindex):
+def test_patch_pe(full_kz_strindex: Strindex, part_kz_strindex: Strindex):
 	with temp_open() as temp_file_patched:
 		patch(get_file_path("Katana ZERO.exe"), get_file_path("kz_exe.gz"), temp_file_patched.name)
-		get_file_md5(temp_file_patched.name) == "d21cb88a3d18753b9cc4e20feadaa56b"
+		assert get_file_md5(temp_file_patched.name) == "d21cb88a3d18753b9cc4e20feadaa56b"
 
 	with temp_open() as temp_strindex_full, temp_open() as temp_file_patched:
 		full_kz_strindex.write(temp_strindex_full.name)
 		patch(get_file_path("Katana ZERO.exe"), temp_strindex_full.name, temp_file_patched.name)
-		get_file_md5(temp_file_patched.name) == "00c0788711cb31cee19b7c1f86fe0009"
+		assert get_file_md5(temp_file_patched.name) == "00c0788711cb31cee19b7c1f86fe0009"
 
 	with temp_open() as temp_strindex_part, temp_open() as temp_file_patched:
 		part_kz_strindex.write(temp_strindex_part.name)
 		patch(get_file_path("Katana ZERO.exe"), temp_strindex_part.name, temp_file_patched.name)
-		get_file_md5(temp_file_patched.name) == "09fa2b67b21596db0da6667fd0c653ef"
+		assert get_file_md5(temp_file_patched.name) == "09fa2b67b21596db0da6667fd0c653ef"
+
+def test_patch_iff(part_datawin_strindex: Strindex):
+	with temp_open() as temp_strindex_part, temp_open() as temp_strindex_created:
+		part_datawin_strindex.write(temp_strindex_part.name)
+		patch(get_file_path("data.win"), temp_strindex_part.name, temp_strindex_created.name)
+		assert get_file_md5(temp_strindex_created.name) == "e41cd288d23b8154d2c04839643921ca"
 
 def test_update(part_kz_strindex: Strindex):
 	with temp_open() as temp_strindex, temp_open() as temp_strindex_updated:
