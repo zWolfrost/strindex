@@ -7,7 +7,7 @@ name = "strindex"
 version = "4.0.0"
 description = "A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = "MIT"
 authors = [ { name = "zWolfrost", email = "zwolfrost@gmail.com" } ]
 keywords = ["PE", "strings", "patching", "translation"]
@@ -34,7 +34,8 @@ dev = [
     "build",
     "twine",
     "Nuitka==4.*",
-    "imageio==2.*; sys_platform == 'win32'"
+    "imageio==2.*; sys_platform == 'win32'",
+    "pytest==9.*",
 ]
 
 [project.urls]

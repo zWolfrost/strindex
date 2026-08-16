@@ -87,10 +87,10 @@ class Progress():
 				Print.debug(f"Action completed in {time.time() - self.start:.2f}s.")
 
 	@classmethod
-	def global_mark(cls, func: Callable) -> Callable:
+	def global_mark[**P, T](cls, func: Callable[P, T]) -> Callable[P, T]:
 		""" Decorator to mark a function for progress printing. """
 		@wraps(func)
-		def wrapper(*args, **kwargs):
+		def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
 			result = func(*args, **kwargs)
 			if hasattr(Progress, "global_instance"):
 				Progress.global_instance()

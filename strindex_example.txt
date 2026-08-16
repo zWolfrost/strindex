@@ -16,7 +16,7 @@ md5 = "29ed1f9e450d43815c2d1a0cab168da3"
 # instead of elegantly relocating them somewhere else.
 # This means the program will effectively work with any filetype,
 # but the length of the patched strings can't be longer than the original ones.
-force_mode = true
+force_mode = false
 
 # The minimum length of strings that should be considered when creating or updating the strindex.
 min_length = 3
