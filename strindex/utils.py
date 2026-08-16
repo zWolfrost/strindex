@@ -123,7 +123,7 @@ class StrindexSettings():
 	among_languages: list[str]
 
 	def __init__(self, **kwargs):
-		self.raw_settings = None
+		self.raw_settings = kwargs.get("raw_settings")
 		self.md5 = kwargs.get("md5")
 		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist") or "")
 		self.force_mode = kwargs.get("force_mode") or False
@@ -140,9 +140,7 @@ class StrindexSettings():
 	@classmethod
 	def read_from_toml_str(cls, toml_str: str) -> "StrindexSettings":
 		""" Reads the settings from a TOML string. """
-		settings = cls(**tomllib.loads(toml_str))
-		settings.raw_settings = toml_str
-		return settings
+		return cls(**tomllib.loads(toml_str), raw_settings=toml_str)
 
 	def get_changed(self) -> dict:
 		""" Returns a dictionary with the settings that are different from the default settings. """
@@ -366,7 +364,7 @@ class Strindex():
 		stream = open(filepath, 'w', encoding='utf-8', newline='\n') if filepath else StringIO()
 
 		with stream as f:
-			if self.settings.raw_settings:
+			if self.settings.raw_settings is not None:
 				f.write(self.settings.raw_settings)
 			else:
 				f.write(HEADER_INFO + "\n" + toml_dumps_hack(self.settings.get_changed()) + "\n")
@@ -423,6 +421,9 @@ class FileBytearray(bytearray):
 	def write(self, filepath: str):
 		with open(filepath, 'wb') as f:
 			f.write(self)
+
+	def copy(self) -> "FileBytearray":
+		return FileBytearray(self)
 
 	# Algorithms
 	@Progress.global_mark
