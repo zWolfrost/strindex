@@ -4,7 +4,7 @@ import re
 import gzip
 import hashlib
 import time
-import sys
+from io import StringIO
 from ahocorasick_rs import BytesAhoCorasick, Implementation
 from strindex.strings_find_fast import strings_find_fast
 from functools import wraps
@@ -337,7 +337,7 @@ class Strindex():
 		return strindex
 
 	@Progress.global_mark
-	def write(self, filepath: str):
+	def write(self, filepath: str) -> str | None:
 		""" Saves the strindex data to a file. """
 
 		HEADER_INFO = "# You can freely create & delete comments in the header like these ones and the example below.\n# For more information about strindex files settings and syntax see:\n# https://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt\n"
@@ -363,7 +363,9 @@ class Strindex():
 				dumps += f"{key} = {formatter(value)}\n"
 			return dumps
 
-		with open(filepath, 'w', encoding='utf-8', newline='\n') as f:
+		stream = open(filepath, 'w', encoding='utf-8', newline='\n') if filepath else StringIO()
+
+		with stream as f:
 			if self.settings.raw_settings:
 				f.write(self.settings.raw_settings)
 			else:
@@ -392,6 +394,9 @@ class Strindex():
 
 			f.seek(f.tell() - 1)
 			f.truncate()
+
+			if filepath is None:
+				return f.getvalue()
 
 	def append_strindex_index(self, strindex: "Strindex", index: int):
 		self.strings.append(strindex.strings[index])
