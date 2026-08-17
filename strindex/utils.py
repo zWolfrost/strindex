@@ -100,7 +100,7 @@ class Progress():
 
 class StrindexSettings():
 	# These are really limited, so I would really like if you added your language's characters here and open a pull request <3
-	CHARACTER_CLASSES = {
+	CHARACTER_SETS = {
 		"default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~… """,
 		"latin": """ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz""",
 		"spanish": """¡¿ÁÉÍÓÚÜÑáéíóúüñã""",
@@ -110,12 +110,12 @@ class StrindexSettings():
 
 	_raw: str
 	md5: str
-	whitelist: set[str]
 	force_mode: bool
 	min_length: int
 	prefix_bytes: list[bytes]
 	suffix_bytes: list[bytes]
 	ranges: list[range]
+	whitelist: set[str]
 	patch_replace: dict[str, str]
 	clean_pattern: str
 	source_language: str
@@ -151,7 +151,7 @@ class StrindexSettings():
 
 	@staticmethod
 	def handle_whitelist(whitelist: str) -> set[str]:
-		return set(''.join([StrindexSettings.CHARACTER_CLASSES.get(whitelist, whitelist) for whitelist in (whitelist + ["default"])])) if whitelist else set()
+		return set(''.join([StrindexSettings.CHARACTER_SETS.get(whitelist, whitelist) for whitelist in (whitelist + ["default"])])) if whitelist else set()
 
 	@staticmethod
 	def handle_bytes_list(bytes_list: list[bytes]) -> list[bytes]:
