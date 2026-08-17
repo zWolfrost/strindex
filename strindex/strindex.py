@@ -291,7 +291,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	STRINDEX_STRINGS_REPLACE = STRINDEX.get_overwrite_and_replace
 
 	if not STRINDEX.settings.target_language:
-		raise ValueError('Please specify the target language to spellcheck in the strindex file ("target_language").')
+		raise ValueError('Please specify the target language to spellcheck in the strindex file header ("target_language").')
 
 	lang = LanguageTool(STRINDEX.settings.target_language)
 	Print.debug("Created language tool.")

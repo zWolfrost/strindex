@@ -334,7 +334,7 @@ class CreateGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_file_selection(line_text="*Select a file")
 
-		self.create_lineedit("(Optional) Minimum length of strings")
+		self.create_lineedit("(Optional) Minimum length of strings to extract (default: 3)")
 		self.create_padding(1)
 
 		self.create_lineedit("(Optional) Prefix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
@@ -364,7 +364,7 @@ class CreateGUI(BaseStrindexGUI):
 			callback=lambda file, min_length, prefix, suffix, ranges, force_mode, comp_mode: strindex.create(
 				file, None, comp_mode, StrindexSettings(**{
 					"force_mode": force_mode,
-					"min_length": min_length,
+					"min_length": min_length if min_length else 3,
 					"prefix_bytes": prefix.split(","),
 					"suffix_bytes": suffix.split(","),
 					"ranges": ranges.split(",")
