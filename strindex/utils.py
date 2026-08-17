@@ -101,7 +101,7 @@ class Progress():
 class StrindexSettings():
 	# These are really limited, so I would really like if you added your language's characters here and open a pull request <3
 	CHARACTER_SETS = {
-		"default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~… """,
+		"_default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~… """,
 		"latin": """ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz""",
 		"spanish": """¡¿ÁÉÍÓÚÜÑáéíóúüñã""",
 		"italian": """ÀÈÉÌÒÓÙàèéìòóù""",
@@ -115,7 +115,8 @@ class StrindexSettings():
 	prefix_bytes: list[bytes]
 	suffix_bytes: list[bytes]
 	ranges: list[range]
-	whitelist: set[str]
+	whitelist: list[str]
+	_whitelist: set[str]
 	patch_replace: dict[str, str]
 	clean_pattern: str
 	source_language: str
@@ -125,13 +126,13 @@ class StrindexSettings():
 	def __init__(self, **kwargs):
 		self._raw = kwargs.get("_raw")
 		self.md5 = kwargs.get("md5")
-		self.whitelist = kwargs.get("whitelist") or ""
-		self._whitelist = self.handle_whitelist(self.whitelist)
 		self.force_mode = kwargs.get("force_mode") or False
 		self.min_length = int(kwargs.get("min_length") or 1)
 		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes") or [''])
 		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes") or [''])
 		self.ranges = StrindexSettings.handle_ranges(kwargs.get("ranges") or [])
+		self.whitelist = kwargs.get("whitelist") or []
+		self._whitelist = self.handle_whitelist(self.whitelist)
 		self.patch_replace = kwargs.get("patch_replace") or {}
 		self.clean_pattern = kwargs.get("clean_pattern") or ""
 		self.source_language = kwargs.get("source_language")
@@ -151,7 +152,7 @@ class StrindexSettings():
 
 	@staticmethod
 	def handle_whitelist(whitelist: str) -> set[str]:
-		return set(''.join([StrindexSettings.CHARACTER_SETS.get(whitelist, whitelist) for whitelist in (whitelist + ["default"])])) if whitelist else set()
+		return set(''.join([StrindexSettings.CHARACTER_SETS.get(whitelist, whitelist) for whitelist in (whitelist + ["_default"])])) if whitelist else set()
 
 	@staticmethod
 	def handle_bytes_list(bytes_list: list[bytes]) -> list[bytes]:
@@ -436,14 +437,14 @@ class FileBytearray(bytearray):
 
 	# Algorithms
 	@Progress.global_mark
-	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1, ranges: list[range] = []) -> list[tuple[str, int, int]]:
+	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1, ranges: list[range] = [], whitelist: set[str] = []) -> list[tuple[str, int, int]]:
 		"""
 		Returns all strings in a bytearray, separated by a given separator.
 		Skips strings that contain control characters and ones that are not valid UTF-8.
 		Implemented in C for speed.
 		"""
 
-		return strings_find_fast(self, int(sep[0]), min_length, [(r.start, r.stop) for r in ranges])
+		return strings_find_fast(self, int(sep[0]), min_length, [(r.start, r.stop) for r in ranges], whitelist)
 
 	@Progress.global_mark
 	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
@@ -549,7 +550,7 @@ class FileBytearray(bytearray):
 			"original_bytes": []
 		}
 
-		for string, start_offset, _ in self.strings_find(min_length=settings.min_length, ranges=settings.ranges):
+		for string, start_offset, _ in self.strings_find(min_length=settings.min_length, ranges=settings.ranges, whitelist=settings._whitelist):
 			if original_bytes := original_bytes_from_offset(start_offset):
 				temp_strindex["original"].append(string)
 				temp_strindex["original_bytes"].append(original_bytes)

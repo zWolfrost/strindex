@@ -307,10 +307,20 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	return Print.info(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
 
 
-def main(sysargs=None):
-	parser = argparse.ArgumentParser(prog="strindex", description="A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.")
+def help_whitelist():
+	prnt = Print.info("Available whitelist character sets:\n", end="")
+	for key, value in StrindexSettings.CHARACTER_SETS.items():
+		prnt += Print.info(f'\n"{key}":', end="")
+		if key == "_default":
+			prnt += Print.info(f" (enabled by default)", end="")
+		prnt += Print.debug(f"\n{repr(value)[1:-1]}\n", end="")
+	return prnt
 
-	parser.add_argument("action", type=str, choices=["create", "patch", "unpatch", "infer", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
+
+def main(sysargs=None):
+	parser = argparse.ArgumentParser(prog="strindex", exit_on_error=False, description="A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.")
+
+	parser.add_argument("action", type=str, nargs=argparse.OPTIONAL, choices=["create", "patch", "unpatch", "infer", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
 
@@ -321,16 +331,26 @@ def main(sysargs=None):
 	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes that can prefix a pointer.")
 	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[], help="Suffix bytes that can suffix a pointer.")
 	parser.add_argument("-r", "--range", type=str, action="append", default=[], help="Range of the hexadecimal offsets to search for strings, in the format 'start:end'. Can be specified multiple times.")
+	parser.add_argument("-w", "--whitelist", type=str, action="append", default=[], help="Character sets to whitelist for filtering strings. Can be specified multiple times.")
 
 	parser.add_argument("--version", action="version", version=VERSION, help="Show the version of strindex and exit.")
 	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
 	parser.add_argument("-q", "--quiet", action="store_true", help="Suppress all output except for errors.")
 
-	args = parser.parse_args(sysargs)
-
 	try:
+		Print.quiet_mode = False
+
+		args = parser.parse_args(sysargs)
+
 		Print.quiet_mode = args.quiet
 		Print.color_mode = sys.stdout.isatty()
+
+		if "help" in args.whitelist:
+			help_whitelist()
+			return
+
+		if args.action is None:
+			raise ValueError("No action specified. Use -h / --help to see the available actions.")
 
 		if not all(os.path.isfile(file) for file in args.files):
 			raise FileNotFoundError("One or more specified files do not exist.")
@@ -353,15 +373,14 @@ def main(sysargs=None):
 				case "create":
 					assert_files_num(1)
 					create(
-						args.files[0],
-						args.output,
-						args.compatible,
+						args.files[0], args.output, args.compatible,
 						StrindexSettings(**{
 							"force_mode": args.force_mode,
 							"min_length": args.min_length,
 							"prefix_bytes": args.prefix_bytes,
 							"suffix_bytes": args.suffix_bytes,
 							"ranges": args.range,
+							"whitelist": args.whitelist
 						})
 					)
 				case "patch":
@@ -388,7 +407,7 @@ def main(sysargs=None):
 	except KeyboardInterrupt:
 		Print.info("Interrupted by user.")
 	except Exception as e:
-		if args.verbose:
+		if "args" in locals() and args.verbose:
 			raise
 		else:
 			Print.error(f"[{type(e).__name__}] {e}\nPlease use -v / --verbose to see the full traceback.")

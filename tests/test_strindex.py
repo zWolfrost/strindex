@@ -64,7 +64,7 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 
 	with temp_open() as temp_strindex:
 		strindex_example.write(temp_strindex.name)
-		assert get_file_md5(temp_strindex.name) == "30220881f3ad9a2fbad5e7c5ee526c03"
+		assert get_file_md5(temp_strindex.name) == "111010aa4a7491772c299cd312c5a62d"
 
 def test_create_pe():
 	with temp_open() as temp_strindex_created:

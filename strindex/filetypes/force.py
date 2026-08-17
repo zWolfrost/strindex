@@ -12,7 +12,8 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 		if (
 			settings.matches_prefix(data, start_offset) and
 			settings.matches_suffix(data, end_offset) and
-			settings.is_in_any_range(start_offset)
+			settings.is_in_any_range(start_offset) and
+			settings.is_in_whitelist(string)
 		):
 			strindex.strings.append(string)
 			strindex.pointers.append([start_offset])

@@ -38,7 +38,7 @@ suffix_bytes = [ ]
 ranges = [ "018bc5ec:01a09fb1" ]
 
 # The whitelisted language character sets which strings have to be made of to be considered valid.
-# You can see the available sets by running "strindex --whitelist".
+# You can see the available sets by running "strindex --whitelist help".
 # If this list is empty, any non-control utf-8 character will be accepted.
 whitelist = [ "latin", "spanish", "cyrillic" ]
 

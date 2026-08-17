@@ -200,7 +200,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		diff_size = target_rect.size() - self.frameGeometry().size()
 		self.move(target_rect.x() + diff_size.width() // 2, target_rect.y() + diff_size.height() // 2)
 
-	def show_message(self, text: str, icon):
+	def show_message(self, text: str, icon = QtWidgets.QMessageBox.Icon.NoIcon):
 		msg = QtWidgets.QMessageBox()
 		msg.setWindowTitle(self.windowTitle())
 		msg.setWindowIcon(self.windowIcon())
@@ -346,6 +346,9 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_lineedit("(Optional) Range offsets hex (comma-separated) e.g.: 018bc5ec:01a09fb1")
 		self.create_padding(1)
 
+		self.create_lineedit("(Optional) Whitelisted character sets (comma-separated) e.g.: latin,cyrillic")
+		self.create_button(text="Help", callback=lambda: self.show_message(strindex.help_whitelist()))
+
 		self.create_checkbox("Force Mode").setToolTip(
 			"When patching, replace strings at the same offset they were found.\n"
 			"This means the program will effectively work with any filetype,\n"
@@ -361,20 +364,19 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Create strindex",
 			progress_text="Creating... %p%",
-			callback=lambda file, min_length, prefix, suffix, ranges, force_mode, comp_mode: strindex.create(
-				file, None, comp_mode, StrindexSettings(**{
-					"force_mode": force_mode,
-					"min_length": min_length if min_length else 3,
-					"prefix_bytes": prefix.split(","),
-					"suffix_bytes": suffix.split(","),
-					"ranges": ranges.split(",")
-				})
-			)
+			callback=lambda file, min_length, prefix, suffix, ranges, whitelists, force_mode, comp_mode:
+			strindex.create(file, None, comp_mode, StrindexSettings(**{
+				"force_mode": force_mode,
+				"min_length": min_length if min_length else 3,
+				"prefix_bytes": prefix.split(","),
+				"suffix_bytes": suffix.split(","),
+				"ranges": ranges.split(","),
+				"whitelist": whitelists.split(",")
+			}))
 		)
 		self.create_padding(1)
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
-
 
 class PatchGUI(BaseStrindexGUI):
 	def setup(self):
