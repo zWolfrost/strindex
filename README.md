@@ -4,13 +4,13 @@
 [![GitHub downloads](https://img.shields.io/github/downloads/zWolfrost/strindex/total?label=GitHub%20downloads)](https://github.com/zWolfrost/strindex/releases/latest)
 [![license](https://img.shields.io/github/license/zWolfrost/strindex)](LICENSE)
 
-A command line utility program (with GUI support) that allows you to easily extract, list and patch the strings embedded in a few filetypes.
+A command line utility program (with GUI support) that allows you to easily extract, list and patch (replace) the strings embedded in a few filetypes.
 
-This utility will allow you to replace strings embedded in supported filetypes with other strings. It's useful to change the text of a program without having to recompile it; for example, to translate it into another language.
+It's useful to change the text of a program without having to recompile it; for example, to translate it into another language.
 
 A string can be referenced not only by its pointer / offset, but also by the original string itself to ensure compatibility with different versions of the same program.
 
-This utility features various built-in features to help with translation, such as spellchecking & filtering strings by length and character set.
+It features various built-in features to help with translation, such as spellchecking & filtering strings by length and character set.
 
 ## Supported filetypes
 *Support for more filetypes is not planned.*
