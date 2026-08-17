@@ -74,9 +74,9 @@ def unpatch(file_filepath: str) -> str:
 
 	Progress.global_instance = Progress(1)
 
-	data = FileBytearray.read(file_filepath)
+	file_md5 = FileBytearray.read(file_filepath).md5_backup_suffix
 
-	repl_file_filepath_bak = file_filepath + data.md5_backup_suffix
+	repl_file_filepath_bak = file_filepath + file_md5
 
 	if not os.path.exists(repl_file_filepath_bak):
 		raise FileNotFoundError("No backup file was found to restore from.")

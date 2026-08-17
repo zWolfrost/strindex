@@ -343,7 +343,7 @@ class Strindex():
 		return strindex
 
 	@Progress.global_mark
-	def write(self, filepath: str) -> str | None:
+	def write(self, filepath: str) -> str:
 		""" Saves the strindex data to a file. """
 
 		HEADER_INFO = "# You can freely create & delete comments in the header like these ones and the example below.\n# For more information about strindex files settings and syntax see:\n# https://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt\n"
@@ -403,8 +403,7 @@ class Strindex():
 			f.seek(f.tell() - 1)
 			f.truncate()
 
-			if filepath is None:
-				return f.getvalue()
+			return f.getvalue() if filepath is None else filepath
 
 	def append_strindex_index(self, strindex: "Strindex", index: int):
 		self.strings.append(strindex.strings[index])
