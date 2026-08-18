@@ -22,7 +22,12 @@ class GenericModule():
 				Print.debug(f'Detected filetype: "{filetype}".')
 				return
 
-		raise NotImplementedError("This file type has no associated module, or the required libraries to handle it are not installed.")
+		raise NotImplementedError(
+			"This file type has no associated module,\n"
+			"or the required libraries to handle it are not installed.\n"
+			"You can use the --force flag to enable force mode\n"
+			"and attempt to extract strings from the file anyway."
+		)
 
 	def match(self, data: FileBytearray) -> bool:
 		""" Checks if the file is of the target filetype. """
