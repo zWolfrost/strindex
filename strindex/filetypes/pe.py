@@ -171,6 +171,14 @@ class PEFileWrapper(pefile.PE):
 		return rva + self.OPTIONAL_HEADER.ImageBase if rva is not None else None
 
 
+	def get_section_range(self, section_name: str) -> range:
+		""" Returns the start and end offset of the specified section. """
+		for sect in self.sections:
+			if sect.Name == section_name.ljust(8, b'\x00'):
+				return range(sect.PointerToRawData, sect.PointerToRawData + sect.SizeOfRawData)
+		return None
+
+
 	@property
 	def byte_length(self) -> int:
 		""" Returns the byte length of the PE file. """

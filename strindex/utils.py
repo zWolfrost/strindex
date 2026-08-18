@@ -543,7 +543,7 @@ class FileBytearray(bytearray):
 		self[self.cursor:self.cursor + original_length] = replace_bytes
 
 	# Macros
-	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], bytes]) -> Strindex:
+	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], bytes], filter_bytes_from_offset: Callable[[int], bool] = None) -> Strindex:
 		temp_strindex = {
 			"original": [],
 			"pointers": [],
@@ -567,6 +567,8 @@ class FileBytearray(bytearray):
 
 		strindex = Strindex()
 		for string, pointers in zip(temp_strindex["original"], temp_strindex["pointers"]):
+			if filter_bytes_from_offset is not None:
+				pointers = [p for p in pointers if filter_bytes_from_offset(p)]
 			if pointers:
 				strindex.strings.append(string)
 				strindex.pointers.append(pointers)
