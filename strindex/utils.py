@@ -524,11 +524,11 @@ class FileBytearray(bytearray):
 		self.cursor -= byte_length or self.byte_length
 		return self.put_int(value + delta, byte_length, byte_order)
 
-	def replace_string(self, replace: str, delimiter: bytes = b'\x00') -> bytes:
+	def replace_string(self, replace: str, sep: bytes = b'\x00') -> bytes:
 		original_length = 0
 
 		for i in range(len(self) - self.cursor):
-			if bytes([self[self.cursor + i]]) == delimiter:
+			if bytes([self[self.cursor + i]]) == sep:
 				original_length = i
 				break
 
@@ -538,7 +538,7 @@ class FileBytearray(bytearray):
 			Print.warning(f'Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}); Truncating.')
 			replace_bytes = replace_bytes[:original_length]
 		else:
-			replace_bytes = replace_bytes.ljust(original_length, delimiter)
+			replace_bytes = replace_bytes.ljust(original_length, sep)
 
 		self[self.cursor:self.cursor + original_length] = replace_bytes
 
