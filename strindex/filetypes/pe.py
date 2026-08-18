@@ -212,7 +212,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 	return data.create_pointers_macro(
 		settings,
-		lambda offset: data.from_int(pe.get_rva_from_offset(offset))
+		lambda offset: data.from_int(rva) if (rva := pe.get_rva_from_offset(offset)) is not None else None
 	)
 
 
@@ -234,7 +234,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 	new_data = data.patch_pointers_macro(
 		strindex,
-		lambda offset: data.from_int(pe.get_rva_from_offset(offset)),
+		lambda offset: data.from_int(rva) if (rva := pe.get_rva_from_offset(offset)) is not None else None,
 		lambda offset: data.from_int(STRDEX_SECTION_BASE_RVA + offset),
 		lambda string: bytearray(string, 'utf-8') + b'\x00'
 	)
