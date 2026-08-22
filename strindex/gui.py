@@ -368,10 +368,10 @@ class CreateGUI(BaseStrindexGUI):
 			strindex.create(file, None, comp_mode, StrindexSettings(**{
 				"force_mode": force_mode,
 				"min_length": min_length if min_length else 3,
-				"prefix_bytes": prefix.split(","),
-				"suffix_bytes": suffix.split(","),
-				"ranges": ranges.split(","),
-				"whitelist": whitelists.split(",")
+				"prefix_bytes": prefix.split(",") if prefix else [],
+				"suffix_bytes": suffix.split(",") if suffix else [],
+				"ranges": ranges.split(",") if ranges else [],
+				"whitelist": whitelists.split(",") if whitelists else []
 			}))
 		)
 		self.create_padding(1)
