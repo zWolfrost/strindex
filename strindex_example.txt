@@ -71,7 +71,7 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # or
 #
 # ================================================================================/pointer(s)/
-# replace the string that was previously provided with this one!
+# replace the string that was previously provided here, with this one!
 
 
 # The term "pointers" is generic by design, as they can possess different meaning
