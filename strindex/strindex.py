@@ -1,9 +1,9 @@
+import argparse
 import os
 import sys
-import argparse
-from strindex.utils import Strindex, StrindexSettings, FileBytearray, Print, Progress
-from strindex.filetypes import GenericModule
 
+from strindex.filetypes import GenericModule
+from strindex.utils import FileBytearray, Print, Progress, Strindex, StrindexSettings
 
 VERSION = "4.0.0"
 
@@ -207,7 +207,7 @@ def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
 
 	if STRINDEX.settings.source_language:
 		try:
-			from lingua import LanguageDetectorBuilder, IsoCode639_1
+			from lingua import IsoCode639_1, LanguageDetectorBuilder
 		except ImportError:
 			if "__compiled__" in globals():
 				Print.warning("Filtering by language is not supported in compiled builds.")
@@ -299,8 +299,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
 		for string in STRINDEX_STRINGS_REPLACE:
 			string_clean = STRINDEX.settings.clean_string(string)
-			for error in lang.check(string_clean):
-				f.write('\n'.join(str(error).split('\n')[-3:]) + '\n')
+			f.writelines('\n'.join(str(error).split('\n')[-3:]) + '\n' for error in lang.check(string_clean))
 
 	Progress.global_instance()
 
@@ -308,11 +307,11 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 
 
 def help_whitelist():
-	prnt = Print.info("Available whitelist character sets:\n", end="")
+	prnt = Print.info("Available whitelist character sets (LEAVE EMPTY FOR NO FILTERING):\n", end="")
 	for key, value in StrindexSettings.CHARACTER_SETS.items():
 		prnt += Print.info(f'\n"{key}":', end="")
 		if key == "_default":
-			prnt += Print.info(f" (enabled by default)", end="")
+			prnt += Print.info(" (enabled by default)", end="")
 		prnt += Print.debug(f"\n{repr(value)[1:-1]}\n", end="")
 	return prnt
 
@@ -374,14 +373,14 @@ def main(sysargs=None):
 					assert_files_num(1)
 					create(
 						args.files[0], args.output, args.compatible,
-						StrindexSettings(**{
-							"force_mode": args.force_mode,
-							"min_length": args.min_length,
-							"prefix_bytes": args.prefix_bytes,
-							"suffix_bytes": args.suffix_bytes,
-							"ranges": args.range,
-							"whitelist": args.whitelist
-						})
+						StrindexSettings(
+							force_mode = args.force_mode,
+							min_length = args.min_length,
+							prefix_bytes = args.prefix_bytes,
+							suffix_bytes = args.suffix_bytes,
+							ranges = args.range,
+							whitelist = args.whitelist
+						)
 					)
 				case "patch":
 					assert_files_num(2)

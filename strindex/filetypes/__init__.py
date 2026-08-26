@@ -1,10 +1,10 @@
-from strindex.utils import FileBytearray, Strindex, StrindexSettings, Print
-from strindex.filetypes import force, pe, iff
+from strindex.filetypes import force, iff, pe
+from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
 
 MODULES = (force, pe, iff)
 
 
-class GenericModule():
+class GenericModule:
 	"""
 	A class representing a generic module that can be used to extract and patch strings from a filetype.
 	"""

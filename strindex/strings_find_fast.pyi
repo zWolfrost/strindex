@@ -6,4 +6,3 @@ def strings_find_fast(
 		whitelist: set[str]
 	) -> list[tuple[str, int, int]]:
 	""" Find UTF-8 strings separated by a byte separator. """
-	...

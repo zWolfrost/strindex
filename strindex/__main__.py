@@ -11,7 +11,8 @@
 # nuitka-project: --linux-icon=icon.png
 
 import sys
-import strindex.strindex as strindex
+
+from strindex import strindex
 
 if __name__ == "__main__":
 	if "__compiled__" in globals() and len(sys.argv) <= 1:

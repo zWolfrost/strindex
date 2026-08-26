@@ -1,4 +1,4 @@
-from strindex.utils import Strindex, StrindexSettings, FileBytearray
+from strindex.utils import FileBytearray, Strindex, StrindexSettings
 
 # https://github.com/panzi/cook-serve-hoomans/blob/master/fileformat.md
 

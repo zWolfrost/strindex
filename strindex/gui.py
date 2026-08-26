@@ -1,10 +1,12 @@
 import os
-import sys
 import signal
-from PySide6 import QtWidgets, QtGui, QtCore
+import sys
+
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import QTimer
-from strindex.utils import StrindexSettings, Progress
-import strindex.strindex as strindex
+
+from strindex import strindex
+from strindex.utils import Progress, StrindexSettings
 
 
 class CallbackWorker(QtCore.QThread):
@@ -21,7 +23,7 @@ class CallbackWorker(QtCore.QThread):
 
 		try:
 			result = self.callback()
-		except Exception as e:
+		except Exception as e: # noqa: BLE001
 			self.sig_except.emit(e)
 		else:
 			self.sig_else.emit(result)
@@ -234,7 +236,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 	def set_custom_appearance(self):
 		if sys.platform == "win32":
 			self.app.setStyle("Fusion")
-			self.setStyleSheet(f"""QLineEdit{{padding: 3px; margin: 1px 0px;}}""")
+			self.setStyleSheet(f"""QLineEdit{{padding: 3px; margin: 1px 0px;}}""") # noqa: F541
 		else:
 			self.setStyleSheet(f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}""")
 
@@ -365,14 +367,14 @@ class CreateGUI(BaseStrindexGUI):
 			text="Create strindex",
 			progress_text="Creating... %p%",
 			callback=lambda file, min_length, prefix, suffix, ranges, whitelists, force_mode, comp_mode:
-			strindex.create(file, None, comp_mode, StrindexSettings(**{
-				"force_mode": force_mode,
-				"min_length": min_length if min_length else 3,
-				"prefix_bytes": prefix.split(",") if prefix else [],
-				"suffix_bytes": suffix.split(",") if suffix else [],
-				"ranges": ranges.split(",") if ranges else [],
-				"whitelist": whitelists.split(",") if whitelists else []
-			}))
+			strindex.create(file, None, comp_mode, StrindexSettings(
+				force_mode = force_mode,
+				min_length = min_length if min_length else 3,
+				prefix_bytes = prefix.split(",") if prefix else [],
+				suffix_bytes = suffix.split(",") if suffix else [],
+				ranges = ranges.split(",") if ranges else [],
+				whitelist = whitelists.split(",") if whitelists else []
+			))
 		)
 		self.create_padding(1)
 

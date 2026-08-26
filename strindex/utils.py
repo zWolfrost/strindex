@@ -1,22 +1,25 @@
-import tomllib
-from json import JSONEncoder
-import re
 import gzip
 import hashlib
+import re
 import time
-from io import StringIO
-from ahocorasick_rs import BytesAhoCorasick, Implementation
-from strindex.strings_find_fast import strings_find_fast
+import tomllib
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
+from io import StringIO
+from json import JSONEncoder
+from typing import ClassVar
+
+from ahocorasick_rs import BytesAhoCorasick, Implementation
+
+from strindex.strings_find_fast import strings_find_fast
 
 
-class Print():
+class Print:
 	"""
 	A wrapper for the print function.
 	"""
 
-	class PrintLevel():
+	class PrintLevel:
 		DEBUG = ""
 		INFO = "\033[1m"
 		WARNING = "\033[93m"
@@ -27,9 +30,9 @@ class Print():
 	color_mode = True
 
 	@classmethod
-	def print(cls, msg: str, tag: str = None, level: PrintLevel = None, **kwargs):
+	def print(cls, msg: str, tag: str | None = None, level: PrintLevel = None, **kwargs):
 		if not cls.quiet_mode:
-			tag = f"[{tag}] " if tag and not msg.startswith("[") else ""
+			tag = f"[{tag}] " if tag is not None and not msg.startswith("[") else ""
 			if cls.color_mode and level:
 				print(level, tag, msg, cls.PrintLevel.RESET, sep="", **kwargs)
 			else:
@@ -50,7 +53,7 @@ class Print():
 		return cls.print(msg, tag="Error", level=cls.PrintLevel.ERROR, **kwargs)
 
 
-class Progress():
+class Progress:
 	"""
 	A class to handle progress printing.
 	"""
@@ -74,8 +77,8 @@ class Progress():
 		self.start = time.time()
 		self(0)
 
-	def __call__(self, iteration: int = None):
-		if not iteration:
+	def __call__(self, iteration: int | None = None):
+		if iteration is None:
 			iteration = self.limit
 		if iteration >= self.limit and self.percent < 100:
 			self.limit += self.delta
@@ -98,9 +101,9 @@ class Progress():
 		return wrapper
 
 
-class StrindexSettings():
+class StrindexSettings:
 	# These are really limited, so I would really like if you added your language's characters here and open a pull request <3
-	CHARACTER_SETS = {
+	CHARACTER_SETS: ClassVar[dict[str, str]] = {
 		"_default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~… """,
 		"latin": """ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz""",
 		"spanish": """¡¿ÁÉÍÓÚÜÑáéíóúüñã""",
@@ -209,7 +212,7 @@ class StrindexSettings():
 		return str(self.get_dict())
 
 
-class Strindex():
+class Strindex:
 	""" A class to parse and create strindex files. """
 
 	SEP_COUNT = 80
@@ -275,12 +278,7 @@ class Strindex():
 		with open(filepath, 'rb') as f:
 			is_gzipped = (f.read(2) == b'\x1f\x8b')
 
-		if is_gzipped:
-			stream = gzip.open(filepath, 'rt', encoding='utf-8')
-		else:
-			stream = open(filepath, 'r', encoding='utf-8')
-
-		with stream as f:
+		with (gzip.open(filepath, 'rt', encoding='utf-8') if is_gzipped else open(filepath, 'r', encoding='utf-8')) as f:
 			try:
 				full_header = ""
 				previous_line_pos = 0
@@ -372,9 +370,7 @@ class Strindex():
 				dumps += f"{key} = {formatter(value)}\n"
 			return dumps
 
-		stream = open(filepath, 'w', encoding='utf-8', newline='\n') if filepath else StringIO()
-
-		with stream as f:
+		with (open(filepath, 'w', encoding='utf-8', newline='\n') if filepath else StringIO()) as f:
 			if self.settings._raw is not None:
 				f.write(self.settings._raw)
 			else:
@@ -437,14 +433,14 @@ class FileBytearray(bytearray):
 
 	# Algorithms
 	@Progress.global_mark
-	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1, ranges: list[range] = [], whitelist: set[str] = []) -> list[tuple[str, int, int]]:
+	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1, ranges: list[range] | None = None, whitelist: set[str] | None = None) -> list[tuple[str, int, int]]:
 		"""
 		Returns all strings in a bytearray, separated by a given separator.
 		Skips strings that contain control characters and ones that are not valid UTF-8.
 		Implemented in C for speed.
 		"""
 
-		return strings_find_fast(self, int(sep[0]), min_length, [(r.start, r.stop) for r in ranges], whitelist)
+		return strings_find_fast(self, int(sep[0]), min_length, [(r.start, r.stop) for r in (ranges or [])], (whitelist or []))
 
 	@Progress.global_mark
 	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
@@ -466,13 +462,18 @@ class FileBytearray(bytearray):
 		return indices
 
 	@Progress.global_mark
-	def strings_search(self, search_lst: list[bytes], prefixes: list[bytes] = [b""], suffixes: list[bytes] = [b""]) -> list[list[int]]:
+	def strings_search(self, search_lst: list[bytes], prefixes: list[bytes] | None = None, suffixes: list[bytes] | None = None) -> list[list[int]]:
 		"""
 		Returns a list containing the indexes of each occurrence of every search list string in the bytearray.
 		Uses Aho-Corasick algorithm.
 		"""
 		if not search_lst:
 			return []
+
+		if prefixes is None:
+			prefixes = [b""]
+		if suffixes is None:
+			suffixes = [b""]
 
 		search_lst_safe = [s.encode('utf-8') if isinstance(s, str) else s for s in search_lst if s is not None]
 
@@ -495,12 +496,12 @@ class FileBytearray(bytearray):
 		return search_lst_indices[::len(prefixes) * len(suffixes)]
 
 	# Shorthands
-	def get(self, byte_length: int = None) -> bytes:
+	def get(self, byte_length: int | None = None) -> bytes:
 		byte_slice = self[self.cursor:self.cursor + (byte_length or self.byte_length)]
 		self.cursor += byte_length or self.byte_length
 		return bytes(byte_slice)
 
-	def put(self, value: bytes, byte_length: int = None) -> bytes:
+	def put(self, value: bytes, byte_length: int | None = None) -> bytes:
 		if not isinstance(value, bytes):
 			value = bytes(value, 'utf-8')
 		if byte_length is None:
@@ -509,17 +510,17 @@ class FileBytearray(bytearray):
 		self.cursor += byte_length
 		return value
 
-	def get_int(self, byte_length: int = None, byte_order: str = None) -> int:
+	def get_int(self, byte_length: int | None = None, byte_order: str | None = None) -> int:
 		return int.from_bytes(self.get(byte_length), byte_order or self.byte_order)
 
-	def put_int(self, value: int, byte_length: int = None, byte_order: str = None) -> bytes:
+	def put_int(self, value: int, byte_length: int | None = None, byte_order: str | None = None) -> bytes:
 		self[self.cursor:self.cursor + (byte_length or self.byte_length)] = self.from_int(value, byte_length, byte_order)
 		return self.get(byte_length)
 
-	def from_int(self, value: int, byte_length: int = None, byte_order: str = None) -> bytes:
+	def from_int(self, value: int, byte_length: int | None = None, byte_order: str | None = None) -> bytes:
 		return value.to_bytes(byte_length or self.byte_length, byte_order or self.byte_order)
 
-	def add_int(self, delta: int, byte_length: int = None, byte_order: str = None) -> bytes:
+	def add_int(self, delta: int, byte_length: int | None = None, byte_order: str | None = None) -> bytes:
 		value = self.get_int(byte_length, byte_order)
 		self.cursor -= byte_length or self.byte_length
 		return self.put_int(value + delta, byte_length, byte_order)
@@ -543,7 +544,7 @@ class FileBytearray(bytearray):
 		self[self.cursor:self.cursor + original_length] = replace_bytes
 
 	# Macros
-	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], bytes], filter_bytes_from_offset: Callable[[int], bool] = None) -> Strindex:
+	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], bytes], filter_bytes_from_offset: Callable[[int], bool] | None = None) -> Strindex:
 		temp_strindex = {
 			"original": [],
 			"pointers": [],
@@ -561,7 +562,7 @@ class FileBytearray(bytearray):
 		Print.debug(f"Created search list with {len(temp_strindex['original_bytes'])} strings.")
 
 		if len(temp_strindex['original_bytes']) > 10**6:
-			Print.warning(f"The search list is very large!\nThis may take a bit to process;\nconsider increasing the minimum string length.")
+			Print.warning("The search list is very large!\nThis may take a bit to process;\nconsider increasing the minimum string length.")
 
 		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
@@ -618,15 +619,15 @@ class FileBytearray(bytearray):
 
 		return new_data
 
-	def update_references(self, pointers: list[list[int]], replaced_bytes: list[bytes], switches: list[list[bool]] = None):
+	def update_references(self, pointers: list[list[int]], replaced_bytes: list[bytes], switches: list[list[bool]] | None = None):
 		if switches is None:
 			switches = [[True] * len(pointer) for pointer in pointers]
 
-		for index, (pointers, replaced_bytes, switches) in enumerate(zip(pointers, replaced_bytes, switches)):
-			if pointers:
-				for pointer, switch in zip(pointers, switches):
+		for index, (pointers_i, replaced_bytes_i, switches_i) in enumerate(zip(pointers, replaced_bytes, switches)):
+			if pointers_i:
+				for pointer, switch in zip(pointers_i, switches_i):
 					if switch:
-						self[pointer:pointer + self.byte_length] = replaced_bytes
+						self[pointer:pointer + self.byte_length] = replaced_bytes_i
 			else:
 				Print.warning(f"No pointers found for string #{index}")
 

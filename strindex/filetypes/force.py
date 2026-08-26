@@ -1,4 +1,4 @@
-from strindex.utils import Strindex, StrindexSettings, FileBytearray, Print
+from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
 
 
 def init(data: FileBytearray) -> FileBytearray:

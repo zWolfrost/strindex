@@ -1,5 +1,6 @@
-from strindex.utils import Strindex, StrindexSettings, FileBytearray, Print
 import pefile
+
+from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
 
 
 class PEFileWrapper(pefile.PE):
@@ -46,7 +47,7 @@ class PEFileWrapper(pefile.PE):
 		for data_offset in range(data_directory_offset, section_table_offset, 0x8):
 			data_rva = self.get_dword_from_offset(data_offset)
 
-			if new_section_offset <= data_rva and data_rva < self.OPTIONAL_HEADER.SizeOfHeaders:
+			if new_section_offset <= data_rva < self.OPTIONAL_HEADER.SizeOfHeaders:
 				self.set_dword_at_offset(data_offset, data_rva + self.OPTIONAL_HEADER.FileAlignment)
 
 		SizeOfHeaders_offset = self.DOS_HEADER.e_lfanew + 4 + self.FILE_HEADER.sizeof() + 0x3C
