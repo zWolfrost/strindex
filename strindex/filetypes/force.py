@@ -1,6 +1,10 @@
 from strindex.utils import Strindex, StrindexSettings, FileBytearray, Print
 
 
+def init(data: FileBytearray) -> FileBytearray:
+	return data
+
+
 def match(data: FileBytearray) -> bool:
 	return False
 

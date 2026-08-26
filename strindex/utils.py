@@ -578,7 +578,7 @@ class FileBytearray(bytearray):
 
 		return strindex
 
-	def patch_pointers_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], bytes], replaced_bytes_from_offset: Callable[[int], bytes], data_from_string: Callable[[str], bytearray]) -> bytearray:
+	def patch_pointers_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], bytes], replaced_bytes_from_offset: Callable[[int], bytes], data_from_string: Callable[[str], bytes]) -> bytearray:
 		new_data = bytearray()
 
 		update_dict = {

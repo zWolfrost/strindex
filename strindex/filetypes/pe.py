@@ -188,6 +188,11 @@ class PEFileWrapper(pefile.PE):
 SECTION_NAME = b".strdex"
 
 
+def init(data: FileBytearray) -> FileBytearray:
+	data.byte_order = 'little'
+	return data
+
+
 def match(data: FileBytearray) -> bool:
 	""" Checks if the file is a valid PE file. """
 	try:
@@ -208,7 +213,9 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 		Print.warning(f"This file contains a \"{SECTION_NAME.decode('utf-8')}\" section;\nIt has likely already been patched once.")
 
 	data.byte_length = pe.byte_length
-	data.byte_order = 'little'
+
+	#TODO: implement a way to only get pointers from a specific section
+	#text_sect_range = pe.get_section_range(b".text")
 
 	return data.create_pointers_macro(
 		settings,
@@ -228,7 +235,6 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		raise ValueError(f"This file already contains a \"{SECTION_NAME.decode('utf-8')}\" section. It can't be patched again.")
 
 	data.byte_length = pe.byte_length
-	data.byte_order = 'little'
 
 	STRDEX_SECTION_BASE_RVA = pe.get_new_section_rva() + pe.OPTIONAL_HEADER.ImageBase
 
@@ -236,7 +242,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		strindex,
 		lambda offset: data.from_int(rva) if (rva := pe.get_rva_from_offset(offset)) is not None else None,
 		lambda offset: data.from_int(STRDEX_SECTION_BASE_RVA + offset),
-		lambda string: bytearray(string, 'utf-8') + b'\x00'
+		lambda string: string.encode('utf-8') + b'\x00'
 	)
 
 	pe = PEFileWrapper(data)

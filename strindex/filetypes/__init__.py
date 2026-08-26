@@ -29,14 +29,18 @@ class GenericModule():
 			"and attempt to extract strings from the file anyway."
 		)
 
+	def init(self, data: FileBytearray) -> FileBytearray:
+		""" Initializes the file data for the module. """
+		return self.module.init(data.copy()) if hasattr(self.module, "init") else data.copy()
+
 	def match(self, data: FileBytearray) -> bool:
 		""" Checks if the file is of the target filetype. """
-		return self.module.match(data.copy())
+		return self.module.match(self.init(data))
 
 	def create(self, data: FileBytearray, settings: StrindexSettings) -> Strindex:
 		""" Creates a Strindex object from the file data. """
-		return self.module.create(data.copy(), settings)
+		return self.module.create(self.init(data), settings)
 
 	def patch(self, data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		""" Patches the file data with the Strindex object. """
-		return self.module.patch(data.copy(), strindex)
+		return self.module.patch(self.init(data), strindex)
