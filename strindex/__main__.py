@@ -2,7 +2,16 @@
 # nuitka-project: --product-version=4.0.0
 
 # nuitka-project: --mode=app
+
 # nuitka-project: --enable-plugin=pyside6
+
+# nuitka-project: --noinclude-qt-plugins=iconengines
+# nuitka-project: --noinclude-qt-plugins=imageformats
+# nuitka-project: --noinclude-qt-plugins=platformthemes
+# nuitka-project: --noinclude-qt-plugins=printsupport
+# nuitka-project: --noinclude-qt-plugins=tls
+# nuitka-project: --noinclude-qt-plugins=webview
+
 # nuitka-project: --nofollow-import-to=lingua
 # nuitka-project: --nofollow-import-to=language_tool_python
 
