@@ -108,8 +108,8 @@ class StrindexSettings():
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""",
 	}
 
-	_raw: str
-	md5: str
+	_raw: str | None
+	md5: str | None
 	force_mode: bool
 	min_length: int
 	prefix_bytes: list[bytes]
@@ -119,8 +119,8 @@ class StrindexSettings():
 	_whitelist: set[str]
 	patch_replace: dict[str, str]
 	clean_pattern: str
-	source_language: str
-	target_language: str
+	source_language: str | None
+	target_language: str | None
 	among_languages: list[str]
 
 	def __init__(self, **kwargs):
