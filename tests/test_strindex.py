@@ -1,9 +1,10 @@
 import os
-import pytest
 from tempfile import NamedTemporaryFile as temp_open
-from strindex.strindex import create, patch, update, filter, delta
-from strindex.utils import Strindex, StrindexSettings, FileBytearray
 
+import pytest
+
+from strindex.strindex import create, delta, filter, patch, update
+from strindex.utils import FileBytearray, Strindex, StrindexSettings
 
 # FILES NEEDED FOR TESTING (in ./tests/data/ folder):
 # strindex_example.txt
