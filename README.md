@@ -23,7 +23,7 @@ It features various built-in features to help with translation, such as spellche
 ## Installation
 You can install the program with the command `pip install strindex`.
 
-Alternatively, the releases tab includes a precompiled version of the program, which by default opens the gui mode (unless executed with arguments). Warning: the precompiled version has a high chance of being detected as a **false positive** by antivirus software. You can compile the program yourself to avoid this.
+Alternatively, the [releases tab](https://github.com/zWolfrost/strindex/releases/latest) includes a precompiled version of the program, which by default opens in gui mode (unless executed with arguments). Warning: the precompiled version has a high chance of being detected as a **false positive** by antivirus software. You can compile the program yourself to avoid this.
 
 ## Usage
 You can run the program with the command `strindex <action> <input file(s)> [arguments]`.
