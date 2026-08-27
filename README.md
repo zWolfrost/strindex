@@ -1,27 +1,28 @@
 # strindex
 [![PyPI version](https://img.shields.io/pypi/v/strindex?label=PyPI%20version)](https://pypi.org/project/strindex/)
-[![PyPI downloads](https://img.shields.io/pypi/dm/strindex?label=PyPI%20downloads)](https://pypi.org/project/strindex/)
 [![GitHub downloads](https://img.shields.io/github/downloads/zWolfrost/strindex/total?label=GitHub%20downloads)](https://github.com/zWolfrost/strindex/releases/latest)
 [![license](https://img.shields.io/github/license/zWolfrost/strindex)](LICENSE)
 
-A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.
+A command line utility program (with GUI support) that allows you to easily extract, list and patch (replace) the strings embedded in a few filetypes.
 
-This utility will allow you to replace strings in supported filetypes with other strings. It's useful to change the text of a program without having to recompile it, for example, to translate a program into another language.
+It's useful to change the text of a program without having to recompile it; for example, to translate it into another language.
 
-Aside from using pointers to replace strings, there's also an option to use the original string itself to ensure compatibility with different versions of the same program.
+A string can be referenced not only by its pointer / offset, but also by the original string itself to ensure compatibility with different versions of the same program.
 
 It features various built-in features to help with translation, such as spellchecking & filtering strings by length and character set.
 
 ## Supported filetypes
-*Support for more types is not planned.*
-- PE files (".exe", ".dll"...) *(direct pointers only)*
+*Support for more filetypes is not planned.*
+- PE files (".exe", ".dll"...) *(direct pointers only!)*
 - Gamemaker data files ("data.win")
-- Forceful replacement in every filetype...
+- Every filetype, if using force mode*...
+
+**Force mode doesn't allow the replaced strings to be bigger in length than the original strings.*
 
 ## Installation
 You can install the program with the command `pip install strindex`.
 
-Alternatively, the releases tab includes a precompiled version of the program, which by default opens the gui mode (unless executed with arguments). Warning: the precompiled version has a high chance of being detected as a **false positive** by antivirus software. You can compile the program yourself to avoid this.
+Alternatively, the [releases tab](https://github.com/zWolfrost/strindex/releases/latest) includes a precompiled version of the program, which by default opens in gui mode (unless executed with arguments). Warning: the precompiled version has a high chance of being detected as a **false positive** by antivirus software. You can compile the program yourself to avoid this.
 
 ## Usage
 You can run the program with the command `strindex <action> <input file(s)> [arguments]`.
@@ -47,6 +48,10 @@ These are the available actions:
 - Create a strindex from a PE file, considering only pointers prefixed by the bytes "24c7442404" or "ec04c70424".
   ```sh
   strindex create program.exe -p "24c7442404" -p "ec04c70424"
+  ```
+- Create a strindex from a PE file, considering only strings that are present between offsets 0x018bc5ec and 0x01a09fb1.
+  ```sh
+  strindex create program.exe -m 3 -r "018bc5ec:01a09fb1"
   ```
 - Patch a PE file with a strindex:
   ```sh

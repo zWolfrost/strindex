@@ -1,109 +1,161 @@
-import json
-import re
 import gzip
 import hashlib
+import re
 import time
-import ahocorasick_rs
-from typing import Callable
+import tomllib
+from collections.abc import Callable
+from functools import wraps
+from io import StringIO
+from json import JSONEncoder
+from typing import ClassVar
+
+from ahocorasick_rs import BytesAhoCorasick, Implementation
+
 from strindex.strings_find_fast import strings_find_fast
 
 
-class PrintWrapper():
+class Print:
 	"""
 	A wrapper for the print function.
 	"""
 
-	QUIET = False
+	class PrintLevel:
+		DEBUG = ""
+		INFO = "\033[1m"
+		WARNING = "\033[93m"
+		ERROR = "\033[91m"
+		RESET = "\033[0m"
+
+	quiet_mode = True
+	color_mode = True
 
 	@classmethod
-	def print(cls, *args, **kwargs):
-		if not cls.QUIET:
-			print(*args, **kwargs)
-		return "".join(str(arg) for arg in args)
+	def print(cls, msg: str, tag: str | None = None, level: PrintLevel = None, **kwargs):
+		if not cls.quiet_mode:
+			tag = f"[{tag}] " if tag is not None and not msg.startswith("[") else ""
+			if cls.color_mode and level:
+				print(level, tag, msg, cls.PrintLevel.RESET, sep="", **kwargs)
+			else:
+				print(tag, msg, sep="", **kwargs)
+		return msg
+
+	@classmethod
+	def debug(cls, msg: str, **kwargs) -> str:
+		return cls.print(msg, level=cls.PrintLevel.DEBUG, **kwargs)
+	@classmethod
+	def info(cls, msg: str, **kwargs) -> str:
+		return cls.print(msg, level=cls.PrintLevel.INFO, **kwargs)
+	@classmethod
+	def warning(cls, msg: str, **kwargs) -> str:
+		return cls.print(msg, tag="Warning", level=cls.PrintLevel.WARNING, **kwargs)
+	@classmethod
+	def error(cls, msg: str, **kwargs) -> str:
+		return cls.print(msg, tag="Error", level=cls.PrintLevel.ERROR, **kwargs)
 
 
-class PrintProgress():
+class Progress:
 	"""
-	Extremely fast class to print progress percentage.
-	Only takes ~0.1 seconds every 1'000'000 calls,
-	or half of that if "iteration >= self.limit" is checked within the loop.
+	A class to handle progress printing.
 	"""
+
+	global_instance: "Progress"
+	global_callback: Callable[["Progress"], None]
 
 	total: int
 	limit: int
 	delta: int
 	round: int
 	percent: float
+	start: float
 
-	def __init__(self, total: int, round: int = 0):
+	def __init__(self, total: int, decimals: int = 0):
 		self.total = total
 		self.limit = 0
-		self.delta = total // (10 ** (round + 2))
-		self.round = None if round == 0 else round
+		self.delta = max(1, total // (10 ** (decimals + 2)))
+		self.round = None if decimals == 0 else decimals
 		self.percent = 0
 		self.start = time.time()
 		self(0)
 
-	def progress_bar_str(self, iteration: int, bar_length: int = 10) -> str:
-		""" Returns a string with the progress bar. """
-		progress = round(iteration / self.total * bar_length)
-		return f"\r[{'#' * progress}{'-' * (bar_length - progress)}] {self.percent}% "
-
-	def __call__(self, iteration: int):
+	def __call__(self, iteration: int | None = None):
+		if iteration is None:
+			iteration = self.limit
 		if iteration >= self.limit and self.percent < 100:
 			self.limit += self.delta
 			self.percent = round(iteration / self.total * 100, self.round)
-			if callable(PrintProgress.callback):
-				PrintProgress.callback(self)
-			#PrintWrapper.print(self.progress_bar_str(iteration), end="")
+			if hasattr(Progress, "global_instance") and self is Progress.global_instance \
+		 		and hasattr(Progress, "global_callback"):
+				Progress.global_callback(self)
 			if self.percent >= 100:
-				PrintWrapper.print(f"Action completed in {time.time() - self.start:.2f}s.")
+				Print.debug(f"Action completed in {time.time() - self.start:.2f}s.")
 
-	@property
-	def callback() -> Callable[["PrintProgress"], None]:
-		return globals().get("__print_progress_callback__")
+	@classmethod
+	def global_mark[**P, T](cls, func: Callable[P, T]) -> Callable[P, T]:
+		""" Decorator to mark a function for progress printing. """
+		@wraps(func)
+		def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+			result = func(*args, **kwargs)
+			if hasattr(Progress, "global_instance"):
+				Progress.global_instance()
+			return result
+		return wrapper
 
 
-class StrindexSettings():
+class StrindexSettings:
 	# These are really limited, so I would really like if you added your language's characters here and open a pull request <3
-	CHARACTER_CLASSES = {
-		"default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~… """,
+	CHARACTER_SETS: ClassVar[dict[str, str]] = {
+		"_default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~… """,
 		"latin": """ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz""",
 		"spanish": """¡¿ÁÉÍÓÚÜÑáéíóúüñã""",
 		"italian": """ÀÈÉÌÒÓÙàèéìòóù""",
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""",
 	}
 
-	md5: str
-	whitelist: set[str]
+	_raw: str | None
+	md5: str | None
 	force_mode: bool
 	min_length: int
 	prefix_bytes: list[bytes]
 	suffix_bytes: list[bytes]
 	ranges: list[range]
+	whitelist: list[str]
+	_whitelist: set[str]
 	patch_replace: dict[str, str]
 	clean_pattern: str
-	source_language: str
-	target_language: str
+	source_language: str | None
+	target_language: str | None
 	among_languages: list[str]
 
 	def __init__(self, **kwargs):
+		self._raw = kwargs.get("_raw")
 		self.md5 = kwargs.get("md5")
-		self.whitelist = StrindexSettings.handle_whitelist(kwargs.get("whitelist") or "")
 		self.force_mode = kwargs.get("force_mode") or False
 		self.min_length = int(kwargs.get("min_length") or 1)
 		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes") or [''])
 		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes") or [''])
 		self.ranges = StrindexSettings.handle_ranges(kwargs.get("ranges") or [])
+		self.whitelist = kwargs.get("whitelist") or []
+		self._whitelist = self.handle_whitelist(self.whitelist)
 		self.patch_replace = kwargs.get("patch_replace") or {}
 		self.clean_pattern = kwargs.get("clean_pattern") or ""
 		self.source_language = kwargs.get("source_language")
 		self.target_language = kwargs.get("target_language")
 		self.among_languages = kwargs.get("among_languages") or []
 
+	@classmethod
+	def read_from_toml_str(cls, toml_str: str) -> "StrindexSettings":
+		""" Reads the settings from a TOML string. """
+		return cls(**tomllib.loads(toml_str), _raw=toml_str)
+
+	def get_changed(self) -> dict:
+		""" Returns a dictionary with the settings that are different from the default settings. """
+		CURRENT_SETTINGS = self.get_dict()
+		DEFAULT_SETTINGS = StrindexSettings().get_dict()
+		return {k: v for k, v in CURRENT_SETTINGS.items() if DEFAULT_SETTINGS.get(k) != v}
+
 	@staticmethod
 	def handle_whitelist(whitelist: str) -> set[str]:
-		return set(''.join([StrindexSettings.CHARACTER_CLASSES.get(whitelist, whitelist) for whitelist in (whitelist + ["default"])])) if whitelist else set()
+		return set(''.join([StrindexSettings.CHARACTER_SETS.get(whitelist, whitelist) for whitelist in (whitelist + ["_default"])])) if whitelist else set()
 
 	@staticmethod
 	def handle_bytes_list(bytes_list: list[bytes]) -> list[bytes]:
@@ -120,7 +172,7 @@ class StrindexSettings():
 			try:
 				beg_str, end_str = range_str.split(":")
 				beg = int(beg_str, 16)
-				end = int(end_str, 16)
+				end = int(end_str, 16) + 1
 				if beg > end:
 					raise ValueError(f"Invalid range: {range_str}. Start must be less than or equal to end.")
 				parsed_ranges.append(range(beg, end))
@@ -149,21 +201,26 @@ class StrindexSettings():
 		""" Checks if the value is in any of the ranges. """
 		return any(val in range for range in self.ranges) if self.ranges else True
 
+	def is_in_whitelist(self, string: str) -> bool:
+		""" Checks if the string is whitelisted. """
+		return all(char in self._whitelist for char in string) if self._whitelist else True
 
-class Strindex():
+	def get_dict(self) -> dict:
+		return {k: v for k, v in vars(self).items() if not k.startswith("_")}
+
+	def __repr__(self) -> str:
+		return str(self.get_dict())
+
+
+class Strindex:
 	""" A class to parse and create strindex files. """
 
 	SEP_COUNT = 80
-
-	HEADER = "You can freely create & delete informational lines in the header like these ones and the example below.\nFor more information about strindex files see:\nhttps://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt\n\n{}\n\n"
-	INFO = f"EXAMPLE OF REPLACEMENT:\n//{'=' * SEP_COUNT}/pointer(s)/\n// replace the string that was previously provided with this one!\n\n"
-	COMPATIBLE_INFO = f"EXAMPLE OF REPLACEMENT:\n//{'=' * SEP_COUNT}|reallocate pointer(s) if 1, or skip if 0|\n// replace this string...\n//{'-' * SEP_COUNT}\n// ...with this string!\n\n"
 	ORIGINAL_DEL = '=' * SEP_COUNT
 	REPLACE_DEL = '-' * SEP_COUNT
 	POINTERS_DEL = '/'
 	POINTERS_SWITCHES_DEL = '|'
 
-	full_header: str
 	settings: StrindexSettings
 
 	strings: list[str | list[str, str]]
@@ -205,7 +262,6 @@ class Strindex():
 	def __init__(self):
 		""" Parses a strindex file and returns a dictionary with the data. """
 
-		self.full_header = ""
 		self.settings = StrindexSettings()
 
 		self.strings = []
@@ -213,6 +269,7 @@ class Strindex():
 		self.type_order = []
 
 	@classmethod
+	@Progress.global_mark
 	def read(cls, filepath: str) -> "Strindex":
 		""" Parses a strindex file and returns a dictionary with the data. """
 
@@ -221,39 +278,18 @@ class Strindex():
 		with open(filepath, 'rb') as f:
 			is_gzipped = (f.read(2) == b'\x1f\x8b')
 
-		if is_gzipped:
-			stream = gzip.open(filepath, 'rt', encoding='utf-8')
-		else:
-			stream = open(filepath, 'r', encoding='utf-8')
-
-		with stream as f:
+		with (gzip.open(filepath, 'rt', encoding='utf-8') if is_gzipped else open(filepath, 'r', encoding='utf-8')) as f:
 			try:
+				full_header = ""
 				previous_line_pos = 0
 				while line := f.readline():
-					if line.lstrip().startswith("{"):
-						strindex_settings_lines = line
-						strindex.full_header += line
-						while True:
-							try:
-								strindex.settings = StrindexSettings(**json.loads(strindex_settings_lines))
-							except json.JSONDecodeError as e:
-								line = f.readline()
-								if not line:
-									raise ValueError("Error parsing Strindex settings.") from e
-								strindex.full_header += line
-								if line.lstrip().startswith("//"):
-									continue
-								if line.startswith(Strindex.ORIGINAL_DEL):
-									raise ValueError("Error parsing Strindex settings: " + str(e)) from e
-								strindex_settings_lines += line
-							else:
-								break
-					elif line.startswith(Strindex.ORIGINAL_DEL):
+					if line.startswith(Strindex.ORIGINAL_DEL):
 						f.seek(previous_line_pos)
 						break
-					else:
-						previous_line_pos = f.tell()
-						strindex.full_header += line
+					previous_line_pos = f.tell()
+					full_header += line
+
+				strindex.settings = StrindexSettings.read_from_toml_str(full_header)
 
 				next_str_type = ""
 				is_start = True
@@ -305,30 +341,43 @@ class Strindex():
 
 		return strindex
 
-	def write(self, filepath: str):
+	@Progress.global_mark
+	def write(self, filepath: str) -> str:
 		""" Saves the strindex data to a file. """
+
+		HEADER_INFO = "# You can freely create & delete comments in the header like these ones and the example below.\n# For more information about strindex files' settings and syntax see:\n# https://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt\n"
+		OVERWRITE_INFO = f"# EXAMPLE OF REPLACEMENT:\n# {'=' * Strindex.SEP_COUNT}/pointer(s)/\n# replace the string that was previously provided here, with this one!\n\n"
+		COMPATIBLE_INFO = f"# EXAMPLE OF REPLACEMENT:\n# {'=' * Strindex.SEP_COUNT}|reallocate pointer(s) if 1, or skip if 0|\n# replace this string...\n# {'-' * Strindex.SEP_COUNT}\n# ...with this string!\n\n"
+
 		HEX_RJUST = 8
 
 		self.assert_data()
 
-		DEFAULT_SETTINGS = Strindex().settings.__dict__
-		diff_settings = {k: v for k, v in self.settings.__dict__.items() if DEFAULT_SETTINGS.get(k) != v}
+		def toml_dumps_hack(obj: dict) -> str:
+			def formatter(val):
+				if isinstance(val, list):
+					return "[ " + ", ".join(formatter(v) for v in val) + " ]"
+				if isinstance(val, dict):
+					return "{ " + ", ".join(f'"{k}" = "{v}"' for k, v in val.items()) + " }"
+				if isinstance(val, bytes):
+					return f"\"{val.hex()}\""
+				if isinstance(val, range):
+					return f"\"{val.start:0{HEX_RJUST}x}:{val.stop - 1:0{HEX_RJUST}x}\""
+				return JSONEncoder().encode(val)
 
-		def formatter(obj):
-			if isinstance(obj, bytes):
-				return obj.hex()
-			if isinstance(obj, range):
-				return f"{obj.start:0{HEX_RJUST}x}:{obj.stop:0{HEX_RJUST}x}"
-			return json.JSONEncoder().default(obj)
+			dumps = ""
+			for key, value in obj.items():
+				dumps += f"{key} = {formatter(value)}\n"
+			return dumps
 
-		with open(filepath, 'w', encoding='utf-8', newline='\n') as f:
-			if self.full_header:
-				f.write(self.full_header)
+		with (open(filepath, 'w', encoding='utf-8', newline='\n') if filepath else StringIO()) as f:
+			if self.settings._raw is not None:
+				f.write(self.settings._raw)
 			else:
-				f.write(Strindex.HEADER.format(json.dumps(diff_settings, indent=4, default=formatter)))
+				f.write(HEADER_INFO + "\n" + toml_dumps_hack(self.settings.get_changed()) + "\n")
 
 				if len(self.type_order) > 0:
-					f.write(Strindex.COMPATIBLE_INFO if self.type_order[0] == "compatible" else Strindex.INFO)
+					f.write(COMPATIBLE_INFO if self.type_order[0] == "compatible" else OVERWRITE_INFO)
 
 			for strings, pointers, type in zip(self.strings, self.pointers, self.type_order):
 				if type == "compatible":
@@ -351,6 +400,8 @@ class Strindex():
 			f.seek(f.tell() - 1)
 			f.truncate()
 
+			return f.getvalue() if filepath is None else filepath
+
 	def append_strindex_index(self, strindex: "Strindex", index: int):
 		self.strings.append(strindex.strings[index])
 		self.pointers.append(strindex.pointers[index])
@@ -367,24 +418,31 @@ class FileBytearray(bytearray):
 	byte_order: str
 
 	@classmethod
+	@Progress.global_mark
 	def read(cls, filepath: str):
 		with open(filepath, 'rb') as f:
 			return cls(f.read())
 
+	@Progress.global_mark
 	def write(self, filepath: str):
 		with open(filepath, 'wb') as f:
 			f.write(self)
 
+	def copy(self) -> "FileBytearray":
+		return FileBytearray(self)
+
 	# Algorithms
-	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1, ranges: list[range] = []) -> list[tuple[str, int, int]]:
+	@Progress.global_mark
+	def strings_find(self, sep: bytes = b'\x00', min_length: int = 1, ranges: list[range] | None = None, whitelist: set[str] | None = None) -> list[tuple[str, int, int]]:
 		"""
 		Returns all strings in a bytearray, separated by a given separator.
 		Skips strings that contain control characters and ones that are not valid UTF-8.
 		Implemented in C for speed.
 		"""
 
-		return strings_find_fast(self, int(sep[0]), min_length, [(r.start, r.stop) for r in ranges])
+		return strings_find_fast(self, int(sep[0]), min_length, [(r.start, r.stop) for r in (ranges or [])], (whitelist or []))
 
+	@Progress.global_mark
 	def strings_search_ordered(self, search_lst: list[bytes], prefix: bytes = b"\x00", suffix: bytes = b"\x00") -> list[int]:
 		"""
 		Returns the index of the first occurrence of every search list string in a bytearray.
@@ -403,13 +461,19 @@ class FileBytearray(bytearray):
 			indices.append(index + prefix_length)
 		return indices
 
-	def strings_search(self, search_lst: list[bytes], prefixes: list[bytes] = [b""], suffixes: list[bytes] = [b""]) -> list[list[int]]:
+	@Progress.global_mark
+	def strings_search(self, search_lst: list[bytes], prefixes: list[bytes] | None = None, suffixes: list[bytes] | None = None) -> list[list[int]]:
 		"""
 		Returns a list containing the indexes of each occurrence of every search list string in the bytearray.
 		Uses Aho-Corasick algorithm.
 		"""
 		if not search_lst:
 			return []
+
+		if prefixes is None:
+			prefixes = [b""]
+		if suffixes is None:
+			suffixes = [b""]
 
 		search_lst_safe = [s.encode('utf-8') if isinstance(s, str) else s for s in search_lst if s is not None]
 
@@ -424,7 +488,7 @@ class FileBytearray(bytearray):
 					search_lst_prefix_length.append(len(prefix))
 					search_lst_indices.append(search_string_lst)
 
-		ac = ahocorasick_rs.BytesAhoCorasick(search_lst_full)
+		ac = BytesAhoCorasick(search_lst_full, implementation=Implementation.ContiguousNFA)
 
 		for index, start, _ in ac.find_matches_as_indexes(self, overlapping=True):
 			search_lst_indices[index].append(start + search_lst_prefix_length[index])
@@ -432,12 +496,12 @@ class FileBytearray(bytearray):
 		return search_lst_indices[::len(prefixes) * len(suffixes)]
 
 	# Shorthands
-	def get(self, byte_length: int = None) -> bytes:
+	def get(self, byte_length: int | None = None) -> bytes:
 		byte_slice = self[self.cursor:self.cursor + (byte_length or self.byte_length)]
 		self.cursor += byte_length or self.byte_length
 		return bytes(byte_slice)
 
-	def put(self, value: bytes, byte_length: int = None) -> bytes:
+	def put(self, value: bytes, byte_length: int | None = None) -> bytes:
 		if not isinstance(value, bytes):
 			value = bytes(value, 'utf-8')
 		if byte_length is None:
@@ -446,48 +510,48 @@ class FileBytearray(bytearray):
 		self.cursor += byte_length
 		return value
 
-	def get_int(self, byte_length: int = None, byte_order: str = None) -> int:
+	def get_int(self, byte_length: int | None = None, byte_order: str | None = None) -> int:
 		return int.from_bytes(self.get(byte_length), byte_order or self.byte_order)
 
-	def put_int(self, value: int, byte_length: int = None, byte_order: str = None) -> bytes:
+	def put_int(self, value: int, byte_length: int | None = None, byte_order: str | None = None) -> bytes:
 		self[self.cursor:self.cursor + (byte_length or self.byte_length)] = self.from_int(value, byte_length, byte_order)
 		return self.get(byte_length)
 
-	def from_int(self, value: int, byte_length: int = None, byte_order: str = None) -> bytes:
+	def from_int(self, value: int, byte_length: int | None = None, byte_order: str | None = None) -> bytes:
 		return value.to_bytes(byte_length or self.byte_length, byte_order or self.byte_order)
 
-	def add_int(self, delta: int, byte_length: int = None, byte_order: str = None) -> bytes:
+	def add_int(self, delta: int, byte_length: int | None = None, byte_order: str | None = None) -> bytes:
 		value = self.get_int(byte_length, byte_order)
 		self.cursor -= byte_length or self.byte_length
 		return self.put_int(value + delta, byte_length, byte_order)
 
-	def replace_string(self, replace: str, delimiter: bytes = b'\x00') -> bytes:
+	def replace_string(self, replace: str, sep: bytes = b'\x00') -> bytes:
 		original_length = 0
 
 		for i in range(len(self) - self.cursor):
-			if bytes([self[self.cursor + i]]) == delimiter:
+			if bytes([self[self.cursor + i]]) == sep:
 				original_length = i
 				break
 
 		replace_bytes = replace.encode('utf-8')
 
 		if len(replace_bytes) > original_length:
-			PrintWrapper.print(f'Warning: Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}). Truncating.')
+			Print.warning(f'Replace string "{replace}" at {hex(self.cursor)} is longer than the original string ({len(replace_bytes)} > {original_length}); Truncating.')
 			replace_bytes = replace_bytes[:original_length]
 		else:
-			replace_bytes = replace_bytes.ljust(original_length, delimiter)
+			replace_bytes = replace_bytes.ljust(original_length, sep)
 
 		self[self.cursor:self.cursor + original_length] = replace_bytes
 
 	# Macros
-	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], bytes]) -> Strindex:
+	def create_pointers_macro(self, settings: StrindexSettings, original_bytes_from_offset: Callable[[int], bytes], filter_bytes_from_offset: Callable[[int], bool] | None = None) -> Strindex:
 		temp_strindex = {
 			"original": [],
 			"pointers": [],
 			"original_bytes": []
 		}
 
-		for string, start_offset, _ in self.strings_find(min_length=settings.min_length, ranges=settings.ranges):
+		for string, start_offset, _ in self.strings_find(min_length=settings.min_length, ranges=settings.ranges, whitelist=settings._whitelist):
 			if original_bytes := original_bytes_from_offset(start_offset):
 				temp_strindex["original"].append(string)
 				temp_strindex["original_bytes"].append(original_bytes)
@@ -495,22 +559,27 @@ class FileBytearray(bytearray):
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
 
-		PrintWrapper.print(f"Created search dictionary with {len(temp_strindex['original_bytes'])} strings.")
+		Print.debug(f"Created search list with {len(temp_strindex['original_bytes'])} strings.")
+
+		if len(temp_strindex['original_bytes']) > 10**6:
+			Print.warning("The search list is very large!\nThis may take a bit to process;\nconsider increasing the minimum string length.")
 
 		temp_strindex["pointers"] = self.strings_search(temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes)
 
 		strindex = Strindex()
 		for string, pointers in zip(temp_strindex["original"], temp_strindex["pointers"]):
+			if filter_bytes_from_offset is not None:
+				pointers = [p for p in pointers if filter_bytes_from_offset(p)]
 			if pointers:
 				strindex.strings.append(string)
 				strindex.pointers.append(pointers)
 				strindex.type_order.append("overwrite")
 
-		PrintWrapper.print(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
+		Print.debug(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
 
 		return strindex
 
-	def patch_pointers_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], bytes], replaced_bytes_from_offset: Callable[[int], bytes], data_from_string: Callable[[str], bytearray]) -> bytearray:
+	def patch_pointers_macro(self, strindex: Strindex, original_bytes_from_offset: Callable[[int], bytes], replaced_bytes_from_offset: Callable[[int], bytes], data_from_string: Callable[[str], bytes]) -> bytearray:
 		new_data = bytearray()
 
 		update_dict = {
@@ -526,7 +595,7 @@ class FileBytearray(bytearray):
 
 		for index, offset in enumerate(self.strings_search_ordered(strindex_original)):
 			if offset is None:
-				PrintWrapper.print(f'String #{index} not found: "{strindex_original[index]}"')
+				Print.warning(f'String #{index} not found: "{strindex_original[index]}"')
 				continue
 
 			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
@@ -550,17 +619,17 @@ class FileBytearray(bytearray):
 
 		return new_data
 
-	def update_references(self, pointers: list[list[int]], replaced_bytes: list[bytes], switches: list[list[bool]] = None):
+	def update_references(self, pointers: list[list[int]], replaced_bytes: list[bytes], switches: list[list[bool]] | None = None):
 		if switches is None:
 			switches = [[True] * len(pointer) for pointer in pointers]
 
-		for index, (pointers, replaced_bytes, switches) in enumerate(zip(pointers, replaced_bytes, switches)):
-			if pointers:
-				for pointer, switch in zip(pointers, switches):
+		for index, (pointers_i, replaced_bytes_i, switches_i) in enumerate(zip(pointers, replaced_bytes, switches)):
+			if pointers_i:
+				for pointer, switch in zip(pointers_i, switches_i):
 					if switch:
-						self[pointer:pointer + self.byte_length] = replaced_bytes
+						self[pointer:pointer + self.byte_length] = replaced_bytes_i
 			else:
-				PrintWrapper.print(f"No pointers found for string #{index}")
+				Print.warning(f"No pointers found for string #{index}")
 
 	@property
 	def md5(self) -> str:

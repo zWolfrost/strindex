@@ -1,13 +1,16 @@
 import os
-import sys
 import signal
-from PySide6 import QtWidgets, QtGui, QtCore
-from strindex.utils import StrindexSettings, PrintProgress
-import strindex.strindex as strindex
+import sys
+
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import QTimer
+
+from strindex import strindex
+from strindex.utils import Progress, StrindexSettings
 
 
 class CallbackWorker(QtCore.QThread):
-	sig_progress = QtCore.Signal(PrintProgress)
+	sig_progress = QtCore.Signal(Progress)
 	sig_except = QtCore.Signal(Exception)
 	sig_else = QtCore.Signal(object)
 
@@ -16,11 +19,11 @@ class CallbackWorker(QtCore.QThread):
 		self.callback = callback
 
 	def run(self):
-		PrintProgress.callback = lambda progress: self.sig_progress.emit(progress)
+		Progress.global_callback = lambda progress: self.sig_progress.emit(progress)
 
 		try:
 			result = self.callback()
-		except Exception as e:
+		except Exception as e: # noqa: BLE001
 			self.sig_except.emit(e)
 		else:
 			self.sig_else.emit(result)
@@ -199,7 +202,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		diff_size = target_rect.size() - self.frameGeometry().size()
 		self.move(target_rect.x() + diff_size.width() // 2, target_rect.y() + diff_size.height() // 2)
 
-	def show_message(self, text: str, icon):
+	def show_message(self, text: str, icon = QtWidgets.QMessageBox.Icon.NoIcon):
 		msg = QtWidgets.QMessageBox()
 		msg.setWindowTitle(self.windowTitle())
 		msg.setWindowIcon(self.windowIcon())
@@ -233,12 +236,12 @@ class MainStrindexGUI(BaseStrindexGUI):
 	def set_custom_appearance(self):
 		if sys.platform == "win32":
 			self.app.setStyle("Fusion")
-			self.setStyleSheet(f"""QLineEdit{{padding: 3px; margin: 1px 0px;}}""")
+			self.setStyleSheet(f"""QLineEdit{{padding: 3px; margin: 1px 0px;}}""") # noqa: F541
 		else:
 			self.setStyleSheet(f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}""")
 
 	def set_custom_size(self):
-		# 52 is the approx. height of the tab bar
+		# 52 is the approx. height of the tab bar + other stuff
 		height_hint = (
 			self.tab_widget.currentWidget().sizeHint().height() + 52
 			if hasattr(self, "tab_widget") else self.sizeHint().height()
@@ -293,7 +296,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		version_label.setOpenExternalLinks(True)
 		version_label.setContentsMargins(3, 3, 3, 3)
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
-		self.tab_widget.currentChanged.connect(self.set_custom_size)
+		self.tab_widget.currentChanged.connect(lambda _: QTimer.singleShot(0, self.set_custom_size))
 
 		self.__widgets__.append(self.tab_widget)
 
@@ -303,21 +306,21 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		# Horrible implementation, but really convenient for now...
 		ICON_BASE64 = (
-			b"iVBORw0KGgoAAAANSUhEUgAAAIAAAACABAMAAAAxEHz4AAAAJFBMVEUAAAAwMDAwMDAwMDAvLy8vLy8vLy8wMDCgoKBoaGhMTEyE"
-			b"hIRek547AAAAB3RSTlMAfzm/31+fnXZsNAAAAv9JREFUaN6lmUFy2kAQRUWSCluxSLFlly1ZecvOR8g2RxgZ7Bb4AJoyBwBOADcg"
-			b"x4unRs4vmJF6+vtXeexNP7/pkQQ01Uhm0udHRWQiN6nJcmSzsNTPJZOn4vIvks+a1UcWbD0IbD0I5P4RDSAI1cnfSrl2mlMpyFJt"
-			b"AN+GhzLAk7IBfhNSmg0pgDilg1wff1oAjhRAlA4wCmIMKYCsBgQugljuyq8Ss/NdKWGRPcOL91wbpU/ryxXyLfTlCn+SB5FRwSU7"
-			b"sCokO7Aq1MkZGBVcsgOjwiZ5MbIq3LXAGxWwh3lf10HBBkCZVQEtQJlJAS0gFZa4CjgFhxZwCg0ApAJ6SCqgh6RCDQCn4OJ1yCs4"
-			b"9JBTaAAgFQAgFXCKpAIOgVSoAUjK2hIFB0Ci4N/TmQFQaH2IDphLRqH/FVgmABT6VVdwlUhOoV90hSYCUoXwE1kmABT6Sl0hC2hx"
-			b"glAoBEChf8/k36wAmMc/rgQA5t7v5bWzAaDQ//rrTQAo9OtrgJgAULiEJVBMACjsQmlkGQG4GTs5Q6EcgMtRdh4KpQAohDYoXVgD"
-			b"wN2UzQigjY+FcYUGD5Q0exFVwSkf+FUFp39YwgOOBLR4NPGAYYWlDjiGykGFupoU9QAK6cu7DjgIFCgAzjMLeCwD5BWe9bnBdvT9"
-			b"ghv52I0ygQIH6IYV6oLRhR9TKBk9XMYUSuZXuwEFzLSmvIIDgFOoMQDiFNQBDhTOOYW1OsPC/93nFJw+AsL/fcsoLDEF0xX8NVUw"
-			b"TLGO74TDvcKLZYzl/xOg4G7HUOpdnTyaFqZJXOtjJ6GwMQ4jLz7kDAWXGaVtT6fT7brDGgn+EBXuhmkCz9t167G2Hrkf5011wEcn"
-			b"PzxcMlHVACFHADJTcR0ARDIf/yblOR39VepPDmXX9FgYNyKvgKuQV1hVmbAdgALZAeSxtL5Ja/XHQjqT5r9icNVgyA4i3y0bYE9i"
-			b"ZfiyVPmWijrLl0oN20CErUcelCtQz5zsHzIZGeazEs8VQiB+VVRmsfWzaiT/AM1F2qNcOsZmAAAAAElFTkSuQmCC"
+			"iVBORw0KGgoAAAANSUhEUgAAAIAAAACABAMAAAAxEHz4AAAAJFBMVEUAAAAwMDAwMDAwMDAvLy8vLy8vLy8wMDCgoKBoaGhMTEyE"
+			"hIRek547AAAAB3RSTlMAfzm/31+fnXZsNAAAAv9JREFUaN6lmUFy2kAQRUWSCluxSLFlly1ZecvOR8g2RxgZ7Bb4AJoyBwBOADcg"
+			"x4unRs4vmJF6+vtXeexNP7/pkQQ01Uhm0udHRWQiN6nJcmSzsNTPJZOn4vIvks+a1UcWbD0IbD0I5P4RDSAI1cnfSrl2mlMpyFJt"
+			"AN+GhzLAk7IBfhNSmg0pgDilg1wff1oAjhRAlA4wCmIMKYCsBgQugljuyq8Ss/NdKWGRPcOL91wbpU/ryxXyLfTlCn+SB5FRwSU7"
+			"sCokO7Aq1MkZGBVcsgOjwiZ5MbIq3LXAGxWwh3lf10HBBkCZVQEtQJlJAS0gFZa4CjgFhxZwCg0ApAJ6SCqgh6RCDQCn4OJ1yCs4"
+			"9JBTaAAgFQAgFXCKpAIOgVSoAUjK2hIFB0Ci4N/TmQFQaH2IDphLRqH/FVgmABT6VVdwlUhOoV90hSYCUoXwE1kmABT6Sl0hC2hx"
+			"glAoBEChf8/k36wAmMc/rgQA5t7v5bWzAaDQ//rrTQAo9OtrgJgAULiEJVBMACjsQmlkGQG4GTs5Q6EcgMtRdh4KpQAohDYoXVgD"
+			"wN2UzQigjY+FcYUGD5Q0exFVwSkf+FUFp39YwgOOBLR4NPGAYYWlDjiGykGFupoU9QAK6cu7DjgIFCgAzjMLeCwD5BWe9bnBdvT9"
+			"ghv52I0ygQIH6IYV6oLRhR9TKBk9XMYUSuZXuwEFzLSmvIIDgFOoMQDiFNQBDhTOOYW1OsPC/93nFJw+AsL/fcsoLDEF0xX8NVUw"
+			"TLGO74TDvcKLZYzl/xOg4G7HUOpdnTyaFqZJXOtjJ6GwMQ4jLz7kDAWXGaVtT6fT7brDGgn+EBXuhmkCz9t167G2Hrkf5011wEcn"
+			"PzxcMlHVACFHADJTcR0ARDIf/yblOR39VepPDmXX9FgYNyKvgKuQV1hVmbAdgALZAeSxtL5Ja/XHQjqT5r9icNVgyA4i3y0bYE9i"
+			"ZfiyVPmWijrLl0oN20CErUcelCtQz5zsHzIZGeazEs8VQiB+VVRmsfWzaiT/AM1F2qNcOsZmAAAAAElFTkSuQmCC"
 		)
 		icon = QtGui.QPixmap()
-		icon.loadFromData(QtCore.QByteArray.fromBase64(ICON_BASE64), "PNG")
+		icon.loadFromData(QtCore.QByteArray.fromBase64(ICON_BASE64.encode()), "PNG")
 		self.setWindowIcon(icon)
 
 		self.setWindowFlag(QtCore.Qt.WindowType.WindowMaximizeButtonHint, False)
@@ -333,7 +336,7 @@ class CreateGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_file_selection(line_text="*Select a file")
 
-		self.create_lineedit("(Optional) Minimum length of strings")
+		self.create_lineedit("(Optional) Minimum length of strings to extract (default: 3)")
 		self.create_padding(1)
 
 		self.create_lineedit("(Optional) Prefix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
@@ -342,8 +345,11 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_lineedit("(Optional) Suffix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
 		self.create_padding(1)
 
-		self.create_lineedit("(Optional) Range offsets hex (comma-separated) e.g.: 018bc5ec:01a09fbd")
+		self.create_lineedit("(Optional) Range offsets hex (comma-separated) e.g.: 018bc5ec:01a09fb1,02a09fb1:02a09fb2")
 		self.create_padding(1)
+
+		self.create_lineedit("(Optional) Whitelisted character sets (comma-separated) e.g.: latin,cyrillic")
+		self.create_button(text="Help", callback=lambda: self.show_message(strindex.help_whitelist()))
 
 		self.create_checkbox("Force Mode").setToolTip(
 			"When patching, replace strings at the same offset they were found.\n"
@@ -360,15 +366,15 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Create strindex",
 			progress_text="Creating... %p%",
-			callback=lambda file, min_length, prefix, suffix, ranges, force_mode, comp_mode: strindex.create(
-				file, None, comp_mode, StrindexSettings(**{
-					"force_mode": force_mode,
-					"min_length": min_length,
-					"prefix_bytes": prefix.split(","),
-					"suffix_bytes": suffix.split(","),
-					"ranges": ranges.split(",")
-				})
-			)
+			callback=lambda file, min_length, prefix, suffix, ranges, whitelists, force_mode, comp_mode:
+			strindex.create(file, None, comp_mode, StrindexSettings(
+				force_mode = force_mode,
+				min_length = min_length if min_length else 3,
+				prefix_bytes = prefix.split(",") if prefix else [],
+				suffix_bytes = suffix.split(",") if suffix else [],
+				ranges = ranges.split(",") if ranges else [],
+				whitelist = whitelists.split(",") if whitelists else []
+			))
 		)
 		self.create_padding(1)
 
@@ -451,7 +457,7 @@ class DeltaGUI(BaseStrindexGUI):
 
 		self.create_action_button(
 			text="Delta strindex",
-			progress_text="Updating... %p%",
+			progress_text="Subtracting... %p%",
 			callback=lambda strdex1, strdex2: strindex.delta(strdex1, strdex2, None)
 		)
 		self.create_padding(1)

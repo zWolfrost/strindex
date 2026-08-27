@@ -1,43 +1,46 @@
-from strindex.utils import FileBytearray, Strindex, StrindexSettings, PrintWrapper
-from strindex.filetypes import force, pe, iff
+from strindex.filetypes import force, iff, pe
+from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
+
+MODULES = (force, pe, iff)
 
 
-class GenericModule():
+class GenericModule:
 	"""
 	A class representing a generic module that can be used to extract and patch strings from a filetype.
 	"""
 
-	def __init__(self, data: FileBytearray, use_force: bool):
-		if use_force:
+	def __init__(self, data: FileBytearray, force_mode: bool = False):
+		if force_mode:
 			self.module = force
-			PrintWrapper.print("Force mode enabled.")
+			Print.debug("Force mode enabled.")
 			return
-
-		MODULES = [pe, iff]
 
 		for module in MODULES:
 			self.module = module
 			if self.match(data):
-				module.FILETYPE = module.__name__.split(".")[-1]
-				PrintWrapper.print(f'Detected filetype: "{module.FILETYPE}".')
+				filetype = module.__name__.split(".")[-1]
+				Print.debug(f'Detected filetype: "{filetype}".')
 				return
 
-		raise NotImplementedError("This file type has no associated module, or the required libraries to handle it are not installed.")
+		raise NotImplementedError(
+			"This file type has no associated module,\n"
+			"or the required libraries to handle it are not installed.\n"
+			"You can use the --force flag to enable force mode\n"
+			"and attempt to extract strings from the file anyway."
+		)
 
-	def __getattribute__(self, action):
-		module = object.__getattribute__(self, "module")
-		if action not in dir(module):
-			raise NotImplementedError(f'Action "{action}" is not available for module "{module.FILETYPE}".')
-		return getattr(module, action)
+	def init(self, data: FileBytearray) -> FileBytearray:
+		""" Initializes the file data for the module. """
+		return self.module.init(data.copy()) if hasattr(self.module, "init") else data.copy()
 
 	def match(self, data: FileBytearray) -> bool:
 		""" Checks if the file is of the target filetype. """
-		pass
+		return self.module.match(self.init(data))
 
 	def create(self, data: FileBytearray, settings: StrindexSettings) -> Strindex:
 		""" Creates a Strindex object from the file data. """
-		pass
+		return self.module.create(self.init(data), settings)
 
 	def patch(self, data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		""" Patches the file data with the Strindex object. """
-		pass
+		return self.module.patch(self.init(data), strindex)

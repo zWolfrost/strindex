@@ -1,4 +1,4 @@
-from strindex.utils import Strindex, StrindexSettings, FileBytearray
+from strindex.utils import FileBytearray, Strindex, StrindexSettings
 
 # https://github.com/panzi/cook-serve-hoomans/blob/master/fileformat.md
 
@@ -13,15 +13,18 @@ def get_last_chunk_pointer(data: FileBytearray) -> int:
 	return prev_offset
 
 
+def init(data: FileBytearray) -> FileBytearray:
+	data.byte_length = 4
+	data.byte_order = 'little'
+	return data
+
+
 def match(data: FileBytearray) -> bool:
 	""" Checks if the file is an IFF file. """
 	return data[0:4] == b"FORM"
 
 
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
-	data.byte_length = 4
-	data.byte_order = 'little'
-
 	return data.create_pointers_macro(
 		settings,
 		lambda offset: data.from_int(offset - data.byte_length)
@@ -39,14 +42,11 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		and might also work with IFF files in general, but I haven't tested it.
 	"""
 
-	data.byte_length = 4
-	data.byte_order = 'little'
-
 	new_data = data.patch_pointers_macro(
 		strindex,
 		lambda offset: data.from_int(offset - data.byte_length),
 		lambda offset: data.from_int(len(data) + offset),
-		lambda string: data.from_int(len(string.encode('utf-8'))) + bytearray(string, 'utf-8') + b'\x00'
+		lambda string: data.from_int(len(string.encode('utf-8'))) + string.encode('utf-8') + b'\x00'
 	)
 
 	data.cursor = 4
