@@ -1,6 +1,5 @@
 # strindex
 [![PyPI version](https://img.shields.io/pypi/v/strindex?label=PyPI%20version)](https://pypi.org/project/strindex/)
-[![PyPI downloads](https://img.shields.io/pypi/dm/strindex?label=PyPI%20downloads)](https://pypi.org/project/strindex/)
 [![GitHub downloads](https://img.shields.io/github/downloads/zWolfrost/strindex/total?label=GitHub%20downloads)](https://github.com/zWolfrost/strindex/releases/latest)
 [![license](https://img.shields.io/github/license/zWolfrost/strindex)](LICENSE)
 
