@@ -380,6 +380,7 @@ class CreateGUI(BaseStrindexGUI):
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
+
 class PatchGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_file_selection(line_text="*Select a file to patch")
