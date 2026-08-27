@@ -12,6 +12,10 @@
 # nuitka-project: --noinclude-qt-plugins=tls
 # nuitka-project: --noinclude-qt-plugins=webview
 
+# nuitka-project: --noinclude-dlls=libQt6Network*
+# nuitka-project: --noinclude-dlls=libQt6OpenGL*
+# nuitka-project: --noinclude-dlls=libQt6Svg*
+
 # nuitka-project: --nofollow-import-to=lingua
 # nuitka-project: --nofollow-import-to=language_tool_python
 
