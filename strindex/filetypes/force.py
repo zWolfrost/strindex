@@ -12,13 +12,8 @@ def match(data: FileBytearray) -> bool:
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	strindex = Strindex()
 
-	for string, start_offset, end_offset in data.strings_find(min_length=settings.min_length):
-		if (
-			settings.matches_prefix(data, start_offset) and
-			settings.matches_suffix(data, end_offset) and
-			settings.is_in_any_range(start_offset) and
-			settings.is_in_whitelist(string)
-		):
+	for string, start_offset, end_offset in data.strings_find(min_length=settings.min_length, ranges=settings.ranges, whitelist=settings._whitelist):
+		if settings.matches_prefix(data, start_offset) and settings.matches_suffix(data, end_offset):
 			strindex.strings.append(string)
 			strindex.pointers.append([start_offset])
 			strindex.type_order.append("overwrite")

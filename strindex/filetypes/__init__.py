@@ -1,7 +1,11 @@
-from strindex.filetypes import force, iff, pe
+import importlib
+import pkgutil
+
+from strindex.filetypes import *
+from strindex.filetypes import force
 from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
 
-MODULES = (force, pe, iff)
+MODULES = [importlib.import_module(f"{__name__}.{n}") for _, n, _ in pkgutil.iter_modules(__path__) if not n.startswith("_")]
 
 
 class GenericModule:
