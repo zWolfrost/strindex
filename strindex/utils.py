@@ -221,6 +221,45 @@ class Strindex:
 	POINTERS_DEL = '/'
 	POINTERS_SWITCHES_DEL = '|'
 
+	_UNESCAPE_DICT = {
+		'\\': '\\',
+		't': '\t',
+		'n': '\n',
+		'r': '\r',
+	}
+	_UNESCAPE_RE = re.compile(r'\\([\\tnr])')
+	@staticmethod
+	def unescape_ctrl_hack(s: str) -> str:
+		return Strindex._UNESCAPE_RE.sub(lambda m: Strindex._UNESCAPE_DICT[m.group(1)], s)
+
+	_ESCAPE_MAP = str.maketrans({
+		'\\': r'\\',
+		'\t': r'\t',
+		'\n': r'\n',
+		'\r': r'\r',
+	})
+	@staticmethod
+	def escape_ctrl_hack(string: str) -> str:
+		return string.translate(Strindex._ESCAPE_MAP)
+
+	@staticmethod
+	def toml_dumps_hack(obj: dict) -> str:
+		def formatter(val):
+			if isinstance(val, list):
+				return "[ " + ", ".join(formatter(v) for v in val) + " ]"
+			if isinstance(val, dict):
+				return "{ " + ", ".join(f'"{k}" = "{v}"' for k, v in val.items()) + " }"
+			if isinstance(val, bytes):
+				return f"\"{val.hex()}\""
+			if isinstance(val, range):
+				return f"\"{val.start:08x}:{val.stop - 1:08x}\""
+			return JSONEncoder().encode(val)
+
+		dumps = ""
+		for key, value in obj.items():
+			dumps += f"{key} = {formatter(value)}\n"
+		return dumps
+
 	settings: StrindexSettings
 
 	strings: list[str | list[str, str]]
@@ -296,12 +335,8 @@ class Strindex:
 					if line.startswith(Strindex.ORIGINAL_DEL):
 						line = line.lstrip(Strindex.ORIGINAL_DEL)
 
-						if next_str_type == "overwrite":
-							strindex.strings[-1] = strindex.strings[-1][:-1]
-						elif next_str_type == "original":
-							strindex.strings[-1][1] = strindex.strings[-1][0] = strindex.strings[-1][0][:-1]
-						elif next_str_type == "replace":
-							strindex.strings[-1][1] = strindex.strings[-1][1][:-1]
+						if next_str_type == "original":
+							strindex.strings[-1][1] = strindex.strings[-1][0]
 
 						try:
 							if Strindex.POINTERS_DEL in line:
@@ -318,7 +353,6 @@ class Strindex:
 							raise ValueError(f"Error parsing Strindex pointers: {repr(line)}") from e
 					elif line.startswith(Strindex.REPLACE_DEL) and next_str_type == "original":
 						next_str_type = "replace"
-						strindex.strings[-1][0] = strindex.strings[-1][0][:-1]
 					else:
 						if next_str_type == "overwrite":
 							strindex.strings[-1] += line
@@ -328,6 +362,15 @@ class Strindex:
 							strindex.strings[-1][1] += line
 			except UnicodeDecodeError as e:
 				raise ValueError(f"Error decoding Strindex at char {f.tell()}") from e
+
+		clean_string = lambda s: Strindex.unescape_ctrl_hack(s.removesuffix("\n"))
+
+		for i in range(len(strindex.strings)):
+			if strindex.type_order[i] == "overwrite":
+				strindex.strings[i] = clean_string(strindex.strings[i])
+			else:
+				strindex.strings[i][0] = clean_string(strindex.strings[i][0])
+				strindex.strings[i][1] = clean_string(strindex.strings[i][1])
 
 		if strindex.strings and strindex.strings[-1] == ['', '']:
 			strindex.strings.pop()
@@ -346,32 +389,13 @@ class Strindex:
 		OVERWRITE_INFO = f"# EXAMPLE OF REPLACEMENT:\n# {'=' * Strindex.SEP_COUNT}/pointer(s)/\n# replace the string that was previously provided here, with this one!\n\n"
 		COMPATIBLE_INFO = f"# EXAMPLE OF REPLACEMENT:\n# {'=' * Strindex.SEP_COUNT}|reallocate pointer(s) if 1, or skip if 0|\n# replace this string...\n# {'-' * Strindex.SEP_COUNT}\n# ...with this string!\n\n"
 
-		HEX_RJUST = 8
-
 		self.assert_data()
-
-		def toml_dumps_hack(obj: dict) -> str:
-			def formatter(val):
-				if isinstance(val, list):
-					return "[ " + ", ".join(formatter(v) for v in val) + " ]"
-				if isinstance(val, dict):
-					return "{ " + ", ".join(f'"{k}" = "{v}"' for k, v in val.items()) + " }"
-				if isinstance(val, bytes):
-					return f"\"{val.hex()}\""
-				if isinstance(val, range):
-					return f"\"{val.start:0{HEX_RJUST}x}:{val.stop - 1:0{HEX_RJUST}x}\""
-				return JSONEncoder().encode(val)
-
-			dumps = ""
-			for key, value in obj.items():
-				dumps += f"{key} = {formatter(value)}\n"
-			return dumps
 
 		with (open(filepath, 'w', encoding='utf-8', newline='') if filepath else StringIO()) as f:
 			if self.settings._raw is not None:
 				f.write(self.settings._raw)
 			else:
-				f.write(HEADER_INFO + "\n" + toml_dumps_hack(self.settings.get_changed()) + "\n")
+				f.write(HEADER_INFO + "\n" + Strindex.toml_dumps_hack(self.settings.get_changed()) + "\n")
 
 				if len(self.type_order) > 0:
 					f.write(COMPATIBLE_INFO if self.type_order[0] == "compatible" else OVERWRITE_INFO)
@@ -382,16 +406,16 @@ class Strindex:
 						Strindex.ORIGINAL_DEL + Strindex.POINTERS_SWITCHES_DEL +
 						"".join(str(int(bool(p))) for p in pointers) +
 						Strindex.POINTERS_SWITCHES_DEL + "\n" +
-						strings[0] + "\n" +
+						Strindex.unescape_ctrl_hack(strings[0]) + "\n" +
 						Strindex.REPLACE_DEL + "\n" +
-						strings[1] + "\n"
+						Strindex.unescape_ctrl_hack(strings[1]) + "\n"
 					)
 				else:
 					f.write(
 						Strindex.ORIGINAL_DEL + Strindex.POINTERS_DEL +
-						Strindex.POINTERS_DEL.join(f"{p or 0:0{HEX_RJUST}x}" for p in pointers) +
+						Strindex.POINTERS_DEL.join(f"{p or 0:08x}" for p in pointers) +
 						Strindex.POINTERS_DEL + "\n" +
-						strings + "\n"
+						Strindex.escape_ctrl_hack(strings) + "\n"
 					)
 
 			f.seek(f.tell() - 1)

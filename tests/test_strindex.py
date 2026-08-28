@@ -70,24 +70,24 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 def test_create_pe():
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, True, StrindexSettings(_raw=""))
-		assert get_file_md5(temp_strindex_created.name) == "248bf96d22f4b513baf8b451ddfc7f8d"
+		assert get_file_md5(temp_strindex_created.name) == "11d5bb62d8bf255b62512c3c9cb798e2"
 
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, False, (StrindexSettings(
 			_raw="", min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["018bc5ec:01a09fb1"]
 		)))
-		assert get_file_md5(temp_strindex_created.name) == "7ba82e99bf64110fec068e46faf0d055"
+		assert get_file_md5(temp_strindex_created.name) == "a99c090af182c953e65055a34b78d98d"
 
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, False, StrindexSettings(_raw=""))
-		assert get_file_md5(temp_strindex_created.name) == "2c40f6aecfaaef27bdb6d3d627bd601a"
+		assert get_file_md5(temp_strindex_created.name) == "bead9b4aae83058f9a446dc5c951230c"
 
 def test_create_iff():
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("data.win"), temp_strindex_created.name, False, StrindexSettings(
 			_raw="", prefix_bytes=["d000"], ranges=["00d00172:00d1002e"]
 		))
-		assert get_file_md5(temp_strindex_created.name) == "01a0fee0d4191649dc50bce91f5f3444"
+		assert get_file_md5(temp_strindex_created.name) == "bf3604eba22262539fbeddda30dce28b"
 
 def test_patch_pe(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
 	with temp_open() as temp_file_patched:

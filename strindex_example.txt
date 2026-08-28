@@ -84,7 +84,10 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # When using original strings to replace the patched ones (like in the first example),
 # they must be in order of appearance in the file, or else they will be skipped.
 #
-# Below lies the start of the body of the strindex, detected by the 80 consecutive "═" characters...
+# IMPORTANT: The control characters "\t", "\n" and "\r" (and "\" by itself) are *ESCAPED*
+# on the strindex body, and will be *UNESCAPED* when the strindex is read by the program.
+#
+# Below lies the start of the body of the strindex, detected by the 80 consecutive "═" characters.
 
 
 ================================================================================|11|
