@@ -1,5 +1,5 @@
 # nuitka-project: --product-name=strindex
-# nuitka-project: --product-version=4.1.0
+# nuitka-project: --product-version=5.0.0
 
 # nuitka-project: --mode=app
 
