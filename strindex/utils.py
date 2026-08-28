@@ -221,7 +221,7 @@ class Strindex:
 	POINTERS_DEL = '/'
 	POINTERS_SWITCHES_DEL = '|'
 
-	_UNESCAPE_DICT = {
+	_UNESCAPE_DICT: ClassVar[dict[str, str]] = {
 		'\\': '\\',
 		't': '\t',
 		'n': '\n',
@@ -350,7 +350,7 @@ class Strindex:
 								strindex.pointers.append([bool(int(p)) for p in line.split(Strindex.POINTERS_SWITCHES_DEL)[1:-1][0] if p])
 								strindex.type_order.append("compatible")
 						except Exception as e:
-							raise ValueError(f"Error parsing Strindex pointers: {repr(line)}") from e
+							raise ValueError(f"Error parsing Strindex pointers: {line!r}") from e
 					elif line.startswith(Strindex.REPLACE_DEL) and next_str_type == "original":
 						next_str_type = "replace"
 					else:

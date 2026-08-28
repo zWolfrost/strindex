@@ -15,6 +15,7 @@ It features various built-in features to help with translation, such as spellche
 *Support for more filetypes is not planned.*
 - PE files (".exe", ".dll"...) *(direct pointers only!)*
 - Gamemaker data files ("data.win")
+- Unreal Engine localization files (".locres")
 - Every filetype, if using force mode*...
 
 **Force mode doesn't allow the replaced strings to be bigger in length than the original strings.*

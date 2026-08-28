@@ -1,4 +1,4 @@
-from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
+from strindex.utils import FileBytearray, Strindex, StrindexSettings
 
 
 def is_negative_utf16_length(length: int) -> bool:
@@ -6,7 +6,8 @@ def is_negative_utf16_length(length: int) -> bool:
 
 
 def get_text_start_offset(data: FileBytearray) -> int:
-	return data.index(b"ST_Localization") + 48
+	data.cursor = 17
+	return data.get_int()
 
 
 def init(data: FileBytearray) -> FileBytearray:
@@ -26,7 +27,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 	while data.cursor < len(data)-4:
 		pointer = data.cursor
-		id = data.get_int()
+		_ = data.get_int() # id
 		length = data.get_int()
 
 		if is_negative_utf16_length(length): # utf-16
