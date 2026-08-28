@@ -70,7 +70,7 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 def test_create_pe():
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, True, StrindexSettings(_raw=""))
-		assert get_file_md5(temp_strindex_created.name) == "b5a10f300c3becd2021a83ef918de8c7"
+		assert get_file_md5(temp_strindex_created.name) == "248bf96d22f4b513baf8b451ddfc7f8d"
 
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, False, (StrindexSettings(
@@ -80,7 +80,7 @@ def test_create_pe():
 
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, False, StrindexSettings(_raw=""))
-		assert get_file_md5(temp_strindex_created.name) == "a4dee6d4c6f64931fdbb7e7bdb2c1b66"
+		assert get_file_md5(temp_strindex_created.name) == "2c40f6aecfaaef27bdb6d3d627bd601a"
 
 def test_create_iff():
 	with temp_open() as temp_strindex_created:
@@ -97,7 +97,7 @@ def test_patch_pe(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
 	with temp_open() as temp_strindex_full, temp_open() as temp_file_patched:
 		kz_pe_strindex_full.write(temp_strindex_full.name)
 		patch(get_file_path("Katana ZERO.exe"), temp_strindex_full.name, temp_file_patched.name)
-		assert get_file_md5(temp_file_patched.name) == "00c0788711cb31cee19b7c1f86fe0009"
+		assert get_file_md5(temp_file_patched.name) == "026491ad7495fdf1e996802885dd410e"
 
 	with temp_open() as temp_strindex_part, temp_open() as temp_file_patched:
 		kz_pe_strindex_part.write(temp_strindex_part.name)
@@ -129,7 +129,7 @@ def test_filter(kz_pe_strindex_full: Strindex):
 
 		filter(temp_strindex.name, temp_strindex_filtered.name)
 
-		assert len(Strindex.read(temp_strindex_filtered.name).strings) == 24171
+		assert len(Strindex.read(temp_strindex_filtered.name).strings) == 24180
 
 def test_delta(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
 	with temp_open() as temp_strindex1, temp_open() as temp_strindex2, temp_open() as temp_strindex_delta:
@@ -138,4 +138,4 @@ def test_delta(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
 
 		delta(temp_strindex1.name, temp_strindex2.name, temp_strindex_delta.name)
 
-		assert len(Strindex.read(temp_strindex_delta.name).strings) == 20797
+		assert len(Strindex.read(temp_strindex_delta.name).strings) == 20840

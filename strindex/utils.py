@@ -104,7 +104,7 @@ class Progress:
 class StrindexSettings:
 	# These are really limited, so I would really like if you added your language's characters here and open a pull request <3
 	CHARACTER_SETS: ClassVar[dict[str, str]] = {
-		"_default": """\t\n !"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~… """,
+		"_default": """\t\n\r !"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~… """,
 		"latin": """ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz""",
 		"spanish": """¡¿ÁÉÍÓÚÜÑáéíóúüñã""",
 		"italian": """ÀÈÉÌÒÓÙàèéìòóù""",
@@ -278,7 +278,7 @@ class Strindex:
 		with open(filepath, 'rb') as f:
 			is_gzipped = (f.read(2) == b'\x1f\x8b')
 
-		with (gzip.open(filepath, 'rt', encoding='utf-8') if is_gzipped else open(filepath, 'r', encoding='utf-8')) as f:
+		with (gzip.open(filepath, 'rt', encoding='utf-8', newline='') if is_gzipped else open(filepath, 'r', encoding='utf-8', newline='')) as f:
 			try:
 				full_header = ""
 				previous_line_pos = 0
@@ -292,15 +292,16 @@ class Strindex:
 				strindex.settings = StrindexSettings.read_from_toml_str(full_header)
 
 				next_str_type = ""
-				is_start = True
 				while line := f.readline():
-					line = line.rstrip('\n')
 					if line.startswith(Strindex.ORIGINAL_DEL):
-						is_start = True
 						line = line.lstrip(Strindex.ORIGINAL_DEL)
 
-						if next_str_type == "original":
-							strindex.strings[-1][1] = strindex.strings[-1][0]
+						if next_str_type == "overwrite":
+							strindex.strings[-1] = strindex.strings[-1][:-1]
+						elif next_str_type == "original":
+							strindex.strings[-1][1] = strindex.strings[-1][0] = strindex.strings[-1][0][:-1]
+						elif next_str_type == "replace":
+							strindex.strings[-1][1] = strindex.strings[-1][1][:-1]
 
 						try:
 							if Strindex.POINTERS_DEL in line:
@@ -311,18 +312,14 @@ class Strindex:
 							else:
 								next_str_type = "original"
 								strindex.strings.append(['', ''])
-								strindex.pointers.append([bool(int(p)) for p in line.strip(Strindex.POINTERS_SWITCHES_DEL) if p])
+								strindex.pointers.append([bool(int(p)) for p in line.split(Strindex.POINTERS_SWITCHES_DEL)[1:-1][0] if p])
 								strindex.type_order.append("compatible")
 						except Exception as e:
-							raise ValueError(f"Error parsing Strindex pointers: {line}") from e
-					elif line == Strindex.REPLACE_DEL and next_str_type == "original":
-						is_start = True
+							raise ValueError(f"Error parsing Strindex pointers: {repr(line)}") from e
+					elif line.startswith(Strindex.REPLACE_DEL) and next_str_type == "original":
 						next_str_type = "replace"
+						strindex.strings[-1][0] = strindex.strings[-1][0][:-1]
 					else:
-						if not is_start:
-							line = "\n" + line
-						is_start = False
-
 						if next_str_type == "overwrite":
 							strindex.strings[-1] += line
 						elif next_str_type == "original":
@@ -370,7 +367,7 @@ class Strindex:
 				dumps += f"{key} = {formatter(value)}\n"
 			return dumps
 
-		with (open(filepath, 'w', encoding='utf-8', newline='\n') if filepath else StringIO()) as f:
+		with (open(filepath, 'w', encoding='utf-8', newline='') if filepath else StringIO()) as f:
 			if self.settings._raw is not None:
 				f.write(self.settings._raw)
 			else:

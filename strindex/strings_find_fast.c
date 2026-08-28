@@ -53,7 +53,7 @@ static int is_in_ranges(Py_ssize_t start, Py_ssize_t end, const RangeList *rl) {
 static int contains_control_chars(const unsigned char *data, Py_ssize_t start, Py_ssize_t end) {
     for (Py_ssize_t j = start; j < end; j++) {
         unsigned char c = data[j];
-        if ((c >= 1 && c <= 8) || (c >= 11 && c <= 31) || c == 127)
+        if ((c >= 1 && c <= 8) || c == 11 || c == 12 || (c >= 14 && c <= 31) || c == 127)
             return 1;
     }
     return 0;
