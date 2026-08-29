@@ -5,7 +5,7 @@ from pathlib import Path
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import QTimer
 
-from strindex import strindex
+import strindex.core
 from strindex.utils import Progress, StrindexSettings
 
 
@@ -221,7 +221,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		self.app = QtWidgets.QApplication([])
 		self.app.setApplicationName("Strindex")
-		self.app.setApplicationVersion(strindex.VERSION)
+		self.app.setApplicationVersion(strindex.core.VERSION)
 		self.app.setOrganizationName("zWolfrost")
 
 		super().__init__()
@@ -292,7 +292,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 				"You can specify the target language in the strindex settings as an ISO 639-1 code."
 			)
 
-		version_label = QtWidgets.QLabel(f"<a href='https://github.com/zWolfrost/strindex'>v{strindex.VERSION}</a>")
+		version_label = QtWidgets.QLabel(f"<a href='https://github.com/zWolfrost/strindex'>v{strindex.core.VERSION}</a>")
 		version_label.setOpenExternalLinks(True)
 		version_label.setContentsMargins(3, 3, 3, 3)
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
@@ -349,7 +349,7 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_padding(1)
 
 		self.create_lineedit("(Optional) Whitelisted character sets (comma-separated) e.g.: latin,cyrillic")
-		self.create_button(text="Help", callback=lambda: self.show_message(strindex.help_whitelist()))
+		self.create_button(text="Help", callback=lambda: self.show_message(strindex.core.help_whitelist()))
 
 		self.create_checkbox("Force Mode").setToolTip(
 			"When patching, replace strings at the same offset they were found.\n"
@@ -367,7 +367,7 @@ class CreateGUI(BaseStrindexGUI):
 			text="Create strindex",
 			progress_text="Creating... %p%",
 			callback=lambda file, min_length, prefix, suffix, ranges, whitelists, force_mode, compatible:
-			strindex.create(
+			strindex.core.create(
 				file, None, StrindexSettings(
 					force_mode = force_mode,
 					min_length = min_length if min_length else 3,
@@ -391,13 +391,13 @@ class PatchGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Patch file",
 			progress_text="Patching... %p%",
-			callback=lambda file, strdex: strindex.patch(file, strdex, None)
+			callback=lambda file, strdex: strindex.core.patch(file, strdex, None)
 		)
 
 		self.create_action_button(
 			text="Unpatch file",
 			progress_text="Unpatching... %p%",
-			callback=lambda file, _: strindex.unpatch(file)
+			callback=lambda file, _: strindex.core.unpatch(file)
 		)
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
@@ -416,7 +416,7 @@ class UpdateGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Update strindex",
 			progress_text="Updating... %p%",
-			callback=lambda file, strdex: strindex.update(file, strdex, None)
+			callback=lambda file, strdex: strindex.core.update(file, strdex, None)
 		)
 		self.create_padding(1)
 
@@ -431,7 +431,7 @@ class InferGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Infer",
 			progress_text="Inferring... %p%",
-			callback=lambda file, strdex: strindex.infer(file, strdex)
+			callback=lambda file, strdex: strindex.core.infer(file, strdex)
 		)
 		self.create_padding(1)
 
@@ -445,7 +445,7 @@ class FilterGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Filter strindex",
 			progress_text="Filtering... %p%",
-			callback=lambda strdex: strindex.filter(strdex, None)
+			callback=lambda strdex: strindex.core.filter(strdex, None)
 		)
 		self.create_padding(1)
 
@@ -460,7 +460,7 @@ class DeltaGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Delta strindex",
 			progress_text="Subtracting... %p%",
-			callback=lambda strdex1, strdex2: strindex.delta(strdex1, strdex2, None)
+			callback=lambda strdex1, strdex2: strindex.core.delta(strdex1, strdex2, None)
 		)
 		self.create_padding(1)
 
@@ -474,7 +474,7 @@ class SpellcheckGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Spellcheck strindex",
 			progress_text="Spellchecking... %p%",
-			callback=lambda strdex: strindex.spellcheck(strdex, None)
+			callback=lambda strdex: strindex.core.spellcheck(strdex, None)
 		)
 		self.create_padding(1)
 

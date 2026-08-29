@@ -25,10 +25,10 @@
 
 import sys
 
-from strindex import strindex
+from strindex.core import main
 
 if __name__ == "__main__":
 	if "__compiled__" in globals() and len(sys.argv) <= 1:
-		strindex.main(["gui", "--verbose"])
+		main(["gui", "--verbose"])
 	else:
-		strindex.main()
+		main()
