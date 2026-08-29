@@ -58,6 +58,8 @@ class Progress:
 	global_instance: "Progress"
 	global_callback: Callable[["Progress"], None]
 
+	global_instance_priority: int
+
 	total: int
 	limit: int
 	delta: int
@@ -101,9 +103,10 @@ class Progress:
 		return wrapper
 
 	@staticmethod
-	def init_global_instance(*args, **kwargs):
-		if not hasattr(Progress, "global_instance"):
+	def init_global_instance(*args, priority: int = 0, **kwargs):
+		if not hasattr(Progress, "global_instance_priority") or priority >= Progress.global_instance_priority:
 			Progress.global_instance = Progress(*args, **kwargs)
+			Progress.global_instance_priority = priority
 
 
 class StrindexSettings:
