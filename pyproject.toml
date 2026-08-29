@@ -42,7 +42,7 @@ dev = [
 Homepage = "https://github.com/zWolfrost/strindex"
 
 [project.scripts]
-strindex = "strindex.strindex:main"
+strindex = "strindex.core:main"
 
 [tool.setuptools]
 packages = ["strindex", "strindex.filetypes"]
