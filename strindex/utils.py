@@ -423,6 +423,34 @@ class Strindex:
 
 			return f.getvalue() if filepath is None else filepath
 
+	def normalize_to_overwrite(self, full_lst_offset: list[int], full_lst_string: list[str]):
+		""" Converts compatible strings to overwrite strings and deletes them if necessary. """
+
+		assert len(full_lst_string) == len(full_lst_offset), "The full string and offset lists must be the same length."
+
+		start_i = 0
+		for i in range(len(self.strings)):
+			if self.type_order[i] != "compatible":
+				continue
+
+			try:
+				search_i = full_lst_string.index(self.strings[i][0], start_i)
+			except ValueError:
+				pass
+			else:
+				start_i = search_i + 1
+				if any(self.pointers[i]):
+					self.type_order[i] = "overwrite"
+					self.pointers[i] = [p for p, s in zip(full_lst_offset[search_i], self.pointers[i]) if s]
+					self.strings[i] = self.strings[i][1]
+
+		for i in reversed(range(len(self.strings))):
+			if self.type_order[i] == "compatible":
+				Print.warning(f"String not found: \"{self.strings[i][0]}\"")
+				self.strings.pop(i)
+				self.pointers.pop(i)
+				self.type_order.pop(i)
+
 	def append_strindex_index(self, strindex: "Strindex", index: int):
 		self.strings.append(strindex.strings[index])
 		self.pointers.append(strindex.pointers[index])
@@ -592,9 +620,8 @@ class FileBytearray(bytearray):
 			if filter_bytes_from_offset is not None:
 				pointers = [p for p in pointers if filter_bytes_from_offset(p)]
 			if pointers:
-				strindex.strings.append(string)
 				strindex.pointers.append(pointers)
-				strindex.type_order.append("overwrite")
+				strindex.strings.append(string)
 
 		Print.debug(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
 

@@ -14,9 +14,8 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 	for string, start_offset, end_offset in data.strings_find(min_length=settings.min_length, ranges=settings.ranges, whitelist=settings._whitelist):
 		if settings.matches_prefix(data, start_offset) and settings.matches_suffix(data, end_offset):
-			strindex.strings.append(string)
 			strindex.pointers.append([start_offset])
-			strindex.type_order.append("overwrite")
+			strindex.strings.append(string)
 
 	Print.debug(f"Found {len(strindex.strings)} strings.")
 

@@ -366,15 +366,17 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Create strindex",
 			progress_text="Creating... %p%",
-			callback=lambda file, min_length, prefix, suffix, ranges, whitelists, force_mode, comp_mode:
-			strindex.create(file, None, comp_mode, StrindexSettings(
-				force_mode = force_mode,
-				min_length = min_length if min_length else 3,
-				prefix_bytes = prefix.split(",") if prefix else [],
-				suffix_bytes = suffix.split(",") if suffix else [],
-				ranges = ranges.split(",") if ranges else [],
-				whitelist = whitelists.split(",") if whitelists else []
-			))
+			callback=lambda file, min_length, prefix, suffix, ranges, whitelists, force_mode, compatible:
+			strindex.create(
+				file, None, StrindexSettings(
+					force_mode = force_mode,
+					min_length = min_length if min_length else 3,
+					prefix_bytes = prefix.split(",") if prefix else [],
+					suffix_bytes = suffix.split(",") if suffix else [],
+					ranges = ranges.split(",") if ranges else [],
+					whitelist = whitelists.split(",") if whitelists else []
+				), compatible
+			)
 		)
 		self.create_padding(1)
 

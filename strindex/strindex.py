@@ -8,7 +8,7 @@ from strindex.utils import FileBytearray, Print, Progress, Strindex, StrindexSet
 VERSION = "5.0.0"
 
 
-def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, settings: StrindexSettings) -> str:
+def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings, compatible: bool) -> str:
 	"""
 		Calls the create method of the module associated with the file type.
 	"""
@@ -19,15 +19,7 @@ def create(file_filepath: str, strindex_filepath: str | None, compatible: bool, 
 
 	data = FileBytearray.read(file_filepath)
 
-	STRINDEX = GenericModule(data, settings.force_mode).create(data, settings)
-
-	if compatible:
-		STRINDEX.type_order = ["compatible"] * len(STRINDEX.strings)
-		for i in range(len(STRINDEX.strings)):
-			STRINDEX.strings[i] = [STRINDEX.strings[i], STRINDEX.strings[i]]
-
-	STRINDEX.settings = settings
-	STRINDEX.settings.md5 = data.md5
+	STRINDEX = GenericModule(data, settings.force_mode).create(data, settings, compatible)
 
 	STRINDEX.write(strindex_filepath)
 
@@ -372,7 +364,7 @@ def main(sysargs=None):
 				case "create":
 					assert_files_num(1)
 					create(
-						args.files[0], args.output, args.compatible,
+						args.files[0], args.output,
 						StrindexSettings(
 							force_mode = args.force_mode,
 							min_length = args.min_length,
@@ -380,7 +372,8 @@ def main(sysargs=None):
 							suffix_bytes = args.suffix_bytes,
 							ranges = args.range,
 							whitelist = args.whitelist
-						)
+						),
+						args.compatible
 					)
 				case "patch":
 					assert_files_num(2)

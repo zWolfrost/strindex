@@ -38,7 +38,7 @@ def init(data: FileBytearray) -> FileBytearray:
 
 
 def match(data: FileBytearray) -> bool:
-	return data[0:4] == b"\x0e\x14\x74\x75" and b"ST_Localization" in data
+	return data[0:4] == b"\x0e\x14\x74\x75"
 
 
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
@@ -49,49 +49,34 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	for offset, (_, _, string) in get_structures_dict(data).items():
 		strindex.pointers.append([offset])
 		strindex.strings.append(string)
-		strindex.type_order.append("overwrite")
 
 	return strindex
 
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	structures = get_structures_dict(data)
-	lst_offset, lst_string = zip(*[(offset, string) for offset, (_, _, string) in structures.items()])
 
-	def update_structures_string(offset, string):
+	strindex.normalize_to_overwrite([[o] for o in structures], [p[2] for p in structures.values()])
+
+	for pointers, string in zip(strindex.pointers, strindex.strings):
+		offset = pointers[0]
+		if offset not in structures:
+			Print.warning(f"No string found at offset {offset:08x}")
+			continue
 		structures[offset] = (structures[offset][0], structures[offset][1], string)
 
-	start_i = 0
-	for switches, original, replace in zip(strindex.get_switches, strindex.get_original, strindex.get_replace):
-		if switches[0]:
-			try:
-				search_i = lst_string.index(original, start_i)
-			except ValueError:
-				Print.warning(f"String not found: \"{original}\"")
-			else:
-				start_i = search_i + 1
-				update_structures_string(lst_offset[search_i], replace)
-
-	for pointers, overwrite in zip(strindex.get_offsets, strindex.get_overwrite):
-		if pointers[0] not in structures:
-			Print.warning(f"No string found at offset {pointers[0]:08x}")
-			continue
-		update_structures_string(pointers[0], overwrite)
-
-	new_data = bytearray()
+	data[get_text_start_offset(data):] = b""
 
 	for id, length, string in structures.values():
-		new_data += data.from_int(id)
+		data += data.from_int(id)
 
 		if is_utf16_from_length(length):
 			string_encoded = string.encode("utf-16-le")
-			new_data += data.from_int(int("ffffffff", 16) - len(string_encoded) // 2) + string_encoded + b'\x00\x00'
+			data += data.from_int(int("ffffffff", 16) - len(string_encoded) // 2) + string_encoded + b'\x00\x00'
 		else:
 			string_encoded = string.encode("utf-8")
-			new_data += data.from_int(len(string_encoded) + 1) + string_encoded + b'\x00'
+			data += data.from_int(len(string_encoded) + 1) + string_encoded + b'\x00'
 
-	new_data += b"\x01\x00\x00\x00"
-
-	data = FileBytearray(data[:get_text_start_offset(data)] + new_data)
+	data += b"\x01\x00\x00\x00"
 
 	return data

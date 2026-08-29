@@ -41,9 +41,21 @@ class GenericModule:
 		""" Checks if the file is of the target filetype. """
 		return self.module.match(self.init(data))
 
-	def create(self, data: FileBytearray, settings: StrindexSettings) -> Strindex:
+	def create(self, data: FileBytearray, settings: StrindexSettings, compatible: bool = False) -> Strindex:
 		""" Creates a Strindex object from the file data. """
-		return self.module.create(self.init(data), settings)
+		strindex = self.module.create(self.init(data), settings)
+
+		if compatible:
+			strindex.type_order = ["compatible"] * len(strindex.strings)
+			strindex.pointers = [[bool(p) for p in pointers] for pointers in strindex.pointers]
+			strindex.strings = [[s, s] for s in strindex.strings]
+		else:
+			strindex.type_order = ["overwrite"] * len(strindex.strings)
+
+		strindex.settings = settings
+		strindex.settings.md5 = data.md5
+
+		return strindex
 
 	def patch(self, data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		""" Patches the file data with the Strindex object. """
