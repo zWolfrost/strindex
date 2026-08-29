@@ -1,6 +1,12 @@
-from strindex.utils import FileBytearray, Strindex, StrindexSettings
-
 # https://github.com/panzi/cook-serve-hoomans/blob/master/fileformat.md
+
+from strindex.utils import FileBytearray, ModuleSettings, Strindex, StrindexSettings
+
+SETTINGS = ModuleSettings(
+	default_byte_length=4,
+	default_byte_order="little",
+	filter_after_create=False
+)
 
 
 def get_last_chunk_pointer(data: FileBytearray) -> int:
@@ -11,12 +17,6 @@ def get_last_chunk_pointer(data: FileBytearray) -> int:
 			prev_offset = data.cursor - 4
 		data.cursor += size + 4
 	return prev_offset
-
-
-def init(data: FileBytearray) -> FileBytearray:
-	data.byte_length = 4
-	data.byte_order = "little"
-	return data
 
 
 def match(data: FileBytearray) -> bool:

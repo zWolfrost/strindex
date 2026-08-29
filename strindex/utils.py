@@ -1,3 +1,4 @@
+import dataclasses
 import gzip
 import hashlib
 import re
@@ -462,7 +463,7 @@ class Strindex:
 						Strindex.escape_ctrl(strings) + "\n"
 					)
 
-			f.seek(f.tell() - 1)
+			f.seek(max(f.tell() - 1, 0))
 			f.truncate()
 
 			return f.getvalue() if filepath is None else filepath
@@ -493,9 +494,9 @@ class Strindex:
 		for i in reversed(range(len(self.strings))):
 			if self.type_order[i] == "compatible":
 				Print.warning(f'String not found: "{self.strings[i][0]}"')
-				self.strings.pop(i)
-				self.pointers.pop(i)
-				self.type_order.pop(i)
+				del self.type_order[i]
+				del self.pointers[i]
+				del self.strings[i]
 
 	def append_strindex_index(self, strindex: "Strindex", index: int):
 		self.strings.append(strindex.strings[index])
@@ -675,8 +676,7 @@ class FileBytearray(bytearray):
 	def create_pointers_macro(
 		self,
 		settings: StrindexSettings,
-		original_bytes_from_offset: Callable[[int], bytes],
-		filter_bytes_from_offset: Callable[[int], bool] | None = None
+		original_bytes_from_offset: Callable[[int], bytes]
 	) -> Strindex:
 		temp_strindex = {
 			"original": [],
@@ -685,7 +685,7 @@ class FileBytearray(bytearray):
 		}
 
 		for string, start_offset, _ in self.strings_find(
-			min_length=settings.min_length, ranges=settings.ranges, whitelist=settings._whitelist
+			min_length=settings.min_length, whitelist=settings._whitelist
 		):
 			if original_bytes := original_bytes_from_offset(start_offset):
 				temp_strindex["original"].append(string)
@@ -709,8 +709,7 @@ class FileBytearray(bytearray):
 
 		strindex = Strindex()
 		for string, pointers in zip(temp_strindex["original"], temp_strindex["pointers"], strict=True):
-			if filter_bytes_from_offset is not None:
-				pointers = [p for p in pointers if filter_bytes_from_offset(p)]
+			pointers = [p for p in pointers if settings.is_in_any_range(p)]
 			if pointers:
 				strindex.pointers.append(pointers)
 				strindex.strings.append(string)
@@ -794,3 +793,10 @@ class FileBytearray(bytearray):
 	def md5_backup_suffix(self) -> str:
 		MD5_SLICE_LENGTH = 8
 		return "_" + self.md5[:MD5_SLICE_LENGTH] + ".bak"
+
+
+@dataclasses.dataclass(frozen=True)
+class ModuleSettings:
+	default_byte_length: int | None = None
+	default_byte_order: str | None = None
+	filter_after_create: bool = True

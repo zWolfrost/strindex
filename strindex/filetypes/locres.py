@@ -1,4 +1,9 @@
-from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
+from strindex.utils import FileBytearray, ModuleSettings, Print, Strindex, StrindexSettings
+
+SETTINGS = ModuleSettings(
+	default_byte_length=4,
+	default_byte_order="little"
+)
 
 
 def is_utf16_from_length(length: int) -> bool:
@@ -29,12 +34,6 @@ def get_structures_dict(data: FileBytearray) -> dict[int, tuple[int, int, str]]:
 		structures[offset] = (id, length, string)
 
 	return structures
-
-
-def init(data: FileBytearray) -> FileBytearray:
-	data.byte_length = 4
-	data.byte_order = "little"
-	return data
 
 
 def match(data: FileBytearray) -> bool:

@@ -1,3 +1,9 @@
+# FILES NEEDED FOR TESTING (in ./tests/data/ folder):
+# Katana ZERO.exe (from Katana ZERO)
+# kz_exe.gz
+# data.win (from Undertale)
+# Game.locres (from MOLE)
+
 from pathlib import Path
 from tempfile import NamedTemporaryFile as temp_open
 
@@ -6,18 +12,13 @@ import pytest
 import strindex.core
 from strindex.utils import FileBytearray, Strindex, StrindexSettings
 
-# FILES NEEDED FOR TESTING (in ./tests/data/ folder):
-# Katana ZERO.exe (from Katana ZERO)
-# kz_exe.gz
-# data.win (from Undertale)
-# Game.locres (from MOLE)
-
 
 def get_file_path(filename: str) -> str:
 	return (Path(__file__).parent / "data" / filename).resolve().as_posix()
 
 def get_file_md5(filepath: str) -> str:
 	return FileBytearray.read(filepath).md5
+
 
 
 @pytest.fixture
@@ -36,7 +37,7 @@ def kz_pe_strindex_full() -> Strindex:
 @pytest.fixture
 def kz_pe_strindex_part() -> Strindex:
 	return get_kz_pe_strindex(False, StrindexSettings(
-		min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["018bc5ec:01a09fb1"]
+		min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["00441078:0060e501"]
 	))
 
 def get_ut_iff_strindex(compatible: bool, settings: StrindexSettings) -> Strindex:
@@ -47,7 +48,7 @@ def get_ut_iff_strindex(compatible: bool, settings: StrindexSettings) -> Strinde
 @pytest.fixture
 def ut_iff_strindex_part() -> Strindex:
 	return get_ut_iff_strindex(False, StrindexSettings(
-		_raw="", prefix_bytes=["d000"], ranges=["00d00172:00d1002e"]
+		_raw="", prefix_bytes=["d000"], ranges=["00c96ce0:00c98410"]
 	))
 
 def get_mole_locres_strindex(compatible: bool, settings: StrindexSettings) -> Strindex:
@@ -62,6 +63,7 @@ def mole_locres_strindex_full() -> Strindex:
 @pytest.fixture
 def mole_locres_strindex_full_comp() -> Strindex:
 	return get_mole_locres_strindex(True, StrindexSettings(_raw=""))
+
 
 
 def test_strindex_rw(strindex_example: Strindex):
@@ -89,14 +91,14 @@ def test_create_pe():
 		assert get_file_md5(temp_strindex.name) == "bead9b4aae83058f9a446dc5c951230c"
 
 		strindex.core.create(get_file_path("Katana ZERO.exe"), temp_strindex.name, (StrindexSettings(
-			_raw="", min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["018bc5ec:01a09fb1"]
+			_raw="", min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["00441078:0060e501"]
 		)), False)
 		assert get_file_md5(temp_strindex.name) == "a99c090af182c953e65055a34b78d98d"
 
 def test_create_iff():
 	with temp_open() as temp_strindex:
 		strindex.core.create(get_file_path("data.win"), temp_strindex.name, StrindexSettings(
-			_raw="", prefix_bytes=["d000"], ranges=["00d00172:00d1002e"]
+			_raw="", prefix_bytes=["d000"], ranges=["00c96ce0:00c98410"]
 		), False)
 		assert get_file_md5(temp_strindex.name) == "bf3604eba22262539fbeddda30dce28b"
 
@@ -133,6 +135,17 @@ def test_patch_locres(mole_locres_strindex_full: Strindex, mole_locres_strindex_
 
 		strindex.core.patch(get_file_path("Game.locres"), get_file_path("Game_strindex.txt"), temp_file.name)
 		assert get_file_md5(temp_file.name) == "2bb9094b3e5b2e9acb10eb1c6bdb83e6"
+
+def test_patch_force():
+	with temp_open() as temp_strindex, temp_open() as temp_file:
+		temp_strindex_force = Strindex.read(get_file_path("Game_strindex.txt"))
+		temp_strindex_force.settings._raw = None
+		temp_strindex_force.settings.force_mode = True
+		temp_strindex_force.pointers[0][0] += 8
+		temp_strindex_force.pointers[2][0] += 8
+		temp_strindex_force.write(temp_strindex.name)
+		strindex.core.patch(get_file_path("Game.locres"), temp_strindex.name, temp_file.name)
+		assert get_file_md5(temp_file.name) == "a885ec6f2cb6e9bb4cc1d56be1d1949f"
 
 def test_update(kz_pe_strindex_part: Strindex):
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:

@@ -36,7 +36,10 @@ class GenericModule:
 
 	def init(self, data: FileBytearray) -> FileBytearray:
 		""" Initializes the file data for the module. """
-		return self.module.init(data.copy()) if hasattr(self.module, "init") else data.copy()
+		data = data.copy()
+		data.byte_length = self.module.SETTINGS.default_byte_length
+		data.byte_order = self.module.SETTINGS.default_byte_order
+		return data
 
 	def match(self, data: FileBytearray) -> bool:
 		""" Checks if the file is of the target filetype. """
@@ -45,6 +48,18 @@ class GenericModule:
 	def create(self, data: FileBytearray, settings: StrindexSettings, compatible: bool = False) -> Strindex:
 		""" Creates a Strindex object from the file data. """
 		strindex = self.module.create(self.init(data), settings)
+
+		if self.module.SETTINGS.filter_after_create:
+			for i in reversed(range(len(strindex.strings))):
+				string = strindex.strings[i].encode("utf-8")
+				pointers = [p for p in strindex.pointers[i] if (
+					settings.is_in_any_range(p) and
+					settings.matches_prefix(data, p) and
+					settings.matches_suffix(data, p + len(string))
+				)]
+				if not (pointers and len(string) >= settings.min_length and settings.is_in_whitelist(string)):
+					del strindex.pointers[i]
+					del strindex.strings[i]
 
 		if compatible:
 			strindex.type_order = ["compatible"] * len(strindex.strings)

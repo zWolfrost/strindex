@@ -1,6 +1,11 @@
 import pefile
 
-from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
+from strindex.utils import FileBytearray, ModuleSettings, Print, Strindex, StrindexSettings
+
+SETTINGS = ModuleSettings(
+	default_byte_order="little",
+	filter_after_create=False
+)
 
 
 class PEFileWrapper(pefile.PE):
@@ -205,11 +210,6 @@ class PEFileWrapper(pefile.PE):
 
 
 SECTION_NAME = b".strdex"
-
-
-def init(data: FileBytearray) -> FileBytearray:
-	data.byte_order = "little"
-	return data
 
 
 def match(data: FileBytearray) -> bool:

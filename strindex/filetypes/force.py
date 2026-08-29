@@ -1,8 +1,6 @@
-from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
+from strindex.utils import FileBytearray, ModuleSettings, Print, Strindex, StrindexSettings
 
-
-def init(data: FileBytearray) -> FileBytearray:
-	return data
+SETTINGS = ModuleSettings()
 
 
 def match(data: FileBytearray) -> bool:
@@ -12,14 +10,9 @@ def match(data: FileBytearray) -> bool:
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	strindex = Strindex()
 
-	for string, start_offset, end_offset in data.strings_find(
-		min_length=settings.min_length,
-		ranges=settings.ranges,
-		whitelist=settings._whitelist
-	):
-		if settings.matches_prefix(data, start_offset) and settings.matches_suffix(data, end_offset):
-			strindex.pointers.append([start_offset])
-			strindex.strings.append(string)
+	for string, start_offset, _ in data.strings_find():
+		strindex.pointers.append([start_offset])
+		strindex.strings.append(string)
 
 	Print.debug(f"Found {len(strindex.strings)} strings.")
 
@@ -28,15 +21,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	strindex_original = strindex.get_original
-	strindex_replace = strindex.get_replace
-
-	for index, offset in enumerate(data.strings_search_ordered(strindex_original)):
-		if offset is None:
-			Print.warning(f'String not found: "{strindex_original[index]}"')
-			continue
-
-		data.cursor = offset
-		data.replace_string(strindex_replace[index])
+	strindex.normalize_to_overwrite([[p] for p in data.strings_search_ordered(strindex_original)], strindex_original)
 
 	for overwrite, offset in zip(strindex.get_overwrite, strindex.get_offsets, strict=True):
 		data.cursor = offset[0]
