@@ -33,7 +33,7 @@ def get_structures_dict(data: FileBytearray) -> dict[int, tuple[int, int, str]]:
 
 def init(data: FileBytearray) -> FileBytearray:
 	data.byte_length = 4
-	data.byte_order = 'little'
+	data.byte_order = "little"
 	return data
 
 
@@ -58,7 +58,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 	strindex.normalize_to_overwrite([[o] for o in structures], [p[2] for p in structures.values()])
 
-	for pointers, string in zip(strindex.pointers, strindex.strings):
+	for pointers, string in zip(strindex.pointers, strindex.strings, strict=True):
 		offset = pointers[0]
 		if offset not in structures:
 			Print.warning(f"No string found at offset {offset:08x}")
@@ -72,10 +72,10 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 		if is_utf16_from_length(length):
 			string_encoded = string.encode("utf-16-le")
-			data += data.from_int(int("ffffffff", 16) - len(string_encoded) // 2) + string_encoded + b'\x00\x00'
+			data += data.from_int(int("ffffffff", 16) - len(string_encoded) // 2) + string_encoded + b"\x00\x00"
 		else:
 			string_encoded = string.encode("utf-8")
-			data += data.from_int(len(string_encoded) + 1) + string_encoded + b'\x00'
+			data += data.from_int(len(string_encoded) + 1) + string_encoded + b"\x00"
 
 	data += b"\x01\x00\x00\x00"
 

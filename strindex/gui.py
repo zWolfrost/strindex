@@ -1,6 +1,6 @@
-import os
 import signal
 import sys
+from pathlib import Path
 
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import QTimer
@@ -129,7 +129,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		return action_button
 
 	def update_action_button(self):
-		enabled = all(os.path.isfile(file_select.text()) for file_select in self.__required__)
+		enabled = all(Path(file_select.text()).is_file() for file_select in self.__required__)
 		for widget in self.__actions__:
 			widget.setEnabled(enabled)
 
@@ -174,7 +174,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 		index = 0
 		grid_layout = QtWidgets.QGridLayout()
-		for widget, col_span in zip(self.__widgets__, widget_col_span):
+		for widget, col_span in zip(self.__widgets__, widget_col_span, strict=True):
 			if widget is not None:
 				grid_layout.addWidget(widget, index // columns, index % columns, 1, col_span)
 				index += col_span
@@ -403,7 +403,7 @@ class PatchGUI(BaseStrindexGUI):
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
 	def update_action_button(self):
-		enabled = [os.path.isfile(file_select.text()) for file_select in self.__required__]
+		enabled = [Path(file_select.text()).is_file() for file_select in self.__required__]
 		self.__actions__[0].setEnabled(all(enabled))
 		self.__actions__[1].setEnabled(enabled[0])
 

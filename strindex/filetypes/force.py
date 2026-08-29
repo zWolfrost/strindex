@@ -12,7 +12,11 @@ def match(data: FileBytearray) -> bool:
 def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	strindex = Strindex()
 
-	for string, start_offset, end_offset in data.strings_find(min_length=settings.min_length, ranges=settings.ranges, whitelist=settings._whitelist):
+	for string, start_offset, end_offset in data.strings_find(
+		min_length=settings.min_length,
+		ranges=settings.ranges,
+		whitelist=settings._whitelist
+	):
 		if settings.matches_prefix(data, start_offset) and settings.matches_suffix(data, end_offset):
 			strindex.pointers.append([start_offset])
 			strindex.strings.append(string)
@@ -34,7 +38,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		data.cursor = offset
 		data.replace_string(strindex_replace[index])
 
-	for overwrite, offset in zip(strindex.get_overwrite, strindex.get_offsets):
+	for overwrite, offset in zip(strindex.get_overwrite, strindex.get_offsets, strict=True):
 		data.cursor = offset[0]
 		data.replace_string(overwrite)
 

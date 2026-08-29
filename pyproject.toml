@@ -50,3 +50,9 @@ packages = ["strindex", "strindex.filetypes"]
 [[tool.setuptools.ext-modules]]
 name = "strindex.strings_find_fast"
 sources = ["strindex/strings_find_fast.c"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+extend-select = ["B", "C4", "ISC", "ICN", "PIE", "T20", "Q", "RET", "SIM", "TID", "TC", "PTH", "E", "RUF"]

@@ -15,7 +15,7 @@ def get_last_chunk_pointer(data: FileBytearray) -> int:
 
 def init(data: FileBytearray) -> FileBytearray:
 	data.byte_length = 4
-	data.byte_order = 'little'
+	data.byte_order = "little"
 	return data
 
 
@@ -46,7 +46,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		strindex,
 		lambda offset: data.from_int(offset - data.byte_length),
 		lambda offset: data.from_int(len(data) + offset),
-		lambda string: data.from_int(len(string.encode('utf-8'))) + string.encode('utf-8') + b'\x00'
+		lambda string: data.from_int(len(string.encode("utf-8"))) + string.encode("utf-8") + b"\x00"
 	)
 
 	data.cursor = 4

@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from tempfile import NamedTemporaryFile as temp_open
 
 import pytest
@@ -14,7 +14,7 @@ from strindex.utils import FileBytearray, Strindex, StrindexSettings
 
 
 def get_file_path(filename: str) -> str:
-	return os.path.join(os.path.dirname(__file__), "data", filename)
+	return (Path(__file__).parent / "data" / filename).resolve().as_posix()
 
 def get_file_md5(filepath: str) -> str:
 	return FileBytearray.read(filepath).md5
@@ -82,29 +82,29 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 
 def test_create_pe():
 	with temp_open() as temp_strindex_created:
-		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, StrindexSettings(_raw=""), compatible=True)
+		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, StrindexSettings(_raw=""), True)
 		assert get_file_md5(temp_strindex_created.name) == "11d5bb62d8bf255b62512c3c9cb798e2"
 
 	with temp_open() as temp_strindex_created:
-		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, StrindexSettings(_raw=""), compatible=False)
+		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, StrindexSettings(_raw=""), False)
 		assert get_file_md5(temp_strindex_created.name) == "bead9b4aae83058f9a446dc5c951230c"
 
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("Katana ZERO.exe"), temp_strindex_created.name, (StrindexSettings(
 			_raw="", min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["018bc5ec:01a09fb1"]
-		)), compatible=False)
+		)), False)
 		assert get_file_md5(temp_strindex_created.name) == "a99c090af182c953e65055a34b78d98d"
 
 def test_create_iff():
 	with temp_open() as temp_strindex_created:
 		create(get_file_path("data.win"), temp_strindex_created.name, StrindexSettings(
 			_raw="", prefix_bytes=["d000"], ranges=["00d00172:00d1002e"]
-		), compatible=False)
+		), False)
 		assert get_file_md5(temp_strindex_created.name) == "bf3604eba22262539fbeddda30dce28b"
 
 def test_create_locres():
 	with temp_open() as temp_strindex_created:
-		create(get_file_path("Game.locres"), temp_strindex_created.name, StrindexSettings(_raw=""), compatible=False)
+		create(get_file_path("Game.locres"), temp_strindex_created.name, StrindexSettings(_raw=""), False)
 		assert get_file_md5(temp_strindex_created.name) == "36fd0d52286aa03aa904281e78f91743"
 
 def test_patch_pe(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):

@@ -5,13 +5,14 @@ from strindex.filetypes import *
 from strindex.filetypes import force
 from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
 
-MODULES = [importlib.import_module(f"{__name__}.{n}") for _, n, _ in pkgutil.iter_modules(__path__) if not n.startswith("_")]
+MODULES = [
+	importlib.import_module(f"{__name__}.{n}") for _, n, _ in
+	pkgutil.iter_modules(__path__) if not n.startswith("_")
+]
 
 
 class GenericModule:
-	"""
-	A class representing a generic module that can be used to extract and patch strings from a filetype.
-	"""
+	""" A class representing a generic module that can be used to extract and patch strings from a filetype. """
 
 	def __init__(self, data: FileBytearray, force_mode: bool = False):
 		if force_mode:

@@ -1,6 +1,6 @@
 import argparse
-import os
 import sys
+from pathlib import Path
 
 from strindex.filetypes import GenericModule
 from strindex.utils import FileBytearray, Print, Progress, Strindex, StrindexSettings
@@ -8,50 +8,53 @@ from strindex.utils import FileBytearray, Print, Progress, Strindex, StrindexSet
 VERSION = "5.0.0"
 
 
+def edit_extension(file_filepath: str, suffix: str) -> Path:
+	_path = Path(file_filepath)
+	return _path.with_name(_path.stem + suffix).resolve().as_posix()
+
+
 def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings, compatible: bool) -> str:
-	"""
-		Calls the create method of the module associated with the file type.
-	"""
+	""" Calls the create method of the module associated with the file type. """
 
 	Progress.global_instance = Progress(4)
 
-	strindex_filepath = strindex_filepath or (os.path.splitext(file_filepath)[0] + "_strindex.txt")
+	strindex_filepath = strindex_filepath or edit_extension(file_filepath, "_strindex.txt")
 
 	data = FileBytearray.read(file_filepath)
 
-	STRINDEX = GenericModule(data, settings.force_mode).create(data, settings, compatible)
+	strindex = GenericModule(data, settings.force_mode).create(data, settings, compatible)
 
-	STRINDEX.write(strindex_filepath)
+	strindex.write(strindex_filepath)
 
-	return Print.info(f'Successfully created strindex file at\n{strindex_filepath}')
+	return Print.info(f"Successfully created strindex file at\n{strindex_filepath}")
 
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None) -> str:
-	"""
-		Calls the patch method of the module associated with the file type.
-	"""
+	""" Calls the patch method of the module associated with the file type. """
 
 	Progress.global_instance = Progress(6)
 
 	orig_file_filepath_bak = file_filepath + FileBytearray.read(file_filepath).md5_backup_suffix
 
-	if os.path.exists(orig_file_filepath_bak):
+	if Path(orig_file_filepath_bak).exists():
 		Print.debug("Detected backup file, patching that one instead.")
 		data = FileBytearray.read(orig_file_filepath_bak)
 	else:
 		data = FileBytearray.read(file_filepath)
 
-	STRINDEX = Strindex.read(strindex_filepath)
+	strindex = Strindex.read(strindex_filepath)
 
-	if STRINDEX.settings.md5 and STRINDEX.settings.md5 != data.md5:
+	if strindex.settings.md5 and strindex.settings.md5 != data.md5:
 		Print.warning("MD5 hash does not match the one the strindex was created for.\nYou may encounter issues.")
 
-	data = GenericModule(data, STRINDEX.settings.force_mode).patch(data, STRINDEX)
+	data = GenericModule(data, strindex.settings.force_mode).patch(data, strindex)
 
 	repl_file_filepath_bak = file_filepath + data.md5_backup_suffix
 
 	if not file_patched_filepath:
-		os.replace(orig_file_filepath_bak if os.path.exists(orig_file_filepath_bak) else file_filepath, repl_file_filepath_bak)
+		Path(repl_file_filepath_bak).replace(
+			orig_file_filepath_bak if Path(orig_file_filepath_bak).exists() else file_filepath
+		)
 		file_patched_filepath = file_filepath
 
 	data.write(file_patched_filepath)
@@ -60,9 +63,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 
 def unpatch(file_filepath: str) -> str:
-	"""
-		Restores a backup file if it exists.
-	"""
+	""" Restores a backup file if it exists. """
 
 	Progress.global_instance = Progress(1)
 
@@ -70,34 +71,36 @@ def unpatch(file_filepath: str) -> str:
 
 	repl_file_filepath_bak = file_filepath + file_md5
 
-	if not os.path.exists(repl_file_filepath_bak):
+	if not Path(repl_file_filepath_bak).exists():
 		raise FileNotFoundError("No backup file was found to restore from.")
 
-	os.replace(repl_file_filepath_bak, file_filepath)
+	Path(repl_file_filepath_bak).replace(file_filepath)
 
 	return Print.info("File was restored from backup successfully.")
 
 
 def infer(file_filepath: str, strindex_filepath: str) -> str:
 	"""
-		List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range to use.
+		List the most common bytes that can prefix or suffix a pointer in a file,
+		as well as the most suitable range to use.
 	"""
 
 	Progress.global_instance = Progress(5)
 
 	infer_output = ""
 
-	flat_list = lambda l: [x for xs in l for x in xs]
+	def flat_list(lst: list[list[int]]) -> list[int]:
+		return [x for xs in lst for x in xs]
 
 	MAX_COUNT = 10
 	MAX_LENGTH = 10
 
 	data = FileBytearray.read(file_filepath)
 
-	STRINDEX = Strindex.read(strindex_filepath)
+	strindex = Strindex.read(strindex_filepath)
 
-	STRINDEX_OFFSETS = flat_list(STRINDEX.get_offsets)
-	STRINDEX_OVERWRITE_AND_ORIGINAL = STRINDEX.get_overwrite_and_original
+	STRINDEX_OFFSETS = flat_list(strindex.get_offsets)
+	STRINDEX_OVERWRITE_AND_ORIGINAL = strindex.get_overwrite_and_original
 
 	def infer_affixes(start_fun, end_fun):
 		nonlocal infer_output
@@ -123,11 +126,11 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 	if STRINDEX_OFFSETS:
 		infer_output += "[PREFIXES]\n"
-		if not infer_affixes(lambda o, l: o - l, lambda o, l: o):
+		if not infer_affixes(lambda offset, length: offset - length, lambda offset, _: offset):
 			infer_output += "No suitable prefixes found.\n"
 
 		infer_output += "\n[SUFFIXES]\n"
-		if not infer_affixes(lambda o, l: o + 4, lambda o, l: o + 4 + l):
+		if not infer_affixes(lambda offset, _: offset + 4, lambda offset, length: offset + 4 + length):
 			infer_output += "No suitable suffixes found.\n"
 
 	Progress.global_instance()
@@ -150,148 +153,156 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 
 def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None) -> str:
-	"""
-		Update a strindex file with newly created pointers.
-	"""
+	""" Update a strindex file with newly created pointers. """
 
 	Progress.global_instance = Progress(6)
 
-	file_updated_filepath = file_updated_filepath or (os.path.splitext(strindex_filepath)[0] + "_updated.txt")
+	file_updated_filepath = file_updated_filepath or edit_extension(strindex_filepath, "_updated.txt")
 
 	data = FileBytearray.read(file_filepath)
 
-	STRINDEX = Strindex.read(strindex_filepath)
-	STRINDEX_UPDATED = GenericModule(data, STRINDEX.settings.force_mode).create(data, STRINDEX.settings)
+	strindex = Strindex.read(strindex_filepath)
+	strindex_updated = GenericModule(data, strindex.settings.force_mode).create(data, strindex.settings)
 
-	STRINDEX_STRINGS_ORIGINAL = STRINDEX.get_overwrite_and_original
+	STRINDEX_OVERWRITE_AND_ORIGINAL = strindex.get_overwrite_and_original
 
 	updated_pointers = 0
 	search_index = 0
-	for index in range(len(STRINDEX.strings)):
+	for index in range(len(strindex.strings)):
 		try:
-			search_index = STRINDEX_UPDATED.strings.index(STRINDEX_STRINGS_ORIGINAL[index], search_index)
+			search_index = strindex_updated.strings.index(STRINDEX_OVERWRITE_AND_ORIGINAL[index], search_index)
 		except ValueError:
 			pass
 		else:
-			if len(STRINDEX.pointers[index]) != len(STRINDEX_UPDATED.pointers[search_index]):
+			if len(strindex.pointers[index]) != len(strindex_updated.pointers[search_index]):
 				updated_pointers += 1
-				STRINDEX.pointers[index] = STRINDEX_UPDATED.pointers[search_index]
+				strindex.pointers[index] = strindex_updated.pointers[search_index]
 
 	Progress.global_instance()
 
-	STRINDEX.write(file_updated_filepath)
+	strindex.write(file_updated_filepath)
 
-	return Print.info(f'Created strindex file with {updated_pointers} / {len(STRINDEX.strings)} updated pointer(s) at\n{file_updated_filepath}')
+	return Print.info(
+		f"Created strindex file with {updated_pointers} / {len(strindex.strings)} updated pointer(s) at\n"
+		f"{file_updated_filepath}"
+	)
 
 
-def filter(strindex_filepath: str, strindex_filter_filepath: str | None) -> str:
-	"""
-		Filters a strindex file with respect to length, whitelist and source language.
-	"""
+def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> str:
+	""" Filters a strindex file with respect to length, whitelist and source language. """
 
 	Progress.global_instance = Progress(4)
 
-	strindex_filter_filepath = strindex_filter_filepath or (os.path.splitext(strindex_filepath)[0] + "_filtered.txt")
+	strindex_filtered_filepath = strindex_filtered_filepath or edit_extension(strindex_filepath, "_filtered.txt")
 
-	STRINDEX = Strindex.read(strindex_filepath)
-	STRINDEX_FILTER = Strindex()
-	STRINDEX_FILTER.settings = STRINDEX.settings
+	strindex = Strindex.read(strindex_filepath)
+	strindex_filtered = Strindex()
+	strindex_filtered.settings = strindex.settings
 
-	if STRINDEX.settings.source_language:
+	if strindex.settings.source_language:
 		try:
 			from lingua import IsoCode639_1, LanguageDetectorBuilder
 		except ImportError:
 			if "__compiled__" in globals():
 				Print.warning("Filtering by language is not supported in compiled builds.")
 			else:
-				raise ImportError('Please install the "lingua" package (pip install lingua-language-detector) to filter by language.')
+				raise ImportError(
+					'Please install the "lingua" package (pip install lingua-language-detector) to filter by language.'
+				) from None
 
 		ALL_LANGUAGES = [code for code in vars(IsoCode639_1).values() if isinstance(code, IsoCode639_1)]
-		SETTINGS_LANGUAGES = [getattr(IsoCode639_1, code.upper()) for code in STRINDEX.settings.among_languages or []]
+		SETTINGS_LANGUAGES = [IsoCode639_1.from_str(code.upper()) for code in strindex.settings.among_languages or []]
 
 		detector = LanguageDetectorBuilder.from_iso_codes_639_1(*(SETTINGS_LANGUAGES or ALL_LANGUAGES)).build()
 
 	Progress.global_instance()
 
 	def is_source_language(string: str) -> bool:
-		string_clean = STRINDEX.settings.clean_string(string)
+		string_clean = strindex.settings.clean_string(string)
 		confidence = detector.compute_language_confidence_values(string_clean)[0]
-		return confidence.language.iso_code_639_1 == getattr(IsoCode639_1, STRINDEX.settings.source_language.upper()) and confidence.value > 0.5
+		isocode_639_1 = IsoCode639_1.from_str(strindex.settings.source_language.upper())
+		return confidence.language.iso_code_639_1 == isocode_639_1 and confidence.value > 0.5
 
-	for index, string in enumerate(STRINDEX.get_overwrite_and_original):
-		valid_language = not STRINDEX.settings.source_language or is_source_language(string)
-		valid_length = len(string.encode('utf-8')) >= STRINDEX.settings.min_length
-		valid_whitelist = STRINDEX.settings.is_in_whitelist(string)
+	for index, string in enumerate(strindex.get_overwrite_and_original):
+		valid_language = not strindex.settings.source_language or is_source_language(string)
+		valid_length = len(string.encode("utf-8")) >= strindex.settings.min_length
+		valid_whitelist = strindex.settings.is_in_whitelist(string)
 
 		if all([valid_language, valid_length, valid_whitelist]):
-			STRINDEX_FILTER.append_strindex_index(STRINDEX, index)
+			strindex_filtered.append_strindex_index(strindex, index)
 
 	Progress.global_instance()
 
-	STRINDEX_FILTER.write(strindex_filter_filepath)
+	strindex_filtered.write(strindex_filtered_filepath)
 
-	return Print.info(f'Created strindex file with {len(STRINDEX_FILTER.strings)} / {len(STRINDEX.strings)} strings at\n{strindex_filter_filepath}')
+	return Print.info(
+		f"Created strindex file with {len(strindex_filtered.strings)} / {len(strindex.strings)} strings at\n"
+		f"{strindex_filtered_filepath}"
+	)
 
 
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None) -> str:
-	"""
-		Filters a full strindex file with a delta strindex file, or intersects them.
-	"""
+	""" Filters a full strindex file with a delta strindex file, or intersects them. """
 
 	Progress.global_instance = Progress(4)
 
-	strindex_delta_filepath = strindex_delta_filepath or (os.path.splitext(strindex_full_filepath)[0] + "_delta.txt")
+	strindex_delta_filepath = strindex_delta_filepath or edit_extension(strindex_full_filepath, "_delta.txt")
 
-	STRINDEX_1 = Strindex.read(strindex_full_filepath)
-	STRINDEX_2 = Strindex.read(strindex_diff_filepath)
+	strindex_1 = Strindex.read(strindex_full_filepath)
+	strindex_2 = Strindex.read(strindex_diff_filepath)
 
-	STRINDEX_1_ID = STRINDEX_1.get_identifiers
-	STRINDEX_2_ID = STRINDEX_2.get_identifiers
+	strindex_1_ids = strindex_1.get_identifiers
+	strindex_2_ids = strindex_2.get_identifiers
 
-	STRINDEX_DELTA = Strindex()
-	STRINDEX_DELTA.settings = STRINDEX_1.settings
+	strindex_delta = Strindex()
+	strindex_delta.settings = strindex_1.settings
 
 	search_index = 0
-	for index in range(len(STRINDEX_1.strings)):
+	for index in range(len(strindex_1.strings)):
 		try:
-			search_index = STRINDEX_2_ID.index(STRINDEX_1_ID[index], search_index)
+			search_index = strindex_2_ids.index(strindex_1_ids[index], search_index)
 		except ValueError:
-			STRINDEX_DELTA.append_strindex_index(STRINDEX_1, index)
+			strindex_delta.append_strindex_index(strindex_1, index)
 
 	Progress.global_instance()
 
-	STRINDEX_DELTA.write(strindex_delta_filepath)
+	strindex_delta.write(strindex_delta_filepath)
 
-	return Print.info(f'Created delta strindex file with {len(STRINDEX_DELTA.strings)} / {len(STRINDEX_1.strings)} strings at\n{strindex_delta_filepath}')
+	return Print.info(
+		f"Created delta strindex file with {len(strindex_delta.strings)} / {len(strindex_1.strings)} strings at\n"
+		f"{strindex_delta_filepath}"
+	)
 
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None) -> str:
-	"""
-		Creates a spellcheck file from a strindex file, for the specified language.
-	"""
+	""" Creates a spellcheck file from a strindex file, for the specified language. """
 
 	Progress.global_instance = Progress(2)
 
-	strindex_spellcheck_filepath = strindex_spellcheck_filepath or (os.path.splitext(strindex_filepath)[0] + "_spellcheck.txt")
+	if not strindex_spellcheck_filepath:
+		strindex_spellcheck_filepath = edit_extension(strindex_filepath, "_spellcheck.txt")
 
 	try:
 		from language_tool_python import LanguageTool
 	except ImportError:
-		raise ImportError('Please install the "language-tool-python" package (pip install language-tool-python) to use this feature.')
+		raise ImportError(
+			'Please install the "language-tool-python" package (pip install language-tool-python) to use this feature.'
+		) from None
 
-	STRINDEX = Strindex.read(strindex_filepath)
-	STRINDEX_STRINGS_REPLACE = STRINDEX.get_overwrite_and_replace
+	strindex = Strindex.read(strindex_filepath)
 
-	if not STRINDEX.settings.target_language:
-		raise ValueError('Please specify the target language to spellcheck in the strindex file header ("target_language").')
+	if not strindex.settings.target_language:
+		raise ValueError(
+			'Please specify the target language to spellcheck in the strindex file header ("target_language").'
+		)
 
-	lang = LanguageTool(STRINDEX.settings.target_language)
+	lang = LanguageTool(strindex.settings.target_language)
 	Print.debug("Created language tool.")
 
-	with open(strindex_spellcheck_filepath, 'w', encoding='utf-8') as f:
-		for string in STRINDEX_STRINGS_REPLACE:
-			string_clean = STRINDEX.settings.clean_string(string)
-			f.writelines('\n'.join(str(error).split('\n')[-3:]) + '\n' for error in lang.check(string_clean))
+	with Path.open(strindex_spellcheck_filepath, "w", encoding="utf-8") as f:
+		for string in strindex.get_overwrite_and_replace:
+			string_clean = strindex.settings.clean_string(string)
+			f.writelines("\n".join(str(error).split("\n")[-3:]) + "\n" for error in lang.check(string_clean))
 
 	Progress.global_instance()
 
@@ -309,24 +320,46 @@ def help_whitelist():
 
 
 def main(sysargs=None):
-	parser = argparse.ArgumentParser(prog="strindex", exit_on_error=False, description="A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation.")
+	parser = argparse.ArgumentParser(
+		prog="strindex",
+		exit_on_error=False,
+		description=(
+			"A command line utility to extract and patch strings of some filetypes, "
+			"with a focus on compatibility and translation."
+		)
+	)
 
-	parser.add_argument("action", type=str, nargs=argparse.OPTIONAL, choices=["create", "patch", "unpatch", "infer", "update", "filter", "delta", "spellcheck", "gui"], help="Action to perform.")
-	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
+	parser.add_argument("action", type=str, nargs=argparse.OPTIONAL,
+		choices=["create", "patch", "unpatch", "infer", "update", "filter", "delta", "spellcheck", "gui"],
+		help="Action to perform.")
+	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE,
+		help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
 
 	# create arguments
-	parser.add_argument("-f", "--force-mode", action="store_true", help="Force the replacement of strings at the same offset they were found.")
-	parser.add_argument("-c", "--compatible", action="store_true", help="Whether to create a strindex file compatible with the previous versions of a program.")
-	parser.add_argument("-m", "--min-length", default=3, type=int, help="Minimum length of the strings to be included.")
-	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[], help="Prefix bytes that can prefix a pointer.")
-	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[], help="Suffix bytes that can suffix a pointer.")
-	parser.add_argument("-r", "--range", type=str, action="append", default=[], help="Range of the hexadecimal offsets to search for strings, in the format 'start:end'. Can be specified multiple times.")
-	parser.add_argument("-w", "--whitelist", type=str, action="append", default=[], help="Character sets to whitelist for filtering strings. Can be specified multiple times.")
+	parser.add_argument("-f", "--force-mode", action="store_true",
+		help="Force the replacement of strings at the same offset they were found.")
+	parser.add_argument("-c", "--compatible", action="store_true",
+		help="Whether to create a strindex file compatible with the previous versions of a program.")
+	parser.add_argument("-m", "--min-length", default=3, type=int,
+		help="Minimum length of the strings to be included.")
+	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[],
+		help="Prefix bytes that can prefix a pointer.")
+	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[],
+		help="Suffix bytes that can suffix a pointer.")
+	parser.add_argument("-r", "--range", type=str, action="append", default=[],
+		help=("Range of the hexadecimal offsets to search for strings, in the format 'start:end'."
+			"Can be specified multiple times.")
+	)
+	parser.add_argument("-w", "--whitelist", type=str, action="append", default=[],
+		help="Character sets to whitelist for filtering strings. Can be specified multiple times.")
 
-	parser.add_argument("--version", action="version", version=VERSION, help="Show the version of strindex and exit.")
-	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
-	parser.add_argument("-q", "--quiet", action="store_true", help="Suppress all output except for errors.")
+	parser.add_argument("--version", action="version", version=VERSION,
+		help="Show the version of strindex and exit.")
+	parser.add_argument("-v", "--verbose", action="store_true",
+		help="Print full error messages.")
+	parser.add_argument("-q", "--quiet", action="store_true",
+		help="Suppress all output except for errors.")
 
 	try:
 		Print.quiet_mode = False
@@ -343,7 +376,7 @@ def main(sysargs=None):
 		if args.action is None:
 			raise ValueError("No action specified. Use -h / --help to see the available actions.")
 
-		if not all(os.path.isfile(file) for file in args.files):
+		if not all(Path(file).is_file() for file in args.files):
 			raise FileNotFoundError("One or more specified files do not exist.")
 
 		if "__compiled__" in globals() and args.action == "spellcheck":
@@ -353,12 +386,15 @@ def main(sysargs=None):
 			try:
 				from strindex.gui import MainStrindexGUI
 			except ModuleNotFoundError:
-				raise ImportError('Please install the "PySide6" package (pip install pyside6) to use this feature.')
+				raise ImportError(
+					'Please install the "PySide6" package (pip install pyside6) to use this feature.'
+				) from None
 
 			MainStrindexGUI()
 		else:
 			def assert_files_num(n: int):
-				assert len(args.files) == n, f"Expected {n} file(s) for \"{args.action}\" action, got {len(args.files)}."
+				assert len(args.files) == n, \
+					f'Expected {n} file(s) for "{args.action}" action, got {len(args.files)}.'
 
 			match args.action:
 				case "create":
@@ -401,8 +437,7 @@ def main(sysargs=None):
 	except Exception as e:
 		if "args" in locals() and args.verbose:
 			raise
-		else:
-			Print.error(f"[{type(e).__name__}] {e}\nPlease use -v / --verbose to see the full traceback.")
+		Print.error(f"[{type(e).__name__}] {e}\nPlease use -v / --verbose to see the full traceback.")
 
 
 if __name__ == "__main__":
