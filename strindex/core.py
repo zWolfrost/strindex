@@ -16,7 +16,7 @@ def edit_extension(file_filepath: str, suffix: str) -> Path:
 def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings, compatible: bool) -> str:
 	""" Calls the create method of the module associated with the file type. """
 
-	Progress.global_instance = Progress(4)
+	Progress.init_global_instance(4)
 
 	strindex_filepath = strindex_filepath or edit_extension(file_filepath, "_strindex.txt")
 
@@ -32,7 +32,8 @@ def create(file_filepath: str, strindex_filepath: str | None, settings: Strindex
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None) -> str:
 	""" Calls the patch method of the module associated with the file type. """
 
-	Progress.global_instance = Progress(6)
+	if not hasattr(Progress, "global_instance"):
+		Progress.init_global_instance(6)
 
 	backup_filepath = file_filepath + FileBytearray.read(file_filepath).md5_backup_suffix
 
@@ -62,7 +63,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 def unpatch(file_filepath: str) -> str:
 	""" Restores a backup file if it exists. """
 
-	Progress.global_instance = Progress(1)
+	Progress.init_global_instance(1)
 
 	file_md5 = FileBytearray.read(file_filepath).md5_backup_suffix
 
@@ -82,7 +83,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 		as well as the most suitable range to use.
 	"""
 
-	Progress.global_instance = Progress(5)
+	Progress.init_global_instance(5)
 
 	infer_output = ""
 
@@ -152,7 +153,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None) -> str:
 	""" Update a strindex file with newly created pointers. """
 
-	Progress.global_instance = Progress(6)
+	Progress.init_global_instance(6)
 
 	file_updated_filepath = file_updated_filepath or edit_extension(strindex_filepath, "_updated.txt")
 
@@ -188,7 +189,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> str:
 	""" Filters a strindex file with respect to length, whitelist and source language. """
 
-	Progress.global_instance = Progress(4)
+	Progress.init_global_instance(4)
 
 	strindex_filtered_filepath = strindex_filtered_filepath or edit_extension(strindex_filepath, "_filtered.txt")
 
@@ -241,7 +242,7 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None) -> str:
 	""" Filters a full strindex file with a delta strindex file, or intersects them. """
 
-	Progress.global_instance = Progress(4)
+	Progress.init_global_instance(4)
 
 	strindex_delta_filepath = strindex_delta_filepath or edit_extension(strindex_full_filepath, "_delta.txt")
 
@@ -274,7 +275,7 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None) -> str:
 	""" Creates a spellcheck file from a strindex file, for the specified language. """
 
-	Progress.global_instance = Progress(2)
+	Progress.init_global_instance(2)
 
 	if not strindex_spellcheck_filepath:
 		strindex_spellcheck_filepath = edit_extension(strindex_filepath, "_spellcheck.txt")

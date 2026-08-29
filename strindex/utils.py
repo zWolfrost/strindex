@@ -100,6 +100,11 @@ class Progress:
 			return result
 		return wrapper
 
+	@staticmethod
+	def init_global_instance(*args, **kwargs):
+		if not hasattr(Progress, "global_instance"):
+			Progress.global_instance = Progress(*args, **kwargs)
+
 
 class StrindexSettings:
 	# These are really limited, so I would really like
