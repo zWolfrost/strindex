@@ -34,11 +34,11 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	Progress.global_instance = Progress(6)
 
-	orig_file_filepath_bak = file_filepath + FileBytearray.read(file_filepath).md5_backup_suffix
+	backup_filepath = file_filepath + FileBytearray.read(file_filepath).md5_backup_suffix
 
-	if Path(orig_file_filepath_bak).exists():
+	if Path(backup_filepath).exists():
 		Print.debug("Detected backup file, patching that one instead.")
-		data = FileBytearray.read(orig_file_filepath_bak)
+		data = FileBytearray.read(backup_filepath)
 	else:
 		data = FileBytearray.read(file_filepath)
 
@@ -49,12 +49,9 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	data = GenericModule(data, strindex.settings.force_mode).patch(data, strindex)
 
-	repl_file_filepath_bak = file_filepath + data.md5_backup_suffix
-
 	if not file_patched_filepath:
-		Path(repl_file_filepath_bak).replace(
-			orig_file_filepath_bak if Path(orig_file_filepath_bak).exists() else file_filepath
-		)
+		backup_filepath = backup_filepath if Path(backup_filepath).exists() else file_filepath
+		Path(backup_filepath).replace(file_filepath + data.md5_backup_suffix)
 		file_patched_filepath = file_filepath
 
 	data.write(file_patched_filepath)
@@ -69,12 +66,12 @@ def unpatch(file_filepath: str) -> str:
 
 	file_md5 = FileBytearray.read(file_filepath).md5_backup_suffix
 
-	repl_file_filepath_bak = file_filepath + file_md5
+	backup_filepath = file_filepath + file_md5
 
-	if not Path(repl_file_filepath_bak).exists():
+	if not Path(backup_filepath).exists():
 		raise FileNotFoundError("No backup file was found to restore from.")
 
-	Path(repl_file_filepath_bak).replace(file_filepath)
+	Path(backup_filepath).replace(file_filepath)
 
 	return Print.info("File was restored from backup successfully.")
 
