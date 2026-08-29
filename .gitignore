@@ -161,4 +161,7 @@ cython_debug/
 #.idea/
 
 .vscode/
-tests/data/
+
+tests/data/*
+!tests/data/Game_strindex.txt
+!tests/data/strindex_example.txt

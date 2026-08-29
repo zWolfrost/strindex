@@ -1,0 +1,19 @@
+# You can freely create & delete comments in the header like these ones and the example below.
+# For more information about strindex files' settings and syntax see:
+# https://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt
+
+md5 = "419202a5ca1b343ec2011e1b610404e3"
+min_length = 3
+
+# EXAMPLE OF REPLACEMENT:
+# ================================================================================/pointer(s)/
+# replace the string that was previously provided here, with this one!
+
+================================================================================/00028faf/
+Careful. \r\n\r\nIt is here and something else.
+================================================================================|1|
+Cassette type is seismic. \r\nInsert to a cockpit reader to read
+--------------------------------------------------------------------------------
+TEST REPLACEMENT
+================================================================================/00029323/
+ClearCoatRoughness

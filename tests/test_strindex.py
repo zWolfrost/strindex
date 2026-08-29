@@ -7,7 +7,6 @@ from strindex.strindex import create, delta, filter, patch, update
 from strindex.utils import FileBytearray, Strindex, StrindexSettings
 
 # FILES NEEDED FOR TESTING (in ./tests/data/ folder):
-# strindex_example.txt
 # Katana ZERO.exe (from Katana ZERO)
 # kz_exe.gz
 # data.win (from Undertale)
@@ -135,6 +134,10 @@ def test_patch_locres(mole_locres_strindex_full: Strindex, mole_locres_strindex_
 			mole_locres_strindex.write(temp_strindex_full.name)
 			patch(get_file_path("Game.locres"), temp_strindex_full.name, temp_file_patched.name)
 			assert get_file_md5(temp_file_patched.name) == get_file_md5(get_file_path("Game.locres"))
+
+	with temp_open() as temp_file_patched:
+		patch(get_file_path("Game.locres"), get_file_path("Game_strindex.txt"), temp_file_patched.name)
+		assert get_file_md5(temp_file_patched.name) == "2bb9094b3e5b2e9acb10eb1c6bdb83e6"
 
 def test_update(kz_pe_strindex_part: Strindex):
 	with temp_open() as temp_strindex, temp_open() as temp_strindex_updated:
