@@ -133,12 +133,12 @@ def test_patch_locres(mole_locres_strindex_full: Strindex, mole_locres_strindex_
 			strindex.core.patch(get_file_path("Game.locres"), temp_strindex.name, temp_file.name)
 			assert get_file_md5(temp_file.name) == get_file_md5(get_file_path("Game.locres"))
 
-		strindex.core.patch(get_file_path("Game.locres"), get_file_path("Game_strindex.txt"), temp_file.name)
+		strindex.core.patch(get_file_path("Game.locres"), get_file_path("locres_strindex.txt"), temp_file.name)
 		assert get_file_md5(temp_file.name) == "2bb9094b3e5b2e9acb10eb1c6bdb83e6"
 
 def test_patch_force():
 	with temp_open() as temp_strindex, temp_open() as temp_file:
-		temp_strindex_force = Strindex.read(get_file_path("Game_strindex.txt"))
+		temp_strindex_force = Strindex.read(get_file_path("locres_strindex.txt"))
 		temp_strindex_force.settings._raw = None
 		temp_strindex_force.settings.force_mode = True
 		temp_strindex_force.pointers[0][0] += 8

@@ -163,5 +163,5 @@ cython_debug/
 .vscode/
 
 tests/data/*
-!tests/data/Game_strindex.txt
+!tests/data/locres_strindex.txt
 !tests/data/strindex_example.txt

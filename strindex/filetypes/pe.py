@@ -214,6 +214,9 @@ SECTION_NAME = b".strdex"
 
 def match(data: FileBytearray) -> bool:
 	""" Checks if the file is a valid PE file. """
+	if data[0:2] != b"\x4d\x5a":
+		return False
+
 	try:
 		PEFileWrapper(data)
 	except pefile.PEFormatError:
