@@ -5,15 +5,11 @@
 md5 = "419202a5ca1b343ec2011e1b610404e3"
 min_length = 3
 
-# EXAMPLE OF REPLACEMENT:
-# ================================================================================/pointer(s)/
-# replace the string that was previously provided here, with this one!
+@o 00028faf
+>> Careful. \r\n\r\nIt is here and something else.
 
-================================================================================/00028faf/
-Careful. \r\n\r\nIt is here and something else.
-================================================================================|1|
-Cassette type is seismic. \r\nInsert to a cockpit reader to read
---------------------------------------------------------------------------------
-TEST REPLACEMENT
-================================================================================/00029323/
-ClearCoatRoughness
+@c Cassette type is seismic. \r\nInsert to a cockpit reader to read +
+>> TEST REPLACEMENT
+
+@o 00029323
+>> ClearCoatRoughness

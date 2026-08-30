@@ -45,7 +45,7 @@ class GenericModule:
 		""" Checks if the file is of the target filetype. """
 		return self.module.match(self.init(data))
 
-	def create(self, data: FileBytearray, settings: StrindexSettings, compatible: bool = False) -> Strindex:
+	def create(self, data: FileBytearray, settings: StrindexSettings) -> Strindex:
 		""" Creates a Strindex object from the file data. """
 		strindex = self.module.create(self.init(data), settings)
 
@@ -69,7 +69,7 @@ class GenericModule:
 
 			Print.debug(f"Filtered down to {len(strindex.strings)} / {starting_length} strings.")
 
-		if compatible:
+		if settings._compatible:
 			strindex.type_order = ["compatible"] * len(strindex.strings)
 			strindex.pointers = [[bool(p) for p in pointers] for pointers in strindex.pointers]
 			strindex.strings = [[s, s] for s in strindex.strings]

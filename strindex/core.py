@@ -13,7 +13,7 @@ def edit_extension(file_filepath: str, suffix: str) -> Path:
 	return _path.with_name(_path.stem + suffix).resolve().as_posix()
 
 
-def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings, compatible: bool) -> str:
+def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings) -> str:
 	""" Calls the create method of the module associated with the file type. """
 
 	Progress.init_global_instance(4)
@@ -22,7 +22,7 @@ def create(file_filepath: str, strindex_filepath: str | None, settings: Strindex
 
 	data = FileBytearray.read(file_filepath)
 
-	strindex = GenericModule(data, settings.force_mode).create(data, settings, compatible)
+	strindex = GenericModule(data, settings.force_mode).create(data, settings)
 
 	strindex.write(strindex_filepath)
 
@@ -335,10 +335,12 @@ def main(sysargs=None):
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
 
 	# create arguments
+	parser.add_argument("-C", "--compatible", action="store_true",
+		help="Whether to create a strindex file compatible with the previous versions of a program.")
+	parser.add_argument("-R", "--references", action="store_true",
+		help="Whether to add string references comments to the strindex file.")
 	parser.add_argument("-f", "--force-mode", action="store_true",
 		help="Force the replacement of strings at the same offset they were found.")
-	parser.add_argument("-c", "--compatible", action="store_true",
-		help="Whether to create a strindex file compatible with the previous versions of a program.")
 	parser.add_argument("-m", "--min-length", default=3, type=int,
 		help="Minimum length of the strings to be included.")
 	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[],
@@ -347,8 +349,7 @@ def main(sysargs=None):
 		help="Suffix bytes that can suffix a pointer.")
 	parser.add_argument("-r", "--range", type=str, action="append", default=[],
 		help=("Range of the hexadecimal offsets to search for strings, in the format 'start:end'."
-			"Can be specified multiple times.")
-	)
+			"Can be specified multiple times."))
 	parser.add_argument("-w", "--whitelist", type=str, action="append", default=[],
 		help="Character sets to whitelist for filtering strings. Can be specified multiple times.")
 
@@ -400,14 +401,15 @@ def main(sysargs=None):
 					create(
 						args.files[0], args.output,
 						StrindexSettings(
+							_compatible=args.compatible,
+							_references=args.references,
 							force_mode = args.force_mode,
 							min_length = args.min_length,
 							prefix_bytes = args.prefix_bytes,
 							suffix_bytes = args.suffix_bytes,
 							ranges = args.range,
 							whitelist = args.whitelist
-						),
-						args.compatible
+						)
 					)
 				case "patch":
 					assert_files_num(2)

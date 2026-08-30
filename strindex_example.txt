@@ -2,7 +2,7 @@
 # from the Spanish language, to Italian, specifically for its ".exe" file.
 #
 # The strindex parser automatically detects the settings formatted in TOML (the header),
-# as well as the start of the strings to patch (the body), inside which comments are not supported.
+# as well as the start of the strings to patch (the body), inside which comments are supported as well.
 #
 # You can freely create, edit & delete comments and settings in the header.
 #
@@ -64,14 +64,12 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # You can replace strings in two different ways (which can be mixed in the same strindex file):
 #
 # METHOD ONE (compatible mode off - uses pointers as reference):
-# ================================================================================/pointer(s)/
-# replace the string that was previously provided here, with this one!
+# @o [pointer] [pointer] [...]
+# >> replace the string that was previously provided here, with this one!
 #
 # METHOD TWO (compatible mode on - uses the original string as reference):
-# ================================================================================|reallocate pointer(s) if 1, or skip if 0|
-#  replace this string...
-# --------------------------------------------------------------------------------
-#  ...with this string!
+# @c replace this string... [reallocate if + / skip if -]
+# >> ...with this string!
 
 
 # The term "pointers" is generic by design, as they can possess different meaning
@@ -87,34 +85,35 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # IMPORTANT: The control characters "\t", "\n" and "\r" (and "\" by itself) are *ESCAPED*
 # in the strindex body, and will be *UNESCAPED* when the strindex is read by the program.
 #
-# Below lies the start of the body of the strindex, detected by the 80 consecutive "═" characters.
+# Below lies the start of the body of the strindex, detected by the first line that starts with an @ symbol.
 
 
-================================================================================|11|
-A ver...* Háblame de nuevo de los [r]tipos enmascarados...
---------------------------------------------------------------------------------
-Dunque...* Parlami ancora di quegli [r]uomini con le maschere...
-================================================================================|1|
-Entiendo...* Entonces comencemos por el principio.
---------------------------------------------------------------------------------
-Capisco...* Partiamo dall'inizio.
-================================================================================|1|
-¿Has llegado ya?
---------------------------------------------------------------------------------
-Sei arrivato?
-================================================================================|1111111111111111111|
-*Colgar*
---------------------------------------------------------------------------------
-*Riattacca*
-================================================================================/004420cc/004433b4/
-Ci sono quasi.
-================================================================================/00442284/
-Non ancora.
-================================================================================/00442518/
-[r]Non riattaccare di nuovo.[/]* Devo sapere la tua posizione.
-================================================================================/00442964/
-Sono quasi dentro.
-================================================================================/00442990/
-Sto entrando.
-================================================================================/00442b1c/00443c4c/
-Arriverò presto.
+@c A ver...* Háblame de nuevo de los [r]tipos enmascarados... ++
+>> Dunque...* Parlami ancora di quegli [r]uomini con le maschere...
+
+@c Entiendo...* Entonces comencemos por el principio. +
+>> Capisco...* Partiamo dall'inizio.
+
+@c ¿Has llegado ya? +
+>> Sei arrivato?
+
+@c *Colgar* +++++++++++++++++++
+>> *Riattacca*
+
+@o 004420cc 004433b4
+>> Ci sono quasi.
+
+@o 00442284
+>> Non ancora.
+
+@o 00442518
+>> [r]Non riattaccare di nuovo.[/]* Devo sapere la tua posizione.
+
+@o 00442964
+>> Sono quasi dentro.
+
+@o 00442990
+>> Sto entrando.
+
+@o 00442b1c 00443c4c
+>> Arriverò presto.

@@ -4,6 +4,7 @@
 # data.win (from Undertale)
 # Game.locres (from MOLE)
 
+from copy import deepcopy
 from pathlib import Path
 from tempfile import NamedTemporaryFile as temp_open
 
@@ -19,51 +20,50 @@ def get_file_path(filename: str) -> str:
 def get_file_md5(filepath: str) -> str:
 	return FileBytearray.read(filepath).md5
 
+def get_strindex(filename: str, settings: StrindexSettings) -> Strindex:
+	with temp_open() as temp_strindex:
+		strindex.core.create(get_file_path(filename), temp_strindex.name, settings)
+		return Strindex.read(temp_strindex.name)
 
 
 @pytest.fixture
 def strindex_example() -> Strindex:
 	return Strindex.read(get_file_path("strindex_example.txt"))
 
-def get_kz_pe_strindex(compatible: bool, settings: StrindexSettings) -> Strindex:
-	with temp_open() as temp_strindex:
-		strindex.core.create(get_file_path("Katana ZERO.exe"), temp_strindex.name, settings, compatible)
-		return Strindex.read(temp_strindex.name)
-
+KZ_PE_STRINDEX_FULL = ("Katana ZERO.exe", StrindexSettings(
+	_compatible=False
+))
 @pytest.fixture
 def kz_pe_strindex_full() -> Strindex:
-	return get_kz_pe_strindex(False, StrindexSettings(min_length=1))
+	return get_strindex(*KZ_PE_STRINDEX_FULL)
 
+KZ_PE_STRINDEX_PART = ("Katana ZERO.exe", StrindexSettings(
+	_compatible=False, min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["00441078:0060e501"]
+))
 @pytest.fixture
 def kz_pe_strindex_part() -> Strindex:
-	return get_kz_pe_strindex(False, StrindexSettings(
-		min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["00441078:0060e501"]
-	))
+	return get_strindex(*KZ_PE_STRINDEX_PART)
 
-def get_ut_iff_strindex(compatible: bool, settings: StrindexSettings) -> Strindex:
-	with temp_open() as temp_strindex:
-		strindex.core.create(get_file_path("data.win"), temp_strindex.name, settings, compatible)
-		return Strindex.read(temp_strindex.name)
-
+UT_IFF_STRINDEX_PART = ("data.win", StrindexSettings(
+	_compatible=False, _raw="", prefix_bytes=["d000"], ranges=["00c96ce0:00c98410"]
+))
 @pytest.fixture
 def ut_iff_strindex_part() -> Strindex:
-	return get_ut_iff_strindex(False, StrindexSettings(
-		_raw="", prefix_bytes=["d000"], ranges=["00c96ce0:00c98410"]
-	))
+	return get_strindex(*UT_IFF_STRINDEX_PART)
 
-def get_mole_locres_strindex(compatible: bool, settings: StrindexSettings) -> Strindex:
-	with temp_open() as temp_strindex:
-		strindex.core.create(get_file_path("Game.locres"), temp_strindex.name, settings, compatible)
-		return Strindex.read(temp_strindex.name)
-
+MOLE_LOCRES_STRINDEX_FULL = ("Game.locres", StrindexSettings(
+	_compatible=False, _raw=""
+))
 @pytest.fixture
 def mole_locres_strindex_full() -> Strindex:
-	return get_mole_locres_strindex(False, StrindexSettings(_raw=""))
+	return get_strindex(*MOLE_LOCRES_STRINDEX_FULL)
 
+MOLE_LOCRES_STRINDEX_FULL_COMP = ("Game.locres", StrindexSettings(
+	_compatible=True, _raw=""
+))
 @pytest.fixture
 def mole_locres_strindex_full_comp() -> Strindex:
-	return get_mole_locres_strindex(True, StrindexSettings(_raw=""))
-
+	return get_strindex(*MOLE_LOCRES_STRINDEX_FULL_COMP)
 
 
 def test_strindex_rw(strindex_example: Strindex):
@@ -84,28 +84,32 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 
 def test_create_pe():
 	with temp_open() as temp_strindex:
-		strindex.core.create(get_file_path("Katana ZERO.exe"), temp_strindex.name, StrindexSettings(_raw=""), True)
-		assert get_file_md5(temp_strindex.name) == "11d5bb62d8bf255b62512c3c9cb798e2"
+		_settings = deepcopy(KZ_PE_STRINDEX_FULL[1])
+		_settings._raw = ""
+		_settings._compatible = True
+		strindex.core.create(get_file_path("Katana ZERO.exe"), temp_strindex.name, _settings)
+		assert get_file_md5(temp_strindex.name) == "5698e6e77b9ebf594f01704b3c424e41"
 
-		strindex.core.create(get_file_path("Katana ZERO.exe"), temp_strindex.name, StrindexSettings(_raw=""), False)
-		assert get_file_md5(temp_strindex.name) == "bead9b4aae83058f9a446dc5c951230c"
+		_settings = deepcopy(KZ_PE_STRINDEX_FULL[1])
+		_settings._raw = ""
+		_settings._compatible = False
+		strindex.core.create(get_file_path("Katana ZERO.exe"), temp_strindex.name, _settings)
+		assert get_file_md5(temp_strindex.name) == "b3290c5f28ae4d1cadcfce60d4fafdef"
 
-		strindex.core.create(get_file_path("Katana ZERO.exe"), temp_strindex.name, (StrindexSettings(
-			_raw="", min_length=3, prefix_bytes=["24c7442404", "ec04c70424"], ranges=["00441078:0060e501"]
-		)), False)
-		assert get_file_md5(temp_strindex.name) == "a99c090af182c953e65055a34b78d98d"
+		_settings = deepcopy(KZ_PE_STRINDEX_PART[1])
+		_settings._raw = ""
+		strindex.core.create(get_file_path("Katana ZERO.exe"), temp_strindex.name, _settings)
+		assert get_file_md5(temp_strindex.name) == "ba57555050e4184aae9e1464208b4414"
 
 def test_create_iff():
 	with temp_open() as temp_strindex:
-		strindex.core.create(get_file_path("data.win"), temp_strindex.name, StrindexSettings(
-			_raw="", prefix_bytes=["d000"], ranges=["00c96ce0:00c98410"]
-		), False)
-		assert get_file_md5(temp_strindex.name) == "bf3604eba22262539fbeddda30dce28b"
+		strindex.core.create(get_file_path("data.win"), temp_strindex.name, UT_IFF_STRINDEX_PART[1])
+		assert get_file_md5(temp_strindex.name) == "7dfa773e0d54b17b0c6bf4c36fd82277"
 
 def test_create_locres():
 	with temp_open() as temp_strindex:
-		strindex.core.create(get_file_path("Game.locres"), temp_strindex.name, StrindexSettings(_raw=""), False)
-		assert get_file_md5(temp_strindex.name) == "36fd0d52286aa03aa904281e78f91743"
+		strindex.core.create(get_file_path("Game.locres"), temp_strindex.name, MOLE_LOCRES_STRINDEX_FULL[1])
+		assert get_file_md5(temp_strindex.name) == "8e2449326e6eae99a0b13006ee44433a"
 
 def test_patch_pe(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
 	with temp_open() as temp_strindex, temp_open() as temp_file:
@@ -154,10 +158,10 @@ def test_update(kz_pe_strindex_part: Strindex):
 
 		strindex.core.update(get_file_path("Katana ZERO.exe"), temp_strindex_in.name, temp_strindex_out.name)
 
-		part_kz_strindex_updated = Strindex.read(temp_strindex_out.name)
-		kz_pe_strindex_part.pointers[0] = part_kz_strindex_updated.pointers[0].copy()
+		kz_pe_strindex_part_updated = Strindex.read(temp_strindex_out.name)
+		kz_pe_strindex_part.pointers[0] = kz_pe_strindex_part_updated.pointers[0].copy()
 
-		assert kz_pe_strindex_part.write(None) == part_kz_strindex_updated.write(None)
+		assert kz_pe_strindex_part.write(None) == kz_pe_strindex_part_updated.write(None)
 
 def test_filter(kz_pe_strindex_full: Strindex):
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:

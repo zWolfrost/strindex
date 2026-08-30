@@ -121,6 +121,9 @@ class StrindexSettings:
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""", # noqa: E501
 	}
 
+	_compatible: bool | None
+	_references: bool | None
+
 	_raw: str | None
 	md5: str | None
 	force_mode: bool
@@ -137,6 +140,9 @@ class StrindexSettings:
 	among_languages: list[str]
 
 	def __init__(self, **kwargs):
+		self._compatible = kwargs.get("_compatible")
+		self._references = kwargs.get("_references")
+
 		self._raw = kwargs.get("_raw")
 		self.md5 = kwargs.get("md5")
 		self.force_mode = kwargs.get("force_mode") or False
@@ -153,9 +159,14 @@ class StrindexSettings:
 		self.among_languages = kwargs.get("among_languages") or []
 
 	@classmethod
-	def read_from_toml_str(cls, toml_str: str) -> "StrindexSettings":
-		""" Reads the settings from a TOML string. """
-		return cls(**tomllib.loads(toml_str), _raw=toml_str)
+	def read_from_toml_data(cls, toml_data: str) -> "StrindexSettings":
+		""" Reads the settings from TOML data. """
+		try:
+			toml_dict = tomllib.loads(toml_data)
+		except Exception as e:
+			raise ValueError("Error parsing Strindex TOML header.") from e
+
+		return cls(**toml_dict, _raw=toml_data)
 
 	def get_changed(self) -> dict:
 		""" Returns a dictionary with the settings that are different from the default settings. """
@@ -229,11 +240,13 @@ class StrindexSettings:
 class Strindex:
 	""" A class to parse and create strindex files. """
 
-	SEP_COUNT = 80
-	ORIGINAL_DEL = "=" * SEP_COUNT
-	REPLACE_DEL = "-" * SEP_COUNT
-	POINTERS_DEL = "/"
-	POINTERS_SWITCHES_DEL = "|"
+	TOKEN_DELIMITER = " "
+	POINTERS_PREFIX = "@"
+	OVERWRITE_PREFIX = POINTERS_PREFIX + "o" + TOKEN_DELIMITER
+	COMPATIBLE_PREFIX = POINTERS_PREFIX + "c" + TOKEN_DELIMITER
+	STRING_PREFIX = ">>" + TOKEN_DELIMITER
+	COMPATIBLE_TRUE = "+"
+	COMPATIBLE_FALSE = "-"
 
 	_UNESCAPE_DICT: ClassVar[dict[str, str]] = {
 		"\\": "\\",
@@ -332,6 +345,60 @@ class Strindex:
 		self.pointers = []
 		self.type_order = []
 
+	def parse_body_line(self, line: str):
+		def raise_unexpected():
+			raise ValueError(f"Unexpected line in strindex body:\n{line!r}")
+
+		line = line.removesuffix("\n")
+
+		if line.startswith(Strindex.POINTERS_PREFIX):
+			if (
+				self.type_order and self.strings and
+				((self.type_order[-1] == "overwrite" and self.strings[-1] is None) or
+				(self.type_order[-1] == "compatible" and self.strings[-1][1] is None))
+			):
+				raise_unexpected()
+
+			if line.startswith(Strindex.OVERWRITE_PREFIX):
+				line = line.removeprefix(Strindex.OVERWRITE_PREFIX)
+				self.strings.append(None)
+				self.pointers.append([int(p, 16) for p in line.split(Strindex.TOKEN_DELIMITER) if p])
+				self.type_order.append("overwrite")
+			elif line.startswith(Strindex.COMPATIBLE_PREFIX):
+				line = line.removeprefix(Strindex.COMPATIBLE_PREFIX)
+				original, switches = line.rsplit(Strindex.TOKEN_DELIMITER, 1)
+				self.strings.append([Strindex.unescape_ctrl(original), None])
+				self.pointers.append([s == Strindex.COMPATIBLE_TRUE for s in switches if s])
+				self.type_order.append("compatible")
+		elif line.startswith(Strindex.STRING_PREFIX):
+			line = Strindex.unescape_ctrl(line.removeprefix(Strindex.STRING_PREFIX))
+			if self.type_order[-1] == "overwrite" and self.strings[-1] is None:
+				self.strings[-1] = line
+			elif self.type_order[-1] == "compatible" and self.strings[-1][1] is None:
+				self.strings[-1][1] = line
+			else:
+				raise_unexpected()
+		elif line and not line.startswith("#"):
+			raise_unexpected()
+
+	def dump_body_entry(self, index: int) -> str:
+		if self.type_order[index] == "overwrite":
+			escaped_string = Strindex.escape_ctrl(self.strings[index])
+			return (
+				Strindex.OVERWRITE_PREFIX +
+				Strindex.TOKEN_DELIMITER.join(f"{p or 0:08x}" for p in self.pointers[index]) + "\n" +
+				(f"## {escaped_string}\n" if self.settings._references else "") +
+				Strindex.STRING_PREFIX + escaped_string + "\n\n"
+			)
+		if self.type_order[index] == "compatible":
+			return (
+				Strindex.COMPATIBLE_PREFIX +
+				Strindex.escape_ctrl(self.strings[index][0]) + Strindex.TOKEN_DELIMITER +
+				"".join((Strindex.COMPATIBLE_TRUE if p else Strindex.COMPATIBLE_FALSE) for p in self.pointers[index]) +
+				"\n" + Strindex.STRING_PREFIX + Strindex.escape_ctrl(self.strings[index][1]) + "\n\n"
+			)
+		raise ValueError(f"Invalid strindex type: {self.type_order[index]}")
+
 	@classmethod
 	@Progress.global_mark
 	def read(cls, filepath: str) -> "Strindex":
@@ -346,74 +413,23 @@ class Strindex:
 			gzip.open(filepath, "rt", encoding="utf-8", newline="") if is_gzipped
 				else Path.open(filepath, "r", encoding="utf-8", newline="")
 		) as f:
-			try:
-				full_header = ""
-				previous_line_pos = 0
-				while line := f.readline():
-					if line.startswith(Strindex.ORIGINAL_DEL):
-						f.seek(previous_line_pos)
-						break
-					previous_line_pos = f.tell()
-					full_header += line
+			full_header = ""
+			while (line := f.readline()) and not line.startswith(Strindex.POINTERS_PREFIX):
+				full_header += line
 
-				strindex.settings = StrindexSettings.read_from_toml_str(full_header)
+			strindex.settings = StrindexSettings.read_from_toml_data(full_header)
 
-				next_str_type = ""
-				while line := f.readline():
-					if line.startswith(Strindex.ORIGINAL_DEL):
-						line = line.lstrip(Strindex.ORIGINAL_DEL)
+			f.seek(len(full_header.encode("utf-8")), 0)
 
-						if next_str_type == "original":
-							strindex.strings[-1][1] = strindex.strings[-1][0]
-
-						try:
-							if Strindex.POINTERS_DEL in line:
-								pointers = [int(p, 16) for p in line.split(Strindex.POINTERS_DEL)[1:-1] if p]
-								next_str_type = "overwrite"
-								strindex.strings.append("")
-								strindex.pointers.append(pointers)
-								strindex.type_order.append("overwrite")
-							else:
-								pointers = [bool(int(p)) for p in line.split(Strindex.POINTERS_SWITCHES_DEL)[1] if p]
-								next_str_type = "original"
-								strindex.strings.append(["", ""])
-								strindex.pointers.append(pointers)
-								strindex.type_order.append("compatible")
-						except Exception as e:
-							raise ValueError(f"Error parsing Strindex pointers: {line!r}") from e
-					elif line.startswith(Strindex.REPLACE_DEL) and next_str_type == "original":
-						next_str_type = "replace"
-					else:
-						if next_str_type == "overwrite":
-							strindex.strings[-1] += line
-						elif next_str_type == "original":
-							strindex.strings[-1][0] += line
-						elif next_str_type == "replace":
-							strindex.strings[-1][1] += line
-			except UnicodeDecodeError as e:
-				raise ValueError(f"Error decoding Strindex at char {f.tell()}") from e
-
-		def clean_string(s: str):
-			return Strindex.unescape_ctrl(s.removesuffix("\n"))
-
-		for i in range(len(strindex.strings)):
-			if strindex.type_order[i] == "overwrite":
-				strindex.strings[i] = clean_string(strindex.strings[i])
-			else:
-				strindex.strings[i][0] = clean_string(strindex.strings[i][0])
-				strindex.strings[i][1] = clean_string(strindex.strings[i][1])
-
-		if strindex.strings and strindex.strings[-1] == ["", ""]:
-			strindex.strings.pop()
-			strindex.pointers.pop()
-			strindex.type_order.pop()
+			while line := f.readline():
+				strindex.parse_body_line(line)
 
 		strindex.assert_data()
 
 		return strindex
 
 	@Progress.global_mark
-	def write(self, filepath: str) -> str:
+	def write(self, filepath: str, reference: bool = False) -> str:
 		""" Saves the strindex data to a file. """
 
 		HEADER_INFO = (
@@ -423,15 +439,15 @@ class Strindex:
 		)
 		OVERWRITE_INFO = (
 			"# EXAMPLE OF REPLACEMENT:\n"
-			"# {'=' * Strindex.SEP_COUNT}/pointer(s)/\n"
-			"# replace the string that was previously provided here, with this one!\n\n"
+			f"# {Strindex.OVERWRITE_PREFIX}"
+			f"[pointer]{Strindex.TOKEN_DELIMITER}[pointer]{Strindex.TOKEN_DELIMITER}[...]\n"
+			f"# {Strindex.STRING_PREFIX}replace the string that was previously provided here, with this one!\n\n"
 		)
 		COMPATIBLE_INFO = (
 			"# EXAMPLE OF REPLACEMENT:\n"
-			f"# {'=' * Strindex.SEP_COUNT}|reallocate pointer(s) if 1, or skip if 0|\n"
-			"# replace this string...\n"
-			f"# {'-' * Strindex.SEP_COUNT}\n"
-			"# ...with this string!\n\n"
+			f"# {Strindex.COMPATIBLE_PREFIX}"
+			f"replace this string...{Strindex.TOKEN_DELIMITER}[reallocate if + / skip if -]\n"
+			f"# {Strindex.STRING_PREFIX}...with this string!\n\n"
 		)
 
 		self.assert_data()
@@ -445,23 +461,8 @@ class Strindex:
 				if len(self.type_order) > 0:
 					f.write(COMPATIBLE_INFO if self.type_order[0] == "compatible" else OVERWRITE_INFO)
 
-			for strings, pointers, type in zip(self.strings, self.pointers, self.type_order, strict=True):
-				if type == "compatible":
-					f.write(
-						Strindex.ORIGINAL_DEL + Strindex.POINTERS_SWITCHES_DEL +
-						"".join(str(int(bool(p))) for p in pointers) +
-						Strindex.POINTERS_SWITCHES_DEL + "\n" +
-						Strindex.unescape_ctrl(strings[0]) + "\n" +
-						Strindex.REPLACE_DEL + "\n" +
-						Strindex.unescape_ctrl(strings[1]) + "\n"
-					)
-				else:
-					f.write(
-						Strindex.ORIGINAL_DEL + Strindex.POINTERS_DEL +
-						Strindex.POINTERS_DEL.join(f"{p or 0:08x}" for p in pointers) +
-						Strindex.POINTERS_DEL + "\n" +
-						Strindex.escape_ctrl(strings) + "\n"
-					)
+			for i in range(len(self.strings)):
+				f.write(self.dump_body_entry(i))
 
 			f.seek(max(f.tell() - 1, 0))
 			f.truncate()
@@ -493,7 +494,7 @@ class Strindex:
 
 		for i in reversed(range(len(self.strings))):
 			if self.type_order[i] == "compatible":
-				Print.warning(f'String not found: "{self.strings[i][0]}"')
+				Print.warning(f'String #{i+1} not found: "{self.strings[i][0]}"')
 				del self.type_order[i]
 				del self.pointers[i]
 				del self.strings[i]
@@ -568,10 +569,18 @@ class FileBytearray(bytearray):
 		indices = []
 		prefix_length = len(prefix)
 		start_index = 0
+		misses = 0
 		for search_index in range(len(search_lst)):
 			index = self.find(prefix + search_lst[search_index] + suffix, start_index)
 			if index == -1:
 				indices.append(None)
+				misses += 1
+				if misses > 1000:
+					raise ValueError(
+						"More than 1000 strings not found.\n"
+						"Please make sure the search list is ordered by occurrence order\n"
+						"and that the strings are present in the bytearray."
+					)
 				continue
 			start_index = index + prefix_length + len(search_lst[search_index])
 			indices.append(index + prefix_length)
@@ -734,15 +743,15 @@ class FileBytearray(bytearray):
 		strindex_replace = strindex.get_replace
 		strindex_switches = strindex.get_switches
 
-		for index, offset in enumerate(self.strings_search_ordered(strindex_original)):
+		for i, offset in enumerate(self.strings_search_ordered(strindex_original)):
 			if offset is None:
-				Print.warning(f'String #{index} not found: "{strindex_original[index]}"')
+				Print.warning(f'String #{i+1} not found: "{strindex_original[i]}"')
 				continue
 
 			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
 			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
-			update_dict["switches"].append(strindex_switches[index])
-			new_data += data_from_string(strindex.settings.patch_replace_string(strindex_replace[index]))
+			update_dict["switches"].append(strindex_switches[i])
+			new_data += data_from_string(strindex.settings.patch_replace_string(strindex_replace[i]))
 
 		update_dict["pointers"] = self.strings_search(
 			update_dict["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes
@@ -771,7 +780,7 @@ class FileBytearray(bytearray):
 		if lst_switches is None:
 			lst_switches = [[True] * len(pointer) for pointer in lst_pointers]
 
-		for index, (pointers, replaced_bytes, switches) in enumerate(
+		for i, (pointers, replaced_bytes, switches) in enumerate(
 			zip(lst_pointers, lst_replaced_bytes, lst_switches, strict=True)
 		):
 			if pointers:
@@ -779,7 +788,7 @@ class FileBytearray(bytearray):
 					if switch:
 						self[pointer:pointer + self.byte_length] = replaced_bytes
 			else:
-				Print.warning(f"No pointers found for string #{index}")
+				Print.warning(f"No pointers found for string #{i}")
 
 	@property
 	def md5(self) -> str:
