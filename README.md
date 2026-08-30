@@ -31,7 +31,7 @@ You can run the program with the command `strindex <action> <input file(s)> [arg
 `strindex -h` will show the available arguments.
 
 These are the available actions:
-- `create`: Create a list of strings (a strindex) extracted from a file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-c` to create a strindex that uses the original strings as references, instead of pointers.
+- `create`: Create a list of strings (a strindex) extracted from a file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-C` to create a strindex that uses the original strings as references, instead of pointers.
 - `patch`: Patch a file with a strindex. Strindex files compressed with gzip are also supported for all actions.
 - `unpatch`: Unpatch a file that was patched with a strindex, using the backup file.
 - `infer`: List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range to use.

@@ -333,12 +333,14 @@ def main(sysargs=None):
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE,
 		help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
+	parser.add_argument("--version", action="version", version=VERSION,
+		help="Show the version of strindex and exit.")
 
-	# create arguments
 	parser.add_argument("-C", "--compatible", action="store_true",
 		help="Whether to create a strindex file compatible with the previous versions of a program.")
 	parser.add_argument("-R", "--references", action="store_true",
 		help="Whether to add string references comments to the strindex file.")
+
 	parser.add_argument("-f", "--force-mode", action="store_true",
 		help="Force the replacement of strings at the same offset they were found.")
 	parser.add_argument("-m", "--min-length", default=3, type=int,
@@ -353,11 +355,10 @@ def main(sysargs=None):
 	parser.add_argument("-w", "--whitelist", type=str, action="append", default=[],
 		help="Character sets to whitelist for filtering strings. Can be specified multiple times.")
 
-	parser.add_argument("--version", action="version", version=VERSION,
-		help="Show the version of strindex and exit.")
-	parser.add_argument("-v", "--verbose", action="store_true",
+	verbosity = parser.add_mutually_exclusive_group()
+	verbosity.add_argument("-v", "--verbose", action="store_true",
 		help="Print full error messages.")
-	parser.add_argument("-q", "--quiet", action="store_true",
+	verbosity.add_argument("-q", "--quiet", action="store_true",
 		help="Suppress all output except for errors.")
 
 	try:
