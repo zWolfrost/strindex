@@ -68,7 +68,7 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # >> replace the string that was previously provided here, with this one!
 #
 # METHOD TWO (compatible mode on - uses the original string as reference):
-# @c replace this string... [reallocate if + / skip if -]
+# @c replace this string... [reallocate N pointers if [xN] OR [+/-] N times]
 # >> ...with this string!
 
 
@@ -88,16 +88,16 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # Below lies the start of the body of the strindex, detected by the first line that starts with an @ symbol.
 
 
-@c A ver...* Háblame de nuevo de los [r]tipos enmascarados... ++
+@c A ver...* Háblame de nuevo de los [r]tipos enmascarados... x2
 >> Dunque...* Parlami ancora di quegli [r]uomini con le maschere...
 
-@c Entiendo...* Entonces comencemos por el principio. +
+@c Entiendo...* Entonces comencemos por el principio. x1
 >> Capisco...* Partiamo dall'inizio.
 
-@c ¿Has llegado ya? +
+@c ¿Has llegado ya? x1
 >> Sei arrivato?
 
-@c *Colgar* +++++++++++++++++++
+@c *Colgar* x19
 >> *Riattacca*
 
 @o 004420cc 004433b4

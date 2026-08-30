@@ -368,7 +368,10 @@ class Strindex:
 				line = line.removeprefix(Strindex.COMPATIBLE_PREFIX)
 				original, switches = line.rsplit(Strindex.TOKEN_DELIMITER, 1)
 				self.strings.append([Strindex.unescape_ctrl(original), None])
-				self.pointers.append([s == Strindex.COMPATIBLE_TRUE for s in switches if s])
+				self.pointers.append(
+					[True] * int(switches.removeprefix("x")) if switches.removeprefix("x").isdigit() else
+					[s == Strindex.COMPATIBLE_TRUE for s in switches if s]
+				)
 				self.type_order.append("compatible")
 		elif line.startswith(Strindex.STRING_PREFIX):
 			line = Strindex.unescape_ctrl(line.removeprefix(Strindex.STRING_PREFIX))
@@ -394,7 +397,8 @@ class Strindex:
 			return (
 				Strindex.COMPATIBLE_PREFIX +
 				Strindex.escape_ctrl(self.strings[index][0]) + Strindex.TOKEN_DELIMITER +
-				"".join((Strindex.COMPATIBLE_TRUE if p else Strindex.COMPATIBLE_FALSE) for p in self.pointers[index]) +
+				(("x" + str(len(self.pointers[index]))) if all(self.pointers[index]) else
+				"".join((Strindex.COMPATIBLE_TRUE if p else Strindex.COMPATIBLE_FALSE) for p in self.pointers[index])) +
 				"\n" + Strindex.STRING_PREFIX + Strindex.escape_ctrl(self.strings[index][1]) + "\n\n"
 			)
 		raise ValueError(f"Invalid strindex type: {self.type_order[index]}")
@@ -446,7 +450,7 @@ class Strindex:
 		COMPATIBLE_INFO = (
 			"# EXAMPLE OF REPLACEMENT:\n"
 			f"# {Strindex.COMPATIBLE_PREFIX}"
-			f"replace this string...{Strindex.TOKEN_DELIMITER}[reallocate if + / skip if -]\n"
+			f"replace this string...{Strindex.TOKEN_DELIMITER}[reallocate N pointers if [xN] OR [+/-] N times]\n"
 			f"# {Strindex.STRING_PREFIX}...with this string!\n\n"
 		)
 
@@ -784,6 +788,11 @@ class FileBytearray(bytearray):
 			zip(lst_pointers, lst_replaced_bytes, lst_switches, strict=True)
 		):
 			if pointers:
+				if len(pointers) != len(switches):
+					Print.warning(
+						f"The number of switches for string #{i}\n"
+						f"doesn't match the number of pointers ({len(switches)} != {len(pointers)})"
+					)
 				for pointer, switch in zip(pointers, switches, strict=False):
 					if switch:
 						self[pointer:pointer + self.byte_length] = replaced_bytes

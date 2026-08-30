@@ -88,7 +88,7 @@ def test_create_pe():
 		_settings._raw = ""
 		_settings._compatible = True
 		strindex.core.create(get_file_path("Katana ZERO.exe"), temp_strindex.name, _settings)
-		assert get_file_md5(temp_strindex.name) == "5698e6e77b9ebf594f01704b3c424e41"
+		assert get_file_md5(temp_strindex.name) == "9812a2cce013c742d8e5c1235b44690c"
 
 		_settings = deepcopy(KZ_PE_STRINDEX_FULL[1])
 		_settings._raw = ""

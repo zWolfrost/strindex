@@ -8,7 +8,7 @@ min_length = 3
 @o 00028faf
 >> Careful. \r\n\r\nIt is here and something else.
 
-@c Cassette type is seismic. \r\nInsert to a cockpit reader to read +
+@c Cassette type is seismic. \r\nInsert to a cockpit reader to read x1
 >> TEST REPLACEMENT
 
 @o 00029323
