@@ -242,9 +242,6 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 
 	data.byte_length = pe.byte_length
 
-	# TODO: implement a way to only get pointers from a specific section
-	# text_sect_range = pe.get_section_range(b".text")
-
 	return data.create_pointers_macro(
 		settings,
 		lambda offset: data.from_int(rva) if (rva := pe.get_rva_from_offset(offset)) is not None else None
