@@ -59,63 +59,6 @@ static int contains_control_chars(const unsigned char *data, Py_ssize_t start, P
     return 0;
 }
 
-#define MAX_CODEPOINT 0x110000
-
-static int contains_non_whitelisted_chars(PyObject *str, const unsigned char *allowed) {
-    Py_ssize_t len = PyUnicode_GET_LENGTH(str);
-    for (Py_ssize_t idx = 0; idx < len; idx++) {
-        Py_UCS4 cp = PyUnicode_READ_CHAR(str, idx);
-        if (cp >= MAX_CODEPOINT || !allowed[cp])
-            return 1;
-    }
-    return 0;
-}
-
-static int parse_whitelist(PyObject *whitelist, unsigned char **allowed_out, int *has_whitelist) {
-    *has_whitelist = 0;
-    *allowed_out = NULL;
-
-    if (!whitelist || whitelist == Py_None)
-        return 0;
-
-    PyObject *iterator = PyObject_GetIter(whitelist);
-    if (!iterator) return -1;
-
-    unsigned char *allowed = PyMem_Calloc(MAX_CODEPOINT, sizeof(unsigned char));
-    if (!allowed) {
-        Py_DECREF(iterator);
-        PyErr_NoMemory();
-        return -1;
-    }
-
-    PyObject *item;
-    Py_ssize_t count = 0;
-    while ((item = PyIter_Next(iterator))) {
-        if (PyUnicode_Check(item) && PyUnicode_GET_LENGTH(item) == 1) {
-            Py_UCS4 cp = PyUnicode_READ_CHAR(item, 0);
-            if (cp < MAX_CODEPOINT) {
-                allowed[cp] = 1;
-                count++;
-            }
-        }
-        Py_DECREF(item);
-    }
-    Py_DECREF(iterator);
-
-    if (PyErr_Occurred()) {
-        PyMem_Free(allowed);
-        return -1;
-    }
-
-    if (count > 0) {
-        *has_whitelist = 1;
-        *allowed_out = allowed;
-    } else {
-        PyMem_Free(allowed);
-    }
-    return 0;
-}
-
 static void append_match_str(PyObject *result, PyObject *str, Py_ssize_t start, Py_ssize_t end) {
     /* Steals a reference to str, mirroring Py_BuildValue's "N". */
     PyObject *tuple = Py_BuildValue("(Nnn)", str, start, end);
@@ -135,27 +78,19 @@ static void append_match(PyObject *result, const unsigned char *data, Py_ssize_t
 }
 
 static PyObject *strings_find_fast(PyObject *self, PyObject *args) {
-    PyObject *obj, *ranges_obj, *whitelist_obj = NULL;
+    PyObject *obj, *ranges_obj;
     int sep;
     Py_ssize_t min_length;
 
-    if (!PyArg_ParseTuple(args, "OinOO", &obj, &sep, &min_length, &ranges_obj, &whitelist_obj))
+    if (!PyArg_ParseTuple(args, "OinO", &obj, &sep, &min_length, &ranges_obj))
         return NULL;
 
-    RangeList rl= {0};
+    RangeList rl = {0};
     if (parse_range_list(ranges_obj, &rl) < 0)
         return NULL;
 
-    unsigned char *allowed = NULL;
-    int has_whitelist;
-    if (parse_whitelist(whitelist_obj, &allowed, &has_whitelist) < 0) {
-        free_range_list(&rl);
-        return NULL;
-    }
-
     Py_buffer view;
     if (PyObject_GetBuffer(obj, &view, PyBUF_SIMPLE) < 0) {
-        PyMem_Free(allowed);
         free_range_list(&rl);
         return NULL;
     }
@@ -167,28 +102,18 @@ static PyObject *strings_find_fast(PyObject *self, PyObject *args) {
 
     for (Py_ssize_t i = 0; i <= size; i++) {
         if (i == size || data[i] == (unsigned char)sep) {
-            if ((i - start) >= min_length && is_in_ranges(start, i, &rl)) {
-                if (has_whitelist) {
-                    PyObject *str = PyUnicode_DecodeUTF8((char *)data + start, i - start, "strict");
-                    if (str) {
-                        if (!contains_non_whitelisted_chars(str, allowed)) {
-                            append_match_str(result, str, start, i);
-                        } else {
-                            Py_DECREF(str);
-                        }
-                    } else {
-                        PyErr_Clear();
-                    }
-                } else if (!contains_control_chars(data, start, i)) {
-                    append_match(result, data, start, i);
-                }
+            if (
+                (i - start) >= min_length &&
+                is_in_ranges(start, i, &rl) &&
+                !contains_control_chars(data, start, i)
+            ) {
+                append_match(result, data, start, i);
             }
             start = i + 1;
         }
     }
 
     PyBuffer_Release(&view);
-    PyMem_Free(allowed);
     free_range_list(&rl);
 
     return result;

@@ -537,8 +537,7 @@ class FileBytearray(bytearray):
 		self,
 		sep: bytes = b"\x00",
 		min_length: int = 1,
-		ranges: list[range] | None = None,
-		whitelist: set[str] | None = None
+		ranges: list[range] | None = None
 	) -> list[tuple[str, int, int]]:
 		"""
 		Returns all strings in a bytearray, separated by a given separator.
@@ -550,8 +549,7 @@ class FileBytearray(bytearray):
 			self,
 			int(sep[0]),
 			min_length,
-			[(r.start, r.stop) for r in (ranges or [])],
-			(whitelist or [])
+			[(r.start, r.stop) for r in (ranges or [])]
 		)
 
 	@Progress.global_mark
@@ -684,10 +682,8 @@ class FileBytearray(bytearray):
 			"original_bytes": []
 		}
 
-		for string, start_offset, _ in self.strings_find(
-			min_length=settings.min_length, whitelist=settings._whitelist
-		):
-			if original_bytes := original_bytes_from_offset(start_offset):
+		for string, start_offset, _ in self.strings_find(min_length=settings.min_length):
+			if (original_bytes := original_bytes_from_offset(start_offset)) and settings.is_in_whitelist(string):
 				temp_strindex["original"].append(string)
 				temp_strindex["original_bytes"].append(original_bytes)
 

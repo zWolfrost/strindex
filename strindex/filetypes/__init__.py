@@ -50,16 +50,24 @@ class GenericModule:
 		strindex = self.module.create(self.init(data), settings)
 
 		if self.module.SETTINGS.filter_after_create:
+			starting_length = len(strindex.strings)
+
 			for i in reversed(range(len(strindex.strings))):
-				string = strindex.strings[i].encode("utf-8")
+				string_length = len(strindex.strings[i].encode("utf-8"))
 				pointers = [p for p in strindex.pointers[i] if (
 					settings.is_in_any_range(p) and
 					settings.matches_prefix(data, p) and
-					settings.matches_suffix(data, p + len(string))
+					settings.matches_suffix(data, p + string_length)
 				)]
-				if not (pointers and len(string) >= settings.min_length and settings.is_in_whitelist(string)):
+				if not (
+					pointers and
+					string_length >= settings.min_length and
+					settings.is_in_whitelist(strindex.strings[i])
+				):
 					del strindex.pointers[i]
 					del strindex.strings[i]
+
+			Print.debug(f"Filtered down to {len(strindex.strings)} / {starting_length} strings.")
 
 		if compatible:
 			strindex.type_order = ["compatible"] * len(strindex.strings)
