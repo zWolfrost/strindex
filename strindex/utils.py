@@ -30,7 +30,7 @@ class Print:
 	color_mode = True
 
 	@classmethod
-	def print(cls, msg: str, tag: str | None = None, level: PrintLevel = None, **kwargs):
+	def print(cls, msg: str, tag: str | None = None, level: str | None = None, **kwargs):
 		if not cls.quiet_mode:
 			tag = f"[{tag}] " if tag is not None and not msg.startswith("[") else ""
 			if cls.color_mode and level:
@@ -69,6 +69,7 @@ class Progress:
 	start: float
 
 	def __init__(self, total: int, decimals: int = 0):
+		assert total > 0, "Total must be greater than 0."
 		self.total = total
 		self.limit = 0
 		self.delta = max(1, total // (10 ** (decimals + 2)))
@@ -182,10 +183,10 @@ class StrindexSettings:
 		return set("".join([StrindexSettings.CHARACTER_SETS.get(w, w) for w in [*whitelist, "_default"]]))
 
 	@staticmethod
-	def handle_bytes_list(bytes_list: list[bytes]) -> list[bytes]:
-		assert all(len(bytes_str) % 2 == 0 for bytes_str in bytes_list), \
+	def handle_bytes_list(bytes_hex_list: list[str]) -> list[bytes]:
+		assert all(len(bytes_str) % 2 == 0 for bytes_str in bytes_hex_list), \
 			"All of the hex byte strings must contain an even number of characters."
-		return [bytes.fromhex(bytes_str) for bytes_str in bytes_list]
+		return [bytes.fromhex(bytes_hex_str) for bytes_hex_str in bytes_hex_list]
 
 	@staticmethod
 	def handle_ranges(ranges: list[str]) -> list[tuple[int, int]]:
@@ -198,11 +199,11 @@ class StrindexSettings:
 				beg_str, end_str = range_str.split(":")
 				beg = int(beg_str, 16)
 				end = int(end_str, 16) + 1
-				if beg > end:
-					raise ValueError(f"Invalid range: {range_str}. Start must be less than or equal to end.")
-				parsed_ranges.append(range(beg, end))
 			except ValueError as e:
 				raise ValueError(f"Invalid range format: {range_str}. Expected format is 'start:end'.") from e
+			if beg > end:
+				raise ValueError(f"Invalid range: {range_str}. Start must be less than or equal to end.")
+			parsed_ranges.append(range(beg, end))
 		return parsed_ranges
 
 	def clean_string(self, string: str) -> str:
@@ -224,7 +225,7 @@ class StrindexSettings:
 
 	def is_in_any_range(self, val: int) -> bool:
 		""" Checks if the value is in any of the ranges. """
-		return any(val in range for range in self.ranges) if self.ranges else True
+		return any(val in r for r in self.ranges) if self.ranges else True
 
 	def is_in_whitelist(self, string: str) -> bool:
 		""" Checks if the string is whitelisted. """
@@ -457,7 +458,7 @@ class Strindex:
 
 		self.assert_data()
 
-		with (Path(filepath).open("w", encoding="utf-8", newline="\n") if filepath else StringIO()) as f:
+		with (StringIO() if filepath is None else Path(filepath).open("w", encoding="utf-8", newline="\n")) as f:
 			if self.settings._raw is not None:
 				f.write(self.settings._raw)
 			else:
@@ -494,6 +495,11 @@ class Strindex:
 				start_i = search_i + 1
 				if any(self.pointers[i]):
 					self.type_order[i] = "overwrite"
+					if len(offsets) != len(self.pointers[i]):
+						Print.warning(
+							f"The number of switches for string #{i}\n"
+							f"doesn't match the number of pointers ({len(offsets)} != {len(self.pointers[i])})"
+						)
 					self.pointers[i] = [p for p, s in zip(offsets, self.pointers[i], strict=False) if s]
 					self.strings[i] = self.strings[i][1]
 
@@ -778,25 +784,25 @@ class FileBytearray(bytearray):
 
 	def update_references(
 		self,
-		lst_pointers: list[list[int]],
+		lst_offsets: list[list[int]],
 		lst_replaced_bytes: list[bytes],
 		lst_switches: list[list[bool]] | None = None
 	):
 		if lst_switches is None:
-			lst_switches = [[True] * len(pointer) for pointer in lst_pointers]
+			lst_switches = [[True] * len(pointer) for pointer in lst_offsets]
 
-		for i, (pointers, replaced_bytes, switches) in enumerate(
-			zip(lst_pointers, lst_replaced_bytes, lst_switches, strict=True)
+		for i, (offsets, replaced_bytes, switches) in enumerate(
+			zip(lst_offsets, lst_replaced_bytes, lst_switches, strict=True)
 		):
-			if pointers:
-				if len(pointers) != len(switches):
+			if offsets:
+				if len(offsets) != len(switches):
 					Print.warning(
 						f"The number of switches for string #{i}\n"
-						f"doesn't match the number of pointers ({len(switches)} != {len(pointers)})"
+						f"doesn't match the number of pointers ({len(switches)} != {len(offsets)})"
 					)
-				for pointer, switch in zip(pointers, switches, strict=False):
+				for offset, switch in zip(offsets, switches, strict=False):
 					if switch:
-						self[pointer:pointer + self.byte_length] = replaced_bytes
+						self[offset:offset + self.byte_length] = replaced_bytes
 			else:
 				Print.warning(f"No pointers found for string #{i}")
 
