@@ -435,7 +435,7 @@ class Strindex:
 		return strindex
 
 	@Progress.global_mark
-	def write(self, filepath: str, reference: bool = False) -> str:
+	def write(self, filepath: str) -> str:
 		""" Saves the strindex data to a file. """
 
 		HEADER_INFO = (
