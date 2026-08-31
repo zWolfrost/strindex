@@ -328,11 +328,9 @@ def main(sysargs=None):
 	parser.add_argument("action", type=str, nargs=argparse.OPTIONAL,
 		choices=["create", "patch", "unpatch", "infer", "update", "filter", "delta", "spellcheck", "gui"],
 		help="Action to perform.")
-	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE,
-		help="One or more files to process.")
+	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
-	parser.add_argument("--version", action="version", version=VERSION,
-		help="Show the version of strindex and exit.")
+	parser.add_argument("--version", action="version", version=VERSION, help="Show the version of strindex and exit.")
 
 	parser.add_argument("-C", "--compatible", action="store_true",
 		help="Whether to create a strindex file compatible with the previous versions of a program.")
@@ -348,16 +346,13 @@ def main(sysargs=None):
 	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[],
 		help="Suffix bytes that can suffix a pointer.")
 	parser.add_argument("-r", "--range", type=str, action="append", default=[],
-		help=("Range of the hexadecimal offsets to search for strings, in the format 'start:end'."
+		help=("Ranges of offsets to consider for searching pointers, in the format 'start:end'."
 			"Can be specified multiple times."))
 	parser.add_argument("-w", "--whitelist", type=str, action="append", default=[],
 		help="Character sets to whitelist for filtering strings. Can be specified multiple times.")
 
-	verbosity = parser.add_mutually_exclusive_group()
-	verbosity.add_argument("-v", "--verbose", action="store_true",
-		help="Print full error messages.")
-	verbosity.add_argument("-q", "--quiet", action="store_true",
-		help="Suppress all output except for errors.")
+	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
+	parser.add_argument("-q", "--quiet", action="store_true", help="Suppress all output except for errors.")
 
 	try:
 		Print.quiet_mode = False

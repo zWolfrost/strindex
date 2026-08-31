@@ -12,7 +12,8 @@ A string can be referenced not only by its pointer / offset, but also by the ori
 It features various built-in features to help with translation, such as spellchecking & filtering strings by length and character set.
 
 ## Supported filetypes
-*Support for more filetypes is not planned.*
+*Support for more filetypes is possible, but not planned*
+
 - PE files (".exe", ".dll"...) *(direct pointers only!)*
 - Gamemaker data files ("data.win")
 - Unreal Engine localization files (".locres")
@@ -50,7 +51,7 @@ These are the available actions:
   ```sh
   strindex create program.exe -p "24c7442404" -p "ec04c70424"
   ```
-- Create a strindex from a PE file, considering only strings that are present between offsets 0x018bc5ec and 0x01a09fb1.
+- Create a strindex from a PE file, considering only pointers in the range from 0x018bc5ec to 0x01a09fb1.
   ```sh
   strindex create program.exe -m 3 -r "018bc5ec:01a09fb1"
   ```
