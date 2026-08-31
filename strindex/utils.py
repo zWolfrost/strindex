@@ -291,7 +291,7 @@ class Strindex:
 
 	settings: StrindexSettings
 
-	strings: list[str | list[str, str]]
+	strings: list[str | list[str]]
 	pointers: list[list[int | bool]]
 	type_order: list[str]
 
@@ -414,16 +414,17 @@ class Strindex:
 			is_gzipped = (f.read(2) == b"\x1f\x8b")
 
 		with (
-			gzip.open(filepath, "rt", encoding="utf-8", newline="") if is_gzipped
-				else Path(filepath).open("r", encoding="utf-8", newline="")
+			gzip.open(filepath, "rt", encoding="utf-8", newline=None) if is_gzipped
+				else Path(filepath).open("r", encoding="utf-8", newline=None)
 		) as f:
 			full_header = ""
-			while (line := f.readline()) and not line.startswith(Strindex.POINTERS_PREFIX):
+			while line := f.readline():
+				if line.startswith(Strindex.POINTERS_PREFIX):
+					strindex.parse_body_line(line)
+					break
 				full_header += line
 
 			strindex.settings = StrindexSettings.read_from_toml_data(full_header)
-
-			f.seek(len(full_header.encode("utf-8")), 0)
 
 			while line := f.readline():
 				strindex.parse_body_line(line)
@@ -456,7 +457,7 @@ class Strindex:
 
 		self.assert_data()
 
-		with (Path(filepath).open("w", encoding="utf-8", newline="") if filepath else StringIO()) as f:
+		with (Path(filepath).open("w", encoding="utf-8", newline="\n") if filepath else StringIO()) as f:
 			if self.settings._raw is not None:
 				f.write(self.settings._raw)
 			else:

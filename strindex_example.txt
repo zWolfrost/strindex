@@ -1,14 +1,19 @@
+# =======================================GENERAL INFORMATION=======================================
+
 # This strindex contains the translation for the first 10 lines of the videogame "Katana ZERO"
 # from the Spanish language, to Italian, specifically for its ".exe" file.
 #
-# The strindex parser automatically detects the settings formatted in TOML (the header),
-# as well as the start of the strings to patch (the body), inside which comments are supported as well.
-#
+# The strindex parser automatically detects the settings formatted in TOML (in the header),
+# as well as the patching instructions (in the body), inside which comments are supported as well.
+
+
+
+# =========================================STRINDEX HEADER=========================================
+
 # You can freely create, edit & delete comments and settings in the header.
 #
 # The arguments --force-mode, --min-length, --prefix-bytes, --suffix-bytes, --range & --whitelist
 # can be used with the "create" action to automatically create a strindex with those settings set.
-
 
 # The md5 hash of the file this strindex was created with.
 # Useful for many reasons, such as debugging, but mainly to avoid patching the wrong file.
@@ -27,22 +32,22 @@ min_length = 3
 # A list of prefix/suffix bytes that can prefix/suffix a pointer.
 # If the pointers for the strings you want to patch always have those,
 # this can help identifying them better and avoiding relocating "false pointers"
-# (sequence of bytes that are the same as a pointer but that aren't one).
+# (sequence of bytes that are the same as a pointer but aren't one).
 # When relocating false pointers, there's a high chance of the program crashing.
 prefix_bytes = [ "24c7442404", "ec04c70424" ]
 suffix_bytes = [ ]
 
-# The starting and ending offsets of the sections of the file that should be scanned for strings,
-# in hexadecimal format, specifically written as "start:end".
+# The starting and ending offsets of the sections of the file inside which
+# pointers should be considered, in hexadecimal format, specifically written as "start:end".
 # If not specified, the whole file will be scanned.
 ranges = [ "018bc5ec:01a09fb1" ]
 
 # The whitelisted language character sets which strings have to be made of to be considered valid.
 # You can see the available sets by running "strindex --whitelist help".
-# If this list is empty, any non-control utf-8 character will be accepted.
+# If not specified, any non-control utf-8 character will be accepted.
 whitelist = [ "latin", "spanish", "cyrillic" ]
 
-# A table which replaces characters (or sequences of characters) in every string before patching it.
+# A table which replaces characters (or sequences of characters) in every string before patching.
 # Useful for when the program doesn't support some characters (in this case, "ìÌòÒ")
 # but you still want to be grammatically correct in the strindex body.
 patch_replace = { "ì" = "í", "Ì" = "Í", "ò" = "ó", "Ò" = "Ó" }
@@ -61,6 +66,9 @@ target_language = "it"
 among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 
 
+
+# ==========================================STRINDEX BODY==========================================
+
 # You can replace strings in two different ways (which can be mixed in the same strindex file):
 #
 # METHOD ONE (compatible mode off - uses pointers as reference):
@@ -70,22 +78,25 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # METHOD TWO (compatible mode on - uses the original string as reference):
 # @c replace this string... [reallocate N pointers if [xN] OR [+/-] N times]
 # >> ...with this string!
+#
+# Of course, you should only edit the string after the >> symbol,
+# as everything to the right of @ is used by the program to identify the string to patch.
+#
+# The replacements done using METHOD TWO must be kept in order of the appearance in the file.
 
 
 # The term "pointers" is generic by design, as they can possess different meaning
 # depending on the file format that's being patched.
 #
-# What's important is that each pointer represents a different "reference" of that same string in the file,
-# and deleting a pointer (or, like in the first example, setting it to 0),
+# What's important is that each pointer represents a different "reference" of that same string,
+# and deleting a pointer (or, like in METHOD TWO, setting one to "-"),
 # will make the program skip the reallocation of that one "reference".
-#
-# When using original strings to replace the patched ones (like in the first example),
-# they must be in order of appearance in the file, or else they will be skipped.
-#
+
+
 # IMPORTANT: The control characters "\t", "\n" and "\r" (and "\" by itself) are *ESCAPED*
 # in the strindex body, and will be *UNESCAPED* when the strindex is read by the program.
 #
-# Below lies the start of the body of the strindex, detected by the first line that starts with an @ symbol.
+# Below lies the start of the body of the strindex, detected by the first @ symbol.
 
 
 @c A ver...* Háblame de nuevo de los [r]tipos enmascarados... x2
