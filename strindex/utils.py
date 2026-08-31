@@ -282,7 +282,7 @@ class Strindex:
 				return f'"{val.hex()}"'
 			if isinstance(val, range):
 				return f'"{val.start:08x}:{val.stop - 1:08x}"'
-			return JSONEncoder().encode(val)
+			return JSONEncoder(ensure_ascii=False).encode(val)
 
 		dumps = ""
 		for key, value in obj.items():

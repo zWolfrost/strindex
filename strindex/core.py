@@ -400,8 +400,8 @@ def main(sysargs=None):
 					create(
 						args.files[0], args.output,
 						StrindexSettings(
-							_compatible=args.compatible,
-							_references=args.references,
+							_compatible = args.compatible,
+							_references = args.references,
 							force_mode = args.force_mode,
 							min_length = args.min_length,
 							prefix_bytes = args.prefix_bytes,
