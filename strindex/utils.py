@@ -517,7 +517,7 @@ class Strindex:
 
 	def assert_data(self):
 		assert len(self.strings) == len(self.pointers) == len(self.type_order), (
-			f"Overwrite, pointers and type order lists are not the same length"
+			f"Strings, pointers and type order lists are not the same length"
 			f" ({len(self.strings)} != {len(self.pointers)} != {len(self.type_order)})."
 		)
 
