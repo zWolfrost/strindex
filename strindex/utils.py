@@ -72,7 +72,7 @@ class Progress:
 		self.total = total
 		self.limit = 0
 		self.delta = max(1, total // (10 ** (decimals + 2)))
-		self.round = None if decimals == 0 else decimals
+		self.round = decimals
 		self.percent = 0
 		self.start = time.time()
 		self(0)
@@ -83,12 +83,12 @@ class Progress:
 		if iteration >= self.limit and self.percent < 100:
 			self.limit += self.delta
 			self.percent = round(iteration / self.total * 100, self.round)
-			if (
-				hasattr(Progress, "global_instance")
-				and self is Progress.global_instance
-				and hasattr(Progress, "global_callback")
-			):
-				Progress.global_callback(self)
+			if (hasattr(Progress, "global_instance") and self is Progress.global_instance
+				and hasattr(Progress, "global_callback")):
+					Progress.global_callback(self)
+			if self.total >= 100:
+				Print.debug(f"\r{self.percent:.{self.round}f}% ({iteration}/{self.total})",
+					end=("\r" if self.percent >= 100 else ""))
 			if self.percent >= 100:
 				Print.debug(f"Action completed in {time.time() - self.start:.2f}s.")
 
@@ -410,12 +410,12 @@ class Strindex:
 
 		strindex = cls()
 
-		with Path.open(filepath, "rb") as f:
+		with Path(filepath).open("rb") as f:
 			is_gzipped = (f.read(2) == b"\x1f\x8b")
 
 		with (
 			gzip.open(filepath, "rt", encoding="utf-8", newline="") if is_gzipped
-				else Path.open(filepath, "r", encoding="utf-8", newline="")
+				else Path(filepath).open("r", encoding="utf-8", newline="")
 		) as f:
 			full_header = ""
 			while (line := f.readline()) and not line.startswith(Strindex.POINTERS_PREFIX):
@@ -456,7 +456,7 @@ class Strindex:
 
 		self.assert_data()
 
-		with (Path.open(filepath, "w", encoding="utf-8", newline="") if filepath else StringIO()) as f:
+		with (Path(filepath).open("w", encoding="utf-8", newline="") if filepath else StringIO()) as f:
 			if self.settings._raw is not None:
 				f.write(self.settings._raw)
 			else:
@@ -525,12 +525,12 @@ class FileBytearray(bytearray):
 	@classmethod
 	@Progress.global_mark
 	def read(cls, filepath: str):
-		with Path.open(filepath, "rb") as f:
+		with Path(filepath).open("rb") as f:
 			return cls(f.read())
 
 	@Progress.global_mark
 	def write(self, filepath: str):
-		with Path.open(filepath, "wb") as f:
+		with Path(filepath).open("wb") as f:
 			f.write(self)
 
 	def copy(self) -> "FileBytearray":

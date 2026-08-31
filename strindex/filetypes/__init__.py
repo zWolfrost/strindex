@@ -24,7 +24,7 @@ class GenericModule:
 			self.module = module
 			if self.match(data):
 				filetype = module.__name__.split(".")[-1]
-				Print.debug(f'Detected filetype: "{filetype}".')
+				Print.info(f'Detected filetype: "{filetype}".')
 				return
 
 		raise NotImplementedError(

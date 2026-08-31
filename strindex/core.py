@@ -8,8 +8,8 @@ from strindex.utils import FileBytearray, Print, Progress, Strindex, StrindexSet
 VERSION = "5.0.0"
 
 
-def edit_extension(file_filepath: str, suffix: str) -> Path:
-	_path = Path(file_filepath)
+def edit_extension(filepath: str, suffix: str) -> str:
+	_path = Path(filepath)
 	return _path.with_name(_path.stem + suffix).resolve().as_posix()
 
 
@@ -145,7 +145,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 		infer_output += f"\n[LOWEST RANGE]\n{lowest_range:08x}:{highest_range:08x}"
 
 	Progress.global_instance()
-	Print.debug("")
+	Print.info("")
 
 	return Print.info(infer_output)
 
@@ -274,9 +274,6 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None) -> str:
 	""" Creates a spellcheck file from a strindex file, for the specified language. """
-
-	Progress.init_global_instance(2)
-
 	if not strindex_spellcheck_filepath:
 		strindex_spellcheck_filepath = edit_extension(strindex_filepath, "_spellcheck.txt")
 
@@ -297,14 +294,15 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	lang = LanguageTool(strindex.settings.target_language)
 	Print.debug("Created language tool.")
 
-	with Path.open(strindex_spellcheck_filepath, "w", encoding="utf-8") as f:
-		for string in strindex.get_overwrite_and_replace:
+	Progress.init_global_instance(len(strindex.strings), 1)
+
+	with Path(strindex_spellcheck_filepath).open("w", encoding="utf-8") as f:
+		for i, string in enumerate(strindex.get_overwrite_and_replace, start=1):
+			Progress.global_instance(i)
 			string_clean = strindex.settings.clean_string(string)
 			f.writelines("\n".join(str(error).split("\n")[-3:]) + "\n" for error in lang.check(string_clean))
 
-	Progress.global_instance()
-
-	return Print.info(f'Created spellcheck file at "{strindex_spellcheck_filepath}".')
+	return Print.info(f"Created spellcheck file at\n{strindex_spellcheck_filepath}")
 
 
 def help_whitelist():
