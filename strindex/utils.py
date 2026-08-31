@@ -639,8 +639,10 @@ class FileBytearray(bytearray):
 
 	# Shorthands
 	def get(self, byte_length: int | None = None) -> bytes:
-		byte_slice = self[self.cursor:self.cursor + (byte_length or self.byte_length)]
-		self.cursor += byte_length or self.byte_length
+		if byte_length is None:
+			byte_length = self.byte_length
+		byte_slice = self[self.cursor:self.cursor + byte_length]
+		self.cursor += byte_length
 		return bytes(byte_slice)
 
 	def put(self, value: bytes, byte_length: int | None = None) -> bytes:
@@ -653,20 +655,28 @@ class FileBytearray(bytearray):
 		return value
 
 	def get_int(self, byte_length: int | None = None, byte_order: str | None = None) -> int:
-		return int.from_bytes(self.get(byte_length), byte_order or self.byte_order)
+		if byte_order is None:
+			byte_order = self.byte_order
+		return int.from_bytes(self.get(byte_length), byte_order)
 
 	def put_int(self, value: int, byte_length: int | None = None, byte_order: str | None = None) -> bytes:
-		self[self.cursor:self.cursor + (byte_length or self.byte_length)] = (
-			self.from_int(value, byte_length, byte_order)
-		)
+		if byte_length is None:
+			byte_length = self.byte_length
+		self[self.cursor:self.cursor + byte_length] = self.from_int(value, byte_length, byte_order)
 		return self.get(byte_length)
 
 	def from_int(self, value: int, byte_length: int | None = None, byte_order: str | None = None) -> bytes:
-		return value.to_bytes(byte_length or self.byte_length, byte_order or self.byte_order)
+		if byte_length is None:
+			byte_length = self.byte_length
+		if byte_order is None:
+			byte_order = self.byte_order
+		return value.to_bytes(byte_length, byte_order)
 
 	def add_int(self, delta: int, byte_length: int | None = None, byte_order: str | None = None) -> bytes:
+		if byte_length is None:
+			byte_length = self.byte_length
 		value = self.get_int(byte_length, byte_order)
-		self.cursor -= byte_length or self.byte_length
+		self.cursor -= byte_length
 		return self.put_int(value + delta, byte_length, byte_order)
 
 	def replace_string(self, replace: str, sep: bytes = b"\x00") -> bytes:

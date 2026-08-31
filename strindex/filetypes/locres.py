@@ -15,23 +15,51 @@ def get_text_start_offset(data: FileBytearray) -> int:
 	return data.get_int()
 
 
+def get_string(data: FileBytearray, length: int) -> str:
+	if is_utf16_from_length(length): # utf-16
+		string = data.get((int("ffffffff", 16) - length)*2).decode("utf-16-le")
+		data.cursor += 2
+	else: # utf-8
+		string = data.get(length - 1).decode("utf-8")
+		data.cursor += 1
+
+	return string
+
+
+def detect_meta_length(data: FileBytearray, offset: int) -> tuple[bytes, int]: # HACK
+	for i in range(6):
+		data.cursor = offset
+		if i > 0:
+			data.get(i*4)
+		length = data.get_int()
+		try:
+			if get_string(data, length) == "":
+				raise ValueError
+		except (UnicodeDecodeError, ValueError):
+			pass
+		else:
+			data.cursor = offset
+			return i*4
+	raise ValueError("Failed to detect metadata length")
+
+
 def get_structures_dict(data: FileBytearray) -> dict[int, tuple[int, int, str]]:
 	data.cursor = get_text_start_offset(data)
 	structures = {}
 
+	meta_length = 0
+
 	while data.cursor < len(data)-4:
 		offset = data.cursor
-		id = data.get_int()
+
+		if len(structures) <= 2:
+			meta_length = detect_meta_length(data, offset)
+
+		meta = data.get(meta_length)
 		length = data.get_int()
+		string = get_string(data, length)
 
-		if is_utf16_from_length(length): # utf-16
-			string = data.get((int("ffffffff", 16) - length)*2).decode("utf-16-le")
-			data.cursor += 2
-		else: # utf-8
-			string = data.get(length - 1).decode("utf-8")
-			data.cursor += 1
-
-		structures[offset] = (id, length, string)
+		structures[offset] = (meta, length, string)
 
 	return structures
 
@@ -66,8 +94,8 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 
 	data[get_text_start_offset(data):] = b""
 
-	for id, length, string in structures.values():
-		data += data.from_int(id)
+	for meta, length, string in structures.values():
+		data += meta
 
 		if is_utf16_from_length(length):
 			string_encoded = string.encode("utf-16-le")
