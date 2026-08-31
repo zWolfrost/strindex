@@ -347,43 +347,43 @@ class Strindex:
 		self.type_order = []
 
 	def parse_body_line(self, line: str):
-		def raise_unexpected():
-			raise ValueError(f"Unexpected line in strindex body:\n{line!r}")
+		try:
+			line = line.removesuffix("\n")
 
-		line = line.removesuffix("\n")
+			if line.startswith(Strindex.POINTERS_PREFIX):
+				if (
+					self.type_order and self.strings and
+					((self.type_order[-1] == "overwrite" and self.strings[-1] is None) or
+					(self.type_order[-1] == "compatible" and self.strings[-1][1] is None))
+				):
+					raise ValueError
 
-		if line.startswith(Strindex.POINTERS_PREFIX):
-			if (
-				self.type_order and self.strings and
-				((self.type_order[-1] == "overwrite" and self.strings[-1] is None) or
-				(self.type_order[-1] == "compatible" and self.strings[-1][1] is None))
-			):
-				raise_unexpected()
-
-			if line.startswith(Strindex.OVERWRITE_PREFIX):
-				line = line.removeprefix(Strindex.OVERWRITE_PREFIX)
-				self.strings.append(None)
-				self.pointers.append([int(p, 16) for p in line.split(Strindex.TOKEN_DELIMITER) if p])
-				self.type_order.append("overwrite")
-			elif line.startswith(Strindex.COMPATIBLE_PREFIX):
-				line = line.removeprefix(Strindex.COMPATIBLE_PREFIX)
-				original, switches = line.rsplit(Strindex.TOKEN_DELIMITER, 1)
-				self.strings.append([Strindex.unescape_ctrl(original), None])
-				self.pointers.append(
-					[True] * int(switches.removeprefix("x")) if switches.removeprefix("x").isdigit() else
-					[s == Strindex.COMPATIBLE_TRUE for s in switches if s]
-				)
-				self.type_order.append("compatible")
-		elif line.startswith(Strindex.STRING_PREFIX):
-			line = Strindex.unescape_ctrl(line.removeprefix(Strindex.STRING_PREFIX))
-			if self.type_order[-1] == "overwrite" and self.strings[-1] is None:
-				self.strings[-1] = line
-			elif self.type_order[-1] == "compatible" and self.strings[-1][1] is None:
-				self.strings[-1][1] = line
-			else:
-				raise_unexpected()
-		elif line and not line.startswith("#"):
-			raise_unexpected()
+				if line.startswith(Strindex.OVERWRITE_PREFIX):
+					processed_line = line.removeprefix(Strindex.OVERWRITE_PREFIX)
+					self.strings.append(None)
+					self.pointers.append([int(p, 16) for p in processed_line.split(Strindex.TOKEN_DELIMITER) if p])
+					self.type_order.append("overwrite")
+				elif line.startswith(Strindex.COMPATIBLE_PREFIX):
+					processed_line = line.removeprefix(Strindex.COMPATIBLE_PREFIX)
+					original, switches = processed_line.rsplit(Strindex.TOKEN_DELIMITER, 1)
+					self.strings.append([Strindex.unescape_ctrl(original), None])
+					self.pointers.append(
+						[True] * int(switches.removeprefix("x")) if switches.removeprefix("x").isdigit() else
+						[s == Strindex.COMPATIBLE_TRUE for s in switches if s]
+					)
+					self.type_order.append("compatible")
+			elif line.startswith(Strindex.STRING_PREFIX):
+				processed_line = Strindex.unescape_ctrl(line.removeprefix(Strindex.STRING_PREFIX))
+				if self.type_order[-1] == "overwrite" and self.strings[-1] is None:
+					self.strings[-1] = processed_line
+				elif self.type_order[-1] == "compatible" and self.strings[-1][1] is None:
+					self.strings[-1][1] = processed_line
+				else:
+					raise ValueError
+			elif line and not line.startswith("#"):
+				raise ValueError
+		except ValueError as e:
+			raise ValueError(f"Invalid line in strindex body:\n{line!r}") from e
 
 	def dump_body_entry(self, index: int) -> str:
 		if self.type_order[index] == "overwrite":
