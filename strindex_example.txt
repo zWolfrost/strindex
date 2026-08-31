@@ -40,7 +40,7 @@ suffix_bytes = [ ]
 # The starting and ending offsets of the sections of the file inside which
 # pointers should be considered, in hexadecimal format, specifically written as "start:end".
 # If not specified, the whole file will be scanned.
-ranges = [ "018bc5ec:01a09fb1" ]
+ranges = [ "00441078:0060e501" ]
 
 # The whitelisted language character sets which strings have to be made of to be considered valid.
 # You can see the available sets by running "strindex --whitelist help".

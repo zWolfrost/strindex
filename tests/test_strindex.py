@@ -80,7 +80,7 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 
 	with temp_open() as temp_strindex:
 		strindex_example.write(temp_strindex.name)
-		assert get_file_md5(temp_strindex.name) == "33fdd4dee70dfc8ae5be32d20e56191b"
+		assert get_file_md5(temp_strindex.name) == "af5c8927c1a288e25024f7a694f843c1"
 
 def test_create_pe():
 	with temp_open() as temp_strindex:

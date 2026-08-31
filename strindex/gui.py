@@ -345,7 +345,7 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_lineedit("(Optional) Suffix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
 		self.create_padding(1)
 
-		self.create_lineedit("(Optional) Range offsets hex (comma-separated) e.g.: 018bc5ec:01a09fb1,02a09fb1:02a09fb2")
+		self.create_lineedit("(Optional) Range offsets hex (comma-separated) e.g.: 018bc5ec:01a09fb1,00441078:0060e501")
 		self.create_padding(1)
 
 		self.create_lineedit("(Optional) Whitelisted character sets (comma-separated) e.g.: latin,cyrillic")
