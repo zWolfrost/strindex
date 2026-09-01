@@ -56,3 +56,8 @@ line-length = 120
 
 [tool.ruff.lint]
 extend-select = ["B", "C4", "ISC", "ICN", "PIE", "T20", "Q", "RET", "SIM", "TID", "TC", "PTH", "E", "RUF"]
+
+[tool.pytest]
+addopts = ["-s", "-v", "--tb=short"]
+python_files = ["tests/test_*.py"]
+python_functions = ["test_*"]

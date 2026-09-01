@@ -1,38 +1,60 @@
+import functools
 import importlib
 import pkgutil
+from typing import Protocol
 
 from strindex.filetypes import *
 from strindex.filetypes import force
-from strindex.utils import FileBuffer, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex, StrindexSettings
 
 MODULES = [
 	importlib.import_module(f"{__name__}.{n}") for _, n, _ in
 	pkgutil.iter_modules(__path__) if not n.startswith("_")
 ]
 
+def use_force_module(force_mode):
+	def decorator(func):
+		@functools.wraps(func)
+		def wrapper(self: GenericModule, *args, **kwargs):
+			if force_mode(*args, **kwargs):
+				prev_module = self.module
+				self.module = force
+				try:
+					return func(self, *args, **kwargs)
+				finally:
+					self.module = prev_module
+			else:
+				if self.module is None:
+					raise NotImplementedError(
+						"This file type has no associated module,\n"
+						"or the required libraries to handle it are not installed.\n"
+						"You can use the --force flag to enable force mode\n"
+						"and attempt to extract strings from the file anyway."
+					)
+				return func(self, *args, **kwargs)
+
+		return wrapper
+	return decorator
 
 class GenericModule:
 	""" A class representing a generic module that can be used to extract and patch strings from a filetype. """
 
-	def __init__(self, data: FileBuffer, force_mode: bool = False):
-		if force_mode:
-			self.module = force
-			Print.debug("Force mode enabled.")
-			return
+	module: SpecificModule | None
+
+	@classmethod
+	def detect_from_data(cls, data: FileBuffer):
+		generic_module = cls()
 
 		for module in MODULES:
-			self.module = module
-			if self.match(data):
+			generic_module.module = module
+			if generic_module.match(data):
 				filetype = module.__name__.split(".")[-1]
 				Print.info(f'Detected filetype: "{filetype}".')
-				return
+				break
+		else:
+			generic_module.module = None
 
-		raise NotImplementedError(
-			"This file type has no associated module,\n"
-			"or the required libraries to handle it are not installed.\n"
-			"You can use the --force flag to enable force mode\n"
-			"and attempt to extract strings from the file anyway."
-		)
+		return generic_module
 
 	def init(self, data: FileBuffer) -> FileBuffer:
 		""" Initializes the file data for the module. """
@@ -44,8 +66,9 @@ class GenericModule:
 
 	def match(self, data: FileBuffer) -> bool:
 		""" Checks if the file is of the target filetype. """
-		return self.module.match(self.init(data))
+		return self.module.match(self.init(data)) if self.module else False
 
+	@use_force_module(lambda _, settings: settings.force_mode)
 	def create(self, data: FileBuffer, settings: StrindexSettings) -> Strindex:
 		""" Creates a Strindex object from the file data. """
 		strindex = self.module.create(self.init(data), settings)
@@ -82,6 +105,19 @@ class GenericModule:
 
 		return strindex
 
+	@use_force_module(lambda _, strindex: strindex.settings.force_mode)
 	def patch(self, data: FileBuffer, strindex: Strindex) -> FileBuffer:
 		""" Patches the file data with the Strindex object. """
 		return self.module.patch(self.init(data), strindex)
+
+class SpecificModule(Protocol):
+	SETTINGS: ModuleSettings
+
+	def match(self, data: FileBuffer) -> bool:
+		...
+
+	def create(self, data: FileBuffer, settings: StrindexSettings) -> Strindex:
+		...
+
+	def patch(self, data: FileBuffer, strindex: Strindex) -> FileBuffer:
+		...

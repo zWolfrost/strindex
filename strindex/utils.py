@@ -6,7 +6,6 @@ import re
 import time
 import tomllib
 from collections.abc import Callable
-from io import StringIO
 from json import JSONEncoder
 from pathlib import Path
 from typing import ClassVar
@@ -123,9 +122,9 @@ class StrindexSettings:
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""", # noqa: E501
 	}
 
+	_raw: str | None = None
 	_compatible: bool | None = None
 	_references: bool | None = None
-	_raw: str | None = None
 	_whitelist_set: set[str] = dataclasses.field(default_factory=set)
 
 	md5: str | None = None
@@ -447,7 +446,7 @@ class Strindex:
 
 		self.assert_data()
 
-		with (StringIO() if filepath is None else Path(filepath).open("w", encoding="utf-8", newline="\n")) as f:
+		with Path(filepath).open("w", encoding="utf-8", newline="\n") as f:
 			if self.settings._raw is not None:
 				f.write(self.settings._raw)
 			else:
@@ -456,13 +455,10 @@ class Strindex:
 				if len(self.type_order) > 0:
 					f.write(COMPATIBLE_INFO if self.type_order[0] == "compatible" else OVERWRITE_INFO)
 
-			for i in range(len(self.strings)):
-				f.write(self.dump_body_entry(i))
+			f.writelines(self.dump_body_entry(i) for i in range(len(self.strings)))
 
 			f.seek(max(f.tell() - 1, 0))
 			f.truncate()
-
-			return f.getvalue() if filepath is None else filepath
 
 	def normalize_to_overwrite(self, full_lst_offsets: list[int], full_lst_strings: list[str]):
 		""" Converts compatible strings to overwrite strings and deletes them if necessary. """
