@@ -3,7 +3,7 @@ import pkgutil
 
 from strindex.filetypes import *
 from strindex.filetypes import force
-from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, Print, Strindex, StrindexSettings
 
 MODULES = [
 	importlib.import_module(f"{__name__}.{n}") for _, n, _ in
@@ -14,7 +14,7 @@ MODULES = [
 class GenericModule:
 	""" A class representing a generic module that can be used to extract and patch strings from a filetype. """
 
-	def __init__(self, data: FileBytearray, force_mode: bool = False):
+	def __init__(self, data: FileBuffer, force_mode: bool = False):
 		if force_mode:
 			self.module = force
 			Print.debug("Force mode enabled.")
@@ -34,18 +34,19 @@ class GenericModule:
 			"and attempt to extract strings from the file anyway."
 		)
 
-	def init(self, data: FileBytearray) -> FileBytearray:
+	def init(self, data: FileBuffer) -> FileBuffer:
 		""" Initializes the file data for the module. """
 		data = data.copy()
+		data.cursor = 0
 		data.byte_length = self.module.SETTINGS.default_byte_length
 		data.byte_order = self.module.SETTINGS.default_byte_order
 		return data
 
-	def match(self, data: FileBytearray) -> bool:
+	def match(self, data: FileBuffer) -> bool:
 		""" Checks if the file is of the target filetype. """
 		return self.module.match(self.init(data))
 
-	def create(self, data: FileBytearray, settings: StrindexSettings) -> Strindex:
+	def create(self, data: FileBuffer, settings: StrindexSettings) -> Strindex:
 		""" Creates a Strindex object from the file data. """
 		strindex = self.module.create(self.init(data), settings)
 
@@ -81,6 +82,6 @@ class GenericModule:
 
 		return strindex
 
-	def patch(self, data: FileBytearray, strindex: Strindex) -> FileBytearray:
+	def patch(self, data: FileBuffer, strindex: Strindex) -> FileBuffer:
 		""" Patches the file data with the Strindex object. """
 		return self.module.patch(self.init(data), strindex)

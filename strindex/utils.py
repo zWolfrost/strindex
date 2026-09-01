@@ -511,10 +511,10 @@ class Strindex:
 		)
 
 
-class FileBytearray(bytearray):
+class FileBuffer(bytearray):
 	""" A class to handle bytearrays with additional methods and shorthands focused on file manipulation. """
 
-	cursor: int = 0
+	cursor: int
 	byte_length: int
 	byte_order: str
 
@@ -529,8 +529,8 @@ class FileBytearray(bytearray):
 		with Path(filepath).open("wb") as f:
 			f.write(self)
 
-	def copy(self) -> "FileBytearray":
-		return FileBytearray(self)
+	def copy(self) -> "FileBuffer":
+		return type(self)(self)
 
 	# Algorithms
 	@Progress.global_mark

@@ -1,6 +1,6 @@
 import pefile
 
-from strindex.utils import FileBytearray, ModuleSettings, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex, StrindexSettings
 
 SETTINGS = ModuleSettings(
 	default_byte_order="little",
@@ -212,7 +212,7 @@ class PEFileWrapper(pefile.PE):
 SECTION_NAME = b".strdex"
 
 
-def match(data: FileBytearray) -> bool:
+def match(data: FileBuffer) -> bool:
 	""" Checks if the file is a valid PE file. """
 	if data[0:2] != b"\x4d\x5a":
 		return False
@@ -231,7 +231,7 @@ def match(data: FileBytearray) -> bool:
 	return True
 
 
-def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
+def create(data: FileBuffer, settings: StrindexSettings) -> Strindex:
 	pe = PEFileWrapper(data)
 
 	if pe.section_exists(SECTION_NAME):
@@ -248,7 +248,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	)
 
 
-def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
+def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	"""
 		The patching is done by adding a new section to the PE file, containing the new data.
 		The pointers are changed to reference the new data RVAs'.
@@ -275,4 +275,4 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	pe = PEFileWrapper(data)
 	pe.add_section(Name=SECTION_NAME, Data=new_data, Characteristics=0xF0000040)
 
-	return FileBytearray(pe.write())
+	return FileBuffer(pe.write())

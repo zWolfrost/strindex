@@ -1,13 +1,13 @@
-from strindex.utils import FileBytearray, ModuleSettings, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex, StrindexSettings
 
 SETTINGS = ModuleSettings()
 
 
-def match(data: FileBytearray) -> bool:
+def match(data: FileBuffer) -> bool:
 	return False
 
 
-def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
+def create(data: FileBuffer, settings: StrindexSettings) -> Strindex:
 	strindex = Strindex()
 
 	for string, start_offset, _ in data.strings_find():
@@ -19,7 +19,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	return strindex
 
 
-def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
+def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	strindex_original = strindex.get_original
 	strindex.normalize_to_overwrite([[p] for p in data.strings_search_ordered(strindex_original)], strindex_original)
 

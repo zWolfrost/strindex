@@ -1,4 +1,4 @@
-from strindex.utils import FileBytearray, ModuleSettings, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex, StrindexSettings
 
 SETTINGS = ModuleSettings(
 	default_byte_length=4,
@@ -10,12 +10,12 @@ def is_utf16_from_length(length: int) -> bool:
 	return length > int("8fffffff", 16)
 
 
-def get_text_start_offset(data: FileBytearray) -> int:
+def get_text_start_offset(data: FileBuffer) -> int:
 	data.cursor = 17
 	return data.get_int()
 
 
-def get_string(data: FileBytearray, length: int) -> str:
+def get_string(data: FileBuffer, length: int) -> str:
 	if is_utf16_from_length(length): # utf-16
 		string = data.get((int("ffffffff", 16) - length)*2).decode("utf-16-le")
 		data.cursor += 2
@@ -26,7 +26,7 @@ def get_string(data: FileBytearray, length: int) -> str:
 	return string
 
 
-def detect_meta_length(data: FileBytearray, offset: int) -> tuple[bytes, int]: # HACK
+def detect_meta_length(data: FileBuffer, offset: int) -> tuple[bytes, int]: # HACK
 	for i in range(6):
 		data.cursor = offset
 		if i > 0:
@@ -43,7 +43,7 @@ def detect_meta_length(data: FileBytearray, offset: int) -> tuple[bytes, int]: #
 	raise ValueError("Failed to detect metadata length")
 
 
-def get_structures_dict(data: FileBytearray) -> dict[int, tuple[int, int, str]]:
+def get_structures_dict(data: FileBuffer) -> dict[int, tuple[int, int, str]]:
 	data.cursor = get_text_start_offset(data)
 	structures = {}
 
@@ -64,11 +64,11 @@ def get_structures_dict(data: FileBytearray) -> dict[int, tuple[int, int, str]]:
 	return structures
 
 
-def match(data: FileBytearray) -> bool:
+def match(data: FileBuffer) -> bool:
 	return data[0:4] == b"\x0e\x14\x74\x75"
 
 
-def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
+def create(data: FileBuffer, settings: StrindexSettings) -> Strindex:
 	strindex = Strindex()
 
 	data.cursor = get_text_start_offset(data)
@@ -80,7 +80,7 @@ def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
 	return strindex
 
 
-def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
+def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	structures = get_structures_dict(data)
 
 	strindex.normalize_to_overwrite([[o] for o in structures], [p[2] for p in structures.values()])

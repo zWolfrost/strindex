@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from strindex.filetypes import GenericModule
-from strindex.utils import FileBytearray, Print, Progress, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, Print, Progress, Strindex, StrindexSettings
 
 VERSION = "5.0.0"
 
@@ -20,7 +20,7 @@ def create(file_filepath: str, strindex_filepath: str | None, settings: Strindex
 
 	strindex_filepath = strindex_filepath or edit_extension(file_filepath, "_strindex.txt")
 
-	data = FileBytearray.read(file_filepath)
+	data = FileBuffer.read(file_filepath)
 
 	strindex = GenericModule(data, settings.force_mode).create(data, settings)
 
@@ -35,13 +35,13 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	if not hasattr(Progress, "global_instance"):
 		Progress.init_global_instance(6)
 
-	backup_filepath = file_filepath + FileBytearray.read(file_filepath).md5_backup_suffix
+	backup_filepath = file_filepath + FileBuffer.read(file_filepath).md5_backup_suffix
 
 	if Path(backup_filepath).exists():
 		Print.debug("Detected backup file, patching that one instead.")
-		data = FileBytearray.read(backup_filepath)
+		data = FileBuffer.read(backup_filepath)
 	else:
-		data = FileBytearray.read(file_filepath)
+		data = FileBuffer.read(file_filepath)
 
 	strindex = Strindex.read(strindex_filepath)
 
@@ -65,7 +65,7 @@ def unpatch(file_filepath: str) -> str:
 
 	Progress.init_global_instance(1)
 
-	file_md5 = FileBytearray.read(file_filepath).md5_backup_suffix
+	file_md5 = FileBuffer.read(file_filepath).md5_backup_suffix
 
 	backup_filepath = file_filepath + file_md5
 
@@ -93,7 +93,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 	MAX_COUNT = 10
 	MAX_LENGTH = 10
 
-	data = FileBytearray.read(file_filepath)
+	data = FileBuffer.read(file_filepath)
 
 	strindex = Strindex.read(strindex_filepath)
 
@@ -157,7 +157,7 @@ def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: st
 
 	file_updated_filepath = file_updated_filepath or edit_extension(strindex_filepath, "_updated.txt")
 
-	data = FileBytearray.read(file_filepath)
+	data = FileBuffer.read(file_filepath)
 
 	strindex = Strindex.read(strindex_filepath)
 	strindex_updated = GenericModule(data, strindex.settings.force_mode).create(data, strindex.settings)

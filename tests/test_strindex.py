@@ -11,14 +11,14 @@ from tempfile import NamedTemporaryFile as temp_open
 import pytest
 
 import strindex.core
-from strindex.utils import FileBytearray, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, Strindex, StrindexSettings
 
 
 def get_file_path(filename: str) -> str:
 	return (Path(__file__).parent / "data" / filename).resolve().as_posix()
 
 def get_file_md5(filepath: str) -> str:
-	return FileBytearray.read(filepath).md5
+	return FileBuffer.read(filepath).md5
 
 def get_strindex(filename: str, settings: StrindexSettings) -> Strindex:
 	with temp_open() as temp_strindex:
