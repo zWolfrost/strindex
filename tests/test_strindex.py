@@ -4,6 +4,7 @@
 # data.win (from Undertale)
 # Game.locres (from MOLE)
 
+import hashlib
 from copy import deepcopy
 from pathlib import Path
 from tempfile import NamedTemporaryFile as temp_open
@@ -11,14 +12,18 @@ from tempfile import NamedTemporaryFile as temp_open
 import pytest
 
 import strindex.core
-from strindex.utils import FileBuffer, Strindex, StrindexSettings
+from strindex.utils import Strindex, StrindexSettings
 
 
 def get_file_path(filename: str) -> str:
 	return (Path(__file__).parent / "data" / filename).resolve().as_posix()
 
-def get_file_md5(filepath: str) -> str:
-	return FileBuffer.read(filepath).md5
+def get_file_md5(file: str) -> str:
+	with Path(file).open("rb") as f:
+		file_hash = hashlib.md5()
+		while chunk := f.read(1048576):
+			file_hash.update(chunk)
+	return file_hash.hexdigest()
 
 def get_strindex(filename: str, settings: StrindexSettings) -> Strindex:
 	with temp_open() as temp_strindex:

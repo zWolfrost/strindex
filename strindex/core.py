@@ -150,39 +150,44 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 	return Print.info(infer_output)
 
 
-def update(file_filepath: str, strindex_filepath: str, file_updated_filepath: str | None) -> str:
-	""" Update a strindex file with newly created pointers. """
+def update(file_filepath: str, strindex_filepath: str, strindex_updated_filepath: str | None) -> str:
+	""" Update a strindex file with newly created pointers and settings. """
 
 	Progress.init_global_instance(6)
 
-	file_updated_filepath = file_updated_filepath or edit_extension(strindex_filepath, "_updated.txt")
+	strindex_updated_filepath = strindex_updated_filepath or edit_extension(strindex_filepath, "_updated.txt")
 
 	data = FileBuffer.read(file_filepath)
 
 	strindex = Strindex.read(strindex_filepath)
 	strindex_updated = GenericModule(data, strindex.settings.force_mode).create(data, strindex.settings)
 
+	initial_count = len(strindex.strings)
+
 	STRINDEX_OVERWRITE_AND_ORIGINAL = strindex.get_overwrite_and_original
 
-	updated_pointers = 0
 	search_index = 0
 	for index in range(len(strindex.strings)):
 		try:
 			search_index = strindex_updated.strings.index(STRINDEX_OVERWRITE_AND_ORIGINAL[index], search_index)
 		except ValueError:
-			pass
+			strindex.pointers[index] = []
 		else:
-			if len(strindex.pointers[index]) != len(strindex_updated.pointers[search_index]):
-				updated_pointers += 1
-				strindex.pointers[index] = strindex_updated.pointers[search_index]
+			strindex.pointers[index] = strindex_updated.pointers[search_index]
+
+	for i in reversed(range(len(strindex.strings))):
+		if not strindex.pointers[i]:
+			del strindex.type_order[i]
+			del strindex.pointers[i]
+			del strindex.strings[i]
 
 	Progress.global_instance()
 
-	strindex.write(file_updated_filepath)
+	strindex.write(strindex_updated_filepath)
 
 	return Print.info(
-		f"Created strindex file with {updated_pointers} / {len(strindex.strings)} updated pointer(s) at\n"
-		f"{file_updated_filepath}"
+		f"Created strindex with {len(strindex.strings)} strings out of the original {initial_count} at\n"
+		f"{strindex_updated_filepath}"
 	)
 
 
