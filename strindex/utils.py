@@ -1,11 +1,11 @@
 import dataclasses
+import functools
 import gzip
 import hashlib
 import re
 import time
 import tomllib
 from collections.abc import Callable
-from functools import wraps
 from io import StringIO
 from json import JSONEncoder
 from pathlib import Path
@@ -96,7 +96,7 @@ class Progress:
 	@classmethod
 	def global_mark[**P, T](cls, func: Callable[P, T]) -> Callable[P, T]:
 		""" Decorator to mark a function for progress printing. """
-		@wraps(func)
+		@functools.wraps(func)
 		def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
 			result = func(*args, **kwargs)
 			if hasattr(Progress, "global_instance"):
@@ -111,6 +111,7 @@ class Progress:
 			Progress.global_instance_priority = priority
 
 
+@dataclasses.dataclass
 class StrindexSettings:
 	# These are really limited, so I would really like
 	# if you added your language's characters here and open a pull request <3
@@ -122,42 +123,30 @@ class StrindexSettings:
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""", # noqa: E501
 	}
 
-	_compatible: bool | None
-	_references: bool | None
+	_compatible: bool | None = None
+	_references: bool | None = None
+	_raw: str | None = None
+	_whitelist_set: set[str] = dataclasses.field(default_factory=set)
 
-	_raw: str | None
-	md5: str | None
-	force_mode: bool
-	min_length: int
-	prefix_bytes: list[bytes]
-	suffix_bytes: list[bytes]
-	ranges: list[range]
-	whitelist: list[str]
-	_whitelist: set[str]
-	patch_replace: dict[str, str]
-	clean_pattern: str
-	source_language: str | None
-	target_language: str | None
-	among_languages: list[str]
+	md5: str | None = None
+	force_mode: bool = False
+	min_length: int = 1
+	prefix_bytes: list[bytes] = dataclasses.field(default_factory=list)
+	suffix_bytes: list[bytes] = dataclasses.field(default_factory=list)
+	ranges: list[range] = dataclasses.field(default_factory=list)
+	whitelist: list[str] = dataclasses.field(default_factory=list)
+	patch_replace: dict[str, str] = dataclasses.field(default_factory=dict)
+	clean_pattern: str = ""
+	source_language: str | None = None
+	target_language: str | None = None
+	among_languages: list[str] = dataclasses.field(default_factory=list)
 
-	def __init__(self, **kwargs):
-		self._compatible = kwargs.get("_compatible")
-		self._references = kwargs.get("_references")
-
-		self._raw = kwargs.get("_raw")
-		self.md5 = kwargs.get("md5")
-		self.force_mode = kwargs.get("force_mode") or False
-		self.min_length = int(kwargs.get("min_length") or 1)
-		self.prefix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("prefix_bytes") or [""])
-		self.suffix_bytes = StrindexSettings.handle_bytes_list(kwargs.get("suffix_bytes") or [""])
-		self.ranges = StrindexSettings.handle_ranges(kwargs.get("ranges") or [])
-		self.whitelist = kwargs.get("whitelist") or []
-		self._whitelist = self.handle_whitelist(self.whitelist)
-		self.patch_replace = kwargs.get("patch_replace") or {}
-		self.clean_pattern = kwargs.get("clean_pattern") or ""
-		self.source_language = kwargs.get("source_language")
-		self.target_language = kwargs.get("target_language")
-		self.among_languages = kwargs.get("among_languages") or []
+	def __post_init__(self):
+		self.min_length = int(self.min_length)
+		self.prefix_bytes = self.handle_bytes_list(self.prefix_bytes)
+		self.suffix_bytes = self.handle_bytes_list(self.suffix_bytes)
+		self.ranges = self.handle_ranges(self.ranges)
+		self._whitelist_set = self.handle_whitelist(self.whitelist)
 
 	@classmethod
 	def read_from_toml_data(cls, toml_data: str) -> "StrindexSettings":
@@ -217,11 +206,11 @@ class StrindexSettings:
 
 	def matches_prefix(self, data: bytearray, beg_offset: int) -> bool:
 		""" Checks if the data at the given offset matches any of the prefixes. """
-		return any(data[beg_offset - len(prefix):beg_offset] == prefix for prefix in self.prefix_bytes)
+		return any(data[beg_offset - len(p):beg_offset] == p for p in self.prefix_bytes) if self.prefix_bytes else True
 
 	def matches_suffix(self, data: bytearray, end_offset: int) -> bool:
 		""" Checks if the data at the given offset matches any of the suffixes. """
-		return any(data[end_offset:end_offset + len(suffix)] == suffix for suffix in self.suffix_bytes)
+		return any(data[end_offset:end_offset + len(s)] == s for s in self.suffix_bytes) if self.suffix_bytes else True
 
 	def is_in_any_range(self, val: int) -> bool:
 		""" Checks if the value is in any of the ranges. """
@@ -229,7 +218,7 @@ class StrindexSettings:
 
 	def is_in_whitelist(self, string: str) -> bool:
 		""" Checks if the string is whitelisted. """
-		return all(char in self._whitelist for char in string) if self._whitelist else True
+		return all(char in self._whitelist_set for char in string) if self._whitelist_set else True
 
 	def get_dict(self) -> dict:
 		return {k: v for k, v in vars(self).items() if not k.startswith("_")}
@@ -612,9 +601,9 @@ class FileBytearray(bytearray):
 		if not search_lst:
 			return []
 
-		if prefixes is None:
+		if not prefixes:
 			prefixes = [b""]
-		if suffixes is None:
+		if not suffixes:
 			suffixes = [b""]
 
 		search_lst_safe = [s.encode("utf-8") if isinstance(s, str) else s for s in search_lst if s is not None]
