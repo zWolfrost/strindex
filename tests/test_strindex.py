@@ -1,4 +1,4 @@
-# FILES NEEDED FOR TESTING (in ./tests/data/ folder):
+# ADDITIONAL FILES NEEDED FOR TESTING (in ./tests/data/ folder):
 # Katana ZERO.exe (from Katana ZERO)
 # kz_exe.gz
 # data.win (from Undertale)
