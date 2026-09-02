@@ -45,9 +45,6 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	strindex = Strindex.read(strindex_filepath)
 
-	if strindex.settings.md5 and strindex.settings.md5 != data.md5:
-		Print.warning("MD5 hash does not match the one the strindex was created for.\nYou may encounter issues.")
-
 	data = ModuleWrapper.detect_from_data(data).patch(data, strindex)
 
 	if not file_patched_filepath:
@@ -98,7 +95,6 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 	strindex = Strindex.read(strindex_filepath)
 
 	STRINDEX_OFFSETS = flat_list(strindex.get_offsets)
-	STRINDEX_OVERWRITE_AND_ORIGINAL = strindex.get_overwrite_and_original
 
 	def infer_affixes(start_fun, end_fun):
 		nonlocal infer_output
@@ -131,18 +127,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 		if not infer_affixes(lambda offset, _: offset + 4, lambda offset, length: offset + 4 + length):
 			infer_output += "No suitable suffixes found.\n"
 
-	Progress.global_instance()
-
-	if STRINDEX_OVERWRITE_AND_ORIGINAL:
-		lowest_range = len(data)
-		highest_range = 0
-
-		for offset in data.strings_search_ordered(STRINDEX_OVERWRITE_AND_ORIGINAL):
-			if offset is not None:
-				lowest_range = min(lowest_range, offset)
-				highest_range = max(highest_range, offset)
-
-		infer_output += f"\n[LOWEST RANGE]\n{lowest_range:08x}:{highest_range:08x}"
+		infer_output += f"\n[NARROWEST RANGE]\n{min(STRINDEX_OFFSETS):08x}:{max(STRINDEX_OFFSETS):08x}"
 
 	Progress.global_instance()
 	Print.info("")
@@ -150,7 +135,12 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 	return Print.info(infer_output)
 
 
-def update(file_filepath: str, strindex_filepath: str, strindex_updated_filepath: str | None) -> str:
+def update(
+	file_filepath: str,
+	strindex_filepath: str,
+	strindex_updated_filepath: str | None,
+	convert_type: str | None = None
+) -> str:
 	""" Update a strindex file with newly created pointers and settings. """
 
 	Progress.init_global_instance(6)
@@ -162,33 +152,38 @@ def update(file_filepath: str, strindex_filepath: str, strindex_updated_filepath
 	strindex = Strindex.read(strindex_filepath)
 	strindex_updated = ModuleWrapper.detect_from_data(data).create(data, strindex.settings)
 
-	initial_count = len(strindex.strings)
-
-	STRINDEX_OVERWRITE_AND_ORIGINAL = strindex.get_overwrite_and_original
-
+	no_pointers_count = 0
 	search_index = 0
 	for index in range(len(strindex.strings)):
 		try:
-			search_index = strindex_updated.strings.index(STRINDEX_OVERWRITE_AND_ORIGINAL[index], search_index)
+			if strindex.type_order[index] == "compatible":
+				search_index = strindex_updated.strings.index(strindex.strings[index][0], search_index)
+			elif strindex.type_order[index] == "overwrite":
+				search_index = strindex_updated.pointers.index(strindex.pointers[index], search_index)
 		except ValueError:
 			strindex.pointers[index] = []
+			no_pointers_count += 1
 		else:
+			if convert_type == "compatible" and strindex.type_order[index] == "overwrite":
+				strindex.type_order[index] = "compatible"
+				strindex.strings[index] = [strindex_updated.strings[search_index], strindex.strings[index]]
+			elif convert_type == "overwrite" and strindex.type_order[index] == "compatible":
+				strindex.type_order[index] = "overwrite"
+				strindex.strings[index] = strindex.strings[index][1]
 			strindex.pointers[index] = strindex_updated.pointers[search_index]
+			search_index += 1
 
-	for i in reversed(range(len(strindex.strings))):
-		if not strindex.pointers[i]:
-			del strindex.type_order[i]
-			del strindex.pointers[i]
-			del strindex.strings[i]
+	if no_pointers_count > 0:
+		Print.warning(
+			f"{no_pointers_count} strings could not be found and therefore\n"
+			"will have no pointers in the updated strindex file."
+		)
 
 	Progress.global_instance()
 
 	strindex.write(strindex_updated_filepath)
 
-	return Print.info(
-		f"Created strindex with {len(strindex.strings)} strings out of the original {initial_count} at\n"
-		f"{strindex_updated_filepath}"
-	)
+	return Print.info(f"Created updated strindex at\n{strindex_updated_filepath}")
 
 
 def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> str:
@@ -199,8 +194,7 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 	strindex_filtered_filepath = strindex_filtered_filepath or edit_extension(strindex_filepath, "_filtered.txt")
 
 	strindex = Strindex.read(strindex_filepath)
-	strindex_filtered = Strindex()
-	strindex_filtered.settings = strindex.settings
+	initial_count = len(strindex.strings)
 
 	if strindex.settings.source_language:
 		try:
@@ -226,20 +220,23 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 		isocode_639_1 = IsoCode639_1.from_str(strindex.settings.source_language.upper())
 		return confidence.language.iso_code_639_1 == isocode_639_1 and confidence.value > 0.5
 
-	for index, string in enumerate(strindex.get_overwrite_and_original):
+	STRINDEX_OVERWRITE_AND_ORIGINAL = strindex.get_overwrite_and_original
+
+	for i in reversed(range(len(STRINDEX_OVERWRITE_AND_ORIGINAL))):
+		string = STRINDEX_OVERWRITE_AND_ORIGINAL[i]
 		valid_language = not strindex.settings.source_language or is_source_language(string)
 		valid_length = len(string.encode("utf-8")) >= strindex.settings.min_length
 		valid_whitelist = strindex.settings.is_in_whitelist(string)
 
-		if all([valid_language, valid_length, valid_whitelist]):
-			strindex_filtered.append_strindex_index(strindex, index)
+		if not all([valid_language, valid_length, valid_whitelist]):
+			strindex.delete_index(i)
 
 	Progress.global_instance()
 
-	strindex_filtered.write(strindex_filtered_filepath)
+	strindex.write(strindex_filtered_filepath)
 
 	return Print.info(
-		f"Created strindex file with {len(strindex_filtered.strings)} / {len(strindex.strings)} strings at\n"
+		f"Created strindex file with {len(strindex.strings)} / {initial_count} strings at\n"
 		f"{strindex_filtered_filepath}"
 	)
 
@@ -254,33 +251,39 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 	strindex_1 = Strindex.read(strindex_full_filepath)
 	strindex_2 = Strindex.read(strindex_diff_filepath)
 
+	initial_count = len(strindex_1.strings)
+
 	strindex_1_ids = strindex_1.get_identifiers
 	strindex_2_ids = strindex_2.get_identifiers
-
-	strindex_delta = Strindex()
-	strindex_delta.settings = strindex_1.settings
 
 	search_index = 0
 	for index in range(len(strindex_1.strings)):
 		try:
 			search_index = strindex_2_ids.index(strindex_1_ids[index], search_index)
 		except ValueError:
-			strindex_delta.append_strindex_index(strindex_1, index)
+			pass
+		else:
+			strindex_1.pointers[index] = []
+			search_index += 1
+
+	for i in reversed(range(len(strindex_1.strings))):
+		if not strindex_1.pointers[i]:
+			strindex_1.delete_index(i)
 
 	Progress.global_instance()
 
-	strindex_delta.write(strindex_delta_filepath)
+	strindex_1.write(strindex_delta_filepath)
 
 	return Print.info(
-		f"Created delta strindex file with {len(strindex_delta.strings)} / {len(strindex_1.strings)} strings at\n"
+		f"Created delta strindex file with {len(strindex_1.strings)} / {initial_count} strings at\n"
 		f"{strindex_delta_filepath}"
 	)
 
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None) -> str:
 	""" Creates a spellcheck file from a strindex file, for the specified language. """
-	if not strindex_spellcheck_filepath:
-		strindex_spellcheck_filepath = edit_extension(strindex_filepath, "_spellcheck.txt")
+
+	strindex_spellcheck_filepath = strindex_spellcheck_filepath or edit_extension(strindex_filepath, "_spellcheck.txt")
 
 	try:
 		from language_tool_python import LanguageTool
@@ -337,11 +340,13 @@ def main(sysargs=None):
 	parser.add_argument("-o", "--output", type=str, help="Output file.")
 	parser.add_argument("--version", action="version", version=VERSION, help="Show the version of strindex and exit.")
 
+	# Strindex create writing settings
 	parser.add_argument("-C", "--compatible", action="store_true",
 		help="Whether to create a strindex file compatible with the previous versions of a program.")
 	parser.add_argument("-R", "--references", action="store_true",
 		help="Whether to add string references comments to the strindex file.")
 
+	# Strindex create header settings
 	parser.add_argument("-f", "--force-mode", action="store_true",
 		help="Force the replacement of strings at the same offset they were found.")
 	parser.add_argument("-m", "--min-length", default=3, type=int,
@@ -355,6 +360,11 @@ def main(sysargs=None):
 			"Can be specified multiple times."))
 	parser.add_argument("-w", "--whitelist", type=str, action="append", default=[],
 		help="Character sets to whitelist for filtering strings. Can be specified multiple times.")
+
+	# Strindex update settings
+	to_type_parser = parser.add_mutually_exclusive_group()
+	to_type_parser.add_argument("--convert-to-compatible", action="store_true")
+	to_type_parser.add_argument("--convert-to-overwrite", action="store_true")
 
 	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
 	parser.add_argument("-q", "--quiet", action="store_true", help="Suppress all output except for errors.")
@@ -421,7 +431,13 @@ def main(sysargs=None):
 					infer(args.files[0], args.files[1])
 				case "update":
 					assert_files_num(2)
-					update(args.files[0], args.files[1], args.output)
+					update(
+						args.files[0], args.files[1], args.output,
+						convert_type = (
+							"overwrite" if args.convert_to_overwrite else
+							"compatible" if args.convert_to_compatible else None
+						)
+					)
 				case "filter":
 					assert_files_num(1)
 					filter(args.files[0], args.output)

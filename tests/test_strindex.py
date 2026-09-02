@@ -150,24 +150,34 @@ def test_patch_force():
 		strindex.core.patch(get_file_path("Game.locres"), temp_strindex.name, temp_file.name)
 		assert get_file_md5(temp_file.name) == "a885ec6f2cb6e9bb4cc1d56be1d1949f"
 
-def test_update(kz_pe_strindex_part: Strindex):
+def test_update():
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:
-		kz_pe_strindex_part = deepcopy(kz_pe_strindex_part)
-		kz_pe_strindex_part.settings = StrindexSettings(
-			_compatible=False,
+		kz_pe_strindex_part_comp = get_strindex("Katana ZERO.exe", StrindexSettings(
+			_compatible=True,
 			min_length=3,
 			prefix_bytes=["24c7442404", "ec04c70424"],
 			ranges=["00441078:0060e501"]
-		)
-		kz_pe_strindex_part.pointers[0] = []
-		kz_pe_strindex_part.write(temp_strindex_in.name)
+		))
+		kz_pe_strindex_part_comp.pointers[0] = []
+		kz_pe_strindex_part_comp.write(temp_strindex_in.name)
 
 		strindex.core.update(get_file_path("Katana ZERO.exe"), temp_strindex_in.name, temp_strindex_out.name)
 
-		kz_pe_strindex_part_updated = Strindex.read(temp_strindex_out.name)
-		kz_pe_strindex_part.pointers[0] = kz_pe_strindex_part_updated.pointers[0].copy()
+		kz_pe_strindex_part_comp.pointers[0] = Strindex.read(temp_strindex_out.name).pointers[0].copy()
 
-		assert get_strindex_md5(kz_pe_strindex_part_updated) == get_strindex_md5(kz_pe_strindex_part)
+		assert get_strindex_md5(kz_pe_strindex_part_comp) == get_file_md5(temp_strindex_out.name)
+
+		strindex.core.update(
+			get_file_path("Katana ZERO.exe"), temp_strindex_out.name,
+			temp_strindex_out.name, convert_type="overwrite"
+		)
+
+		strindex.core.update(
+			get_file_path("Katana ZERO.exe"), temp_strindex_out.name,
+			temp_strindex_out.name, convert_type="compatible"
+		)
+
+		assert get_strindex_md5(kz_pe_strindex_part_comp) == get_file_md5(temp_strindex_out.name)
 
 def test_filter(kz_pe_strindex_full: Strindex):
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:

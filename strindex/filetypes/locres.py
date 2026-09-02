@@ -26,6 +26,17 @@ def get_string(data: FileBuffer, length: int) -> str:
 	return string
 
 
+def encode_string(data: FileBuffer, string: str, length: int) -> bytes:
+	if is_utf16_from_length(length): # utf-16
+		string_encoded = string.encode("utf-16-le")
+		data_encoded = data.from_int(int("ffffffff", 16) - len(string_encoded) // 2) + string_encoded + b"\x00\x00"
+	else: # utf-8
+		string_encoded = string.encode("utf-8")
+		data_encoded = data.from_int(len(string_encoded) + 1) + string_encoded + b"\x00"
+
+	return data_encoded
+
+
 def detect_meta_length(data: FileBuffer, offset: int) -> tuple[bytes, int]: # HACK
 	for i in range(6):
 		data.cursor = offset
@@ -93,14 +104,7 @@ def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	data[get_text_start_offset(data):] = b""
 
 	for meta, length, string in structures.values():
-		data += meta
-
-		if is_utf16_from_length(length):
-			string_encoded = string.encode("utf-16-le")
-			data += data.from_int(int("ffffffff", 16) - len(string_encoded) // 2) + string_encoded + b"\x00\x00"
-		else:
-			string_encoded = string.encode("utf-8")
-			data += data.from_int(len(string_encoded) + 1) + string_encoded + b"\x00"
+		data += meta + encode_string(data, string, length)
 
 	data += b"\x01\x00\x00\x00"
 

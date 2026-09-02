@@ -466,18 +466,17 @@ class Strindex:
 		assert len(full_lst_strings) == len(full_lst_offsets), \
 			"The full string and offset lists must be the same length."
 
-		start_i = 0
+		search_i = 0
 		for i in range(len(self.strings)):
 			if self.type_order[i] != "compatible":
 				continue
 
 			try:
-				search_i = full_lst_strings.index(self.strings[i][0], start_i)
+				search_i = full_lst_strings.index(self.strings[i][0], search_i)
 				offsets = full_lst_offsets[search_i]
 			except ValueError:
 				pass
 			else:
-				start_i = search_i + 1
 				if any(self.pointers[i]):
 					self.type_order[i] = "overwrite"
 					if len(offsets) != len(self.pointers[i]):
@@ -487,18 +486,18 @@ class Strindex:
 						)
 					self.pointers[i] = [p for p, s in zip(offsets, self.pointers[i], strict=False) if s]
 					self.strings[i] = self.strings[i][1]
+				search_i += 1
 
 		for i in reversed(range(len(self.strings))):
 			if self.type_order[i] == "compatible":
 				Print.warning(f'String #{i+1} not found: "{self.strings[i][0]}"')
-				del self.type_order[i]
-				del self.pointers[i]
-				del self.strings[i]
+				self.delete_index(i)
 
-	def append_strindex_index(self, strindex: "Strindex", index: int):
-		self.strings.append(strindex.strings[index])
-		self.pointers.append(strindex.pointers[index])
-		self.type_order.append(strindex.type_order[index])
+	def delete_index(self, index: int):
+		if self.type_order:
+			del self.type_order[index]
+		del self.pointers[index]
+		del self.strings[index]
 
 	def assert_data(self):
 		assert len(self.strings) == len(self.pointers) == len(self.type_order), (

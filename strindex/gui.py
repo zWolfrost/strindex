@@ -1,5 +1,6 @@
 import signal
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -78,7 +79,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 		return strindex_select, strindex_browse
 
-	def create_action_button(self, text: str, progress_text: str, callback):
+	def create_action_button(self, text: str, progress_text: str, callback: Callable) -> QtWidgets.QPushButton:
 		action_button = QtWidgets.QPushButton(text)
 		action_button.setEnabled(False)
 
@@ -133,7 +134,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		for widget in self.__actions__:
 			widget.setEnabled(enabled)
 
-	def create_lineedit(self, text: str):
+	def create_lineedit(self, text: str) -> QtWidgets.QLineEdit:
 		line_edit = QtWidgets.QLineEdit()
 		line_edit.setPlaceholderText(text)
 		line_edit.textChanged.connect(self.update_action_button)
@@ -146,7 +147,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 		return line_edit
 
-	def create_button(self, text: str, callback):
+	def create_button(self, text: str, callback: Callable) -> QtWidgets.QPushButton:
 		button = QtWidgets.QPushButton(text)
 		button.clicked.connect(callback)
 
@@ -154,14 +155,15 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 		return button
 
-	def create_checkbox(self, text: str):
+	def create_checkbox(self, text: str) -> QtWidgets.QCheckBox:
 		checkbox = QtWidgets.QCheckBox(text)
+		checkbox.stateChanged.connect(self.update_action_button)
 
 		self.__widgets__.append(checkbox)
 
 		return checkbox
 
-	def create_grid_layout(self, columns: int):
+	def create_grid_layout(self, columns: int) -> QtWidgets.QGridLayout:
 		widget_col_span = []
 		index = 0
 		while index < len(self.__widgets__):
@@ -202,7 +204,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		diff_size = target_rect.size() - self.frameGeometry().size()
 		self.move(target_rect.x() + diff_size.width() // 2, target_rect.y() + diff_size.height() // 2)
 
-	def show_message(self, text: str, icon = QtWidgets.QMessageBox.Icon.NoIcon):
+	def show_message(self, text: str, icon = QtWidgets.QMessageBox.Icon.NoIcon) -> QtWidgets.QMessageBox:
 		msg = QtWidgets.QMessageBox()
 		msg.setWindowTitle(self.windowTitle())
 		msg.setWindowIcon(self.windowIcon())
@@ -412,14 +414,36 @@ class UpdateGUI(BaseStrindexGUI):
 		self.create_file_selection(line_text="*Select a file to update from")
 		self.create_strindex_selection(line_text="*Select a strindex file to update")
 
+		chkbox_overwrite = self.create_checkbox("Convert to overwrite")
+		chkbox_overwrite.setToolTip("Convert all of the strindex entries to overwrite ones")
+		self.create_padding(1)
+
+		chkbox_compatible = self.create_checkbox("Convert to compatible")
+		chkbox_compatible.setToolTip("Convert all of the strindex entries to compatible ones")
+		self.create_padding(1)
+
 		self.create_action_button(
 			text="Update strindex",
 			progress_text="Updating... %p%",
-			callback=lambda file, strdex: strindex.core.update(file, strdex, None)
+			callback=lambda file, strdex, overwrite, compatible:
+			strindex.core.update(file, strdex, None, convert_type=(
+				"overwrite" if overwrite else "compatible" if compatible else None
+			))
 		)
 		self.create_padding(1)
 
 		self.create_grid_layout(2).setColumnStretch(0, 1)
+
+		def exclusive_checkbox(chkbox: QtWidgets.QCheckBox):
+			if chkbox.isChecked():
+				if chkbox is chkbox_overwrite:
+					chkbox_compatible.setChecked(False)
+				if chkbox is chkbox_compatible:
+					chkbox_overwrite.setChecked(False)
+
+		chkbox_overwrite.stateChanged.connect(lambda _: exclusive_checkbox(chkbox_overwrite))
+		chkbox_compatible.stateChanged.connect(lambda _: exclusive_checkbox(chkbox_compatible))
+
 
 
 class InferGUI(BaseStrindexGUI):

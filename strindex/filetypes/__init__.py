@@ -91,8 +91,7 @@ class ModuleWrapper:
 					string_length >= settings.min_length and
 					settings.is_in_whitelist(strindex.strings[i])
 				):
-					del strindex.pointers[i]
-					del strindex.strings[i]
+					strindex.delete_index(i)
 
 			Print.debug(f"Filtered down to {len(strindex.strings)} / {starting_length} strings.")
 
@@ -111,4 +110,7 @@ class ModuleWrapper:
 	@use_force_module(lambda _, strindex: strindex.settings.force_mode)
 	def patch(self, data: FileBuffer, strindex: Strindex) -> FileBuffer:
 		""" Patches the file data with the Strindex object. """
+		if strindex.settings.md5 and strindex.settings.md5 != data.md5:
+			Print.warning("MD5 hash does not match the one the strindex was created for.\nYou may encounter issues.")
+
 		return self.module.patch(self.init(data), strindex)
