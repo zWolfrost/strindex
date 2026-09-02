@@ -1,21 +1,19 @@
 import functools
 import importlib
 import pkgutil
-from typing import Protocol
 
-from strindex.filetypes import *
 from strindex.filetypes import force
-from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleProtocol, Print, Strindex, StrindexSettings
 
 MODULES = [
-	importlib.import_module(f"{__name__}.{n}") for _, n, _ in
-	pkgutil.iter_modules(__path__) if not n.startswith("_")
+	importlib.import_module(f"{__name__}.{name}") for _, name, _ in
+	pkgutil.iter_modules(__path__) if not name.startswith("_")
 ]
 
 def use_force_module(force_mode):
 	def decorator(func):
 		@functools.wraps(func)
-		def wrapper(self: GenericModule, *args, **kwargs):
+		def wrapper(self: ModuleWrapper, *args, **kwargs):
 			if force_mode(*args, **kwargs):
 				prev_module = self.module
 				self.module = force
@@ -36,10 +34,13 @@ def use_force_module(force_mode):
 		return wrapper
 	return decorator
 
-class GenericModule:
+class ModuleWrapper:
 	""" A class representing a generic module that can be used to extract and patch strings from a filetype. """
 
-	module: SpecificModule | None
+	module: ModuleProtocol | None
+
+	def __init__(self, module: ModuleProtocol | None = None):
+		self.module = module
 
 	@classmethod
 	def detect_from_data(cls, data: FileBuffer):
@@ -71,7 +72,9 @@ class GenericModule:
 	@use_force_module(lambda _, settings: settings.force_mode)
 	def create(self, data: FileBuffer, settings: StrindexSettings) -> Strindex:
 		""" Creates a Strindex object from the file data. """
-		strindex = self.module.create(self.init(data), settings)
+		empty_strindex = Strindex()
+		empty_strindex.settings = settings
+		strindex = self.module.create(self.init(data), empty_strindex)
 
 		if self.module.SETTINGS.filter_after_create:
 			starting_length = len(strindex.strings)
@@ -109,15 +112,3 @@ class GenericModule:
 	def patch(self, data: FileBuffer, strindex: Strindex) -> FileBuffer:
 		""" Patches the file data with the Strindex object. """
 		return self.module.patch(self.init(data), strindex)
-
-class SpecificModule(Protocol):
-	SETTINGS: ModuleSettings
-
-	def match(self, data: FileBuffer) -> bool:
-		...
-
-	def create(self, data: FileBuffer, settings: StrindexSettings) -> Strindex:
-		...
-
-	def patch(self, data: FileBuffer, strindex: Strindex) -> FileBuffer:
-		...

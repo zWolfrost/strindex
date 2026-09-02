@@ -1,4 +1,4 @@
-from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 
 SETTINGS = ModuleSettings(
 	default_byte_length=4,
@@ -68,9 +68,7 @@ def match(data: FileBuffer) -> bool:
 	return data[0:4] == b"\x0e\x14\x74\x75"
 
 
-def create(data: FileBuffer, settings: StrindexSettings) -> Strindex:
-	strindex = Strindex()
-
+def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 	data.cursor = get_text_start_offset(data)
 
 	for offset, (_, _, string) in get_structures_dict(data).items():

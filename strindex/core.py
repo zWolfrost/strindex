@@ -2,7 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from strindex.filetypes import GenericModule
+from strindex.filetypes import ModuleWrapper
 from strindex.utils import FileBuffer, Print, Progress, Strindex, StrindexSettings
 
 VERSION = "5.0.0"
@@ -22,7 +22,7 @@ def create(file_filepath: str, strindex_filepath: str | None, settings: Strindex
 
 	data = FileBuffer.read(file_filepath)
 
-	strindex = GenericModule.detect_from_data(data).create(data, settings)
+	strindex = ModuleWrapper.detect_from_data(data).create(data, settings)
 
 	strindex.write(strindex_filepath)
 
@@ -48,7 +48,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	if strindex.settings.md5 and strindex.settings.md5 != data.md5:
 		Print.warning("MD5 hash does not match the one the strindex was created for.\nYou may encounter issues.")
 
-	data = GenericModule.detect_from_data(data).patch(data, strindex)
+	data = ModuleWrapper.detect_from_data(data).patch(data, strindex)
 
 	if not file_patched_filepath:
 		backup_filepath = backup_filepath if Path(backup_filepath).exists() else file_filepath
@@ -160,7 +160,7 @@ def update(file_filepath: str, strindex_filepath: str, strindex_updated_filepath
 	data = FileBuffer.read(file_filepath)
 
 	strindex = Strindex.read(strindex_filepath)
-	strindex_updated = GenericModule.detect_from_data(data).create(data, strindex.settings)
+	strindex_updated = ModuleWrapper.detect_from_data(data).create(data, strindex.settings)
 
 	initial_count = len(strindex.strings)
 

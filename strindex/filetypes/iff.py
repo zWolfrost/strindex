@@ -1,6 +1,6 @@
 # https://github.com/panzi/cook-serve-hoomans/blob/master/fileformat.md
 
-from strindex.utils import FileBuffer, ModuleSettings, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleSettings, Strindex
 
 SETTINGS = ModuleSettings(
 	default_byte_length=4,
@@ -24,9 +24,9 @@ def match(data: FileBuffer) -> bool:
 	return data[0:4] == b"FORM"
 
 
-def create(data: FileBuffer, settings: StrindexSettings) -> Strindex:
+def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 	return data.create_pointers_macro(
-		settings,
+		strindex,
 		lambda offset: data.from_int(offset - data.byte_length)
 	)
 

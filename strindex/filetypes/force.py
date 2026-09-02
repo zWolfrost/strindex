@@ -1,15 +1,13 @@
-from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 
 SETTINGS = ModuleSettings()
 
 
-def match(data: FileBuffer) -> bool:
+def match(_: FileBuffer) -> bool:
 	return False
 
 
-def create(data: FileBuffer, settings: StrindexSettings) -> Strindex:
-	strindex = Strindex()
-
+def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 	for string, start_offset, _ in data.strings_find():
 		strindex.pointers.append([start_offset])
 		strindex.strings.append(string)

@@ -8,7 +8,7 @@ import tomllib
 from collections.abc import Callable
 from json import JSONEncoder
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Protocol
 
 from ahocorasick_rs import BytesAhoCorasick, Implementation
 
@@ -688,7 +688,7 @@ class FileBuffer(bytearray):
 	# Macros
 	def create_pointers_macro(
 		self,
-		settings: StrindexSettings,
+		strindex: Strindex,
 		original_bytes_from_offset: Callable[[int], bytes]
 	) -> Strindex:
 		temp_strindex = {
@@ -697,8 +697,11 @@ class FileBuffer(bytearray):
 			"original_bytes": []
 		}
 
-		for string, start_offset, _ in self.strings_find(min_length=settings.min_length):
-			if (original_bytes := original_bytes_from_offset(start_offset)) and settings.is_in_whitelist(string):
+		for string, start_offset, _ in self.strings_find(min_length=strindex.settings.min_length):
+			if ((
+				original_bytes := original_bytes_from_offset(start_offset))
+				and strindex.settings.is_in_whitelist(string)
+			):
 				temp_strindex["original"].append(string)
 				temp_strindex["original_bytes"].append(original_bytes)
 
@@ -715,12 +718,11 @@ class FileBuffer(bytearray):
 			)
 
 		temp_strindex["pointers"] = self.strings_search(
-			temp_strindex["original_bytes"], settings.prefix_bytes, settings.suffix_bytes
+			temp_strindex["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes
 		)
 
-		strindex = Strindex()
 		for string, pointers in zip(temp_strindex["original"], temp_strindex["pointers"], strict=True):
-			pointers = [p for p in pointers if settings.is_in_any_range(p)]
+			pointers = [p for p in pointers if strindex.settings.is_in_any_range(p)]
 			if pointers:
 				strindex.pointers.append(pointers)
 				strindex.strings.append(string)
@@ -814,5 +816,19 @@ class FileBuffer(bytearray):
 @dataclasses.dataclass(frozen=True)
 class ModuleSettings:
 	default_byte_length: int | None = None
+	"""Default byte length for the file buffer."""
 	default_byte_order: str | None = None
+	"""Default byte order for the file buffer."""
 	filter_after_create: bool = True
+	"""Whether to filter the strindex after returning it using its settings."""
+
+
+class ModuleProtocol(Protocol):
+	SETTINGS: ModuleSettings
+	"""Settings specific to this module."""
+	match: Callable[[FileBuffer], bool]
+	"""Return True if a file buffer (bytearray) is compatible with this module."""
+	create: Callable[[FileBuffer, StrindexSettings], Strindex]
+	"""Add strings & pointers to the strindex by extracting them from a file buffer (bytearray)."""
+	patch: Callable[[FileBuffer, Strindex], FileBuffer]
+	"""Patch a file buffer (bytearray) using the strindex and pointers in the provided strindex."""

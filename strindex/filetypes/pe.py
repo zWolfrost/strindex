@@ -1,11 +1,13 @@
 import pefile
 
-from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 
 SETTINGS = ModuleSettings(
 	default_byte_order="little",
 	filter_after_create=False
 )
+
+SECTION_NAME = b".strdex"
 
 
 class PEFileWrapper(pefile.PE):
@@ -209,9 +211,6 @@ class PEFileWrapper(pefile.PE):
 		return 4 if self.OPTIONAL_HEADER.Magic == 0x10b else 8
 
 
-SECTION_NAME = b".strdex"
-
-
 def match(data: FileBuffer) -> bool:
 	""" Checks if the file is a valid PE file. """
 	if data[0:2] != b"\x4d\x5a":
@@ -231,7 +230,7 @@ def match(data: FileBuffer) -> bool:
 	return True
 
 
-def create(data: FileBuffer, settings: StrindexSettings) -> Strindex:
+def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 	pe = PEFileWrapper(data)
 
 	if pe.section_exists(SECTION_NAME):
@@ -243,7 +242,7 @@ def create(data: FileBuffer, settings: StrindexSettings) -> Strindex:
 	data.byte_length = pe.byte_length
 
 	return data.create_pointers_macro(
-		settings,
+		strindex,
 		lambda offset: data.from_int(rva) if (rva := pe.get_rva_from_offset(offset)) is not None else None
 	)
 
