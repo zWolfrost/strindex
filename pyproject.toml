@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "strindex"
 version = "5.0.0"
-description = "A command line utility to extract and patch strings of some filetypes, with a focus on compatibility and translation."
+description = "A command line utility that allows you to easily extract, list and patch the strings embedded in a few filetypes."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

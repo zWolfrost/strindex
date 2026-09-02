@@ -328,8 +328,8 @@ def main(sysargs=None):
 		prog="strindex",
 		exit_on_error=False,
 		description=(
-			"A command line utility to extract and patch strings of some filetypes, "
-			"with a focus on compatibility and translation."
+			"A command line utility that allows you to easily extract, list and patch "
+			"the strings embedded in a few filetypes. "
 		)
 	)
 

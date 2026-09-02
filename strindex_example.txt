@@ -14,6 +14,8 @@
 #
 # The arguments --force-mode, --min-length, --prefix-bytes, --suffix-bytes, --range & --whitelist
 # can be used with the "create" action to automatically create a strindex with those settings set.
+#
+# Below lies an example of every setting along with a description of what it does.
 
 # The md5 hash of the file this strindex was created with.
 # Useful for many reasons, such as debugging, but mainly to avoid patching the wrong file.
@@ -62,7 +64,7 @@ source_language = "es"
 # Used in the "spellcheck" action to define which language are the Strindex lines translating to.
 target_language = "it"
 
-# Used in the "filter" action to help identifying the languages better, giving it fewer choice.
+# Used in the "filter" action to help identifying the languages better, giving it fewer options.
 among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 
 
@@ -79,7 +81,7 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # @c replace this string... [reallocate N pointers if [xN] / reallocate some if [+/-] N times]
 # >> ...with this string!
 #
-# Of course, you should only edit the string after the >> symbol,
+# Of course, you should only edit the string after the ">> " symbol (space included),
 # as everything to the right of @ is used by the program to identify the string to patch.
 #
 # The replacements done using METHOD TWO must be kept in order of the appearance in the file.
