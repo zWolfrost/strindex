@@ -607,6 +607,15 @@ class FileBuffer(bytearray):
 
 		search_lst_safe = [s.encode("utf-8") if isinstance(s, str) else s for s in search_lst if s is not None]
 
+		Print.debug(f"Created search list with {len(search_lst_safe)} x {len(prefixes) * len(suffixes)} strings.")
+
+		if len(search_lst_safe) > 10**6:
+			Print.warning(
+				"The search list is very large!\n"
+				"This may take a bit to process;\n"
+				"consider increasing the minimum string length."
+			)
+
 		search_lst_full: list[bytes] = []
 		search_lst_prefix_length: list[int] = []
 		search_lst_indices: list[list[int]] = []
@@ -710,15 +719,6 @@ class FileBuffer(bytearray):
 
 		if not temp_strindex["original"]:
 			raise ValueError("No strings found in the file.")
-
-		Print.debug(f"Created search list with {len(temp_strindex['original_bytes'])} strings.")
-
-		if len(temp_strindex["original_bytes"]) > 10**6:
-			Print.warning(
-				"The search list is very large!\n"
-				"This may take a bit to process;\n"
-				"consider increasing the minimum string length."
-			)
 
 		temp_strindex["pointers"] = self.strings_search(
 			temp_strindex["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes
