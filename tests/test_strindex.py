@@ -1,9 +1,3 @@
-# ADDITIONAL FILES NEEDED FOR TESTING (in ./tests/data/ folder):
-# Katana ZERO.exe (from Katana ZERO)
-# kz_exe.gz
-# data.win (from Undertale)
-# Game.locres (from MOLE)
-
 import hashlib
 from copy import deepcopy
 from pathlib import Path
@@ -82,6 +76,20 @@ def mole_locres_strindex_full() -> Strindex:
 def mole_locres_strindex_full_comp() -> Strindex:
 	return get_strindex("Game.locres", StrindexSettings(_raw="", _compatible=True))
 
+
+
+def test_test_data():
+	# FILES NEEDED FOR TESTING (in ./tests/data/ folder):
+
+	for filepath, md5 in (
+		("strindex_example.txt", "062713d0ca729317a04e5dc657b50895"), # from this repo
+		("locres_strindex.txt",  "f81120bbff6bba873afeab462e95c9de"), # from this repo
+		("Katana ZERO.exe",      "29ed1f9e450d43815c2d1a0cab168da3"), # from Katana ZERO
+		("kz_exe.gz",            "509abb8f443b6e3327cde567ffe8b589"), # from es -> it translation patch
+		("data.win",             "5903fc5cb042a728d4ad8ee9e949c6eb"), # from Undertale
+		("Game.locres",          "419202a5ca1b343ec2011e1b610404e3"), # from MOLE
+	):
+		assert get_file_md5(get_file_path(filepath)) == md5
 
 def test_strindex_rw(strindex_example: Strindex):
 	assert get_strindex_md5(strindex_example) == get_file_md5(get_file_path("strindex_example.txt"))

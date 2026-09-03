@@ -422,6 +422,9 @@ class Strindex:
 			while line := f.readline():
 				strindex.parse_body_line(line)
 
+		if strindex.get_overwrite_and_replace[-1] is None:
+			raise ValueError("The last entry in the strindex file is incomplete.")
+
 		strindex.assert_data()
 
 		return strindex
