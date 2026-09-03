@@ -1,6 +1,8 @@
 from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 
-SETTINGS = ModuleSettings()
+SETTINGS = ModuleSettings(
+	supports_compatible=True
+)
 
 
 def match(_: FileBuffer) -> bool:

@@ -23,12 +23,7 @@ def use_force_module(force_mode):
 					self.module = prev_module
 			else:
 				if self.module is None:
-					raise NotImplementedError(
-						"This file type has no associated module,\n"
-						"or the required libraries to handle it are not installed.\n"
-						"You can use the --force flag to enable force mode\n"
-						"and attempt to extract strings from the file anyway."
-					)
+					raise NotImplementedError(self.NO_MODULE_WARNING)
 				return func(self, *args, **kwargs)
 
 		return wrapper
@@ -38,6 +33,20 @@ class ModuleWrapper:
 	""" A class representing a generic module that can be used to extract and patch strings from a filetype. """
 
 	module: ModuleProtocol | None
+
+	NO_MODULE_WARNING = (
+		"This file type has no associated module,\n"
+		"or the required libraries to handle it are not installed.\n"
+		"You can use the --force flag to enable force mode\n"
+		"and attempt to extract strings from the file anyway."
+	)
+
+	COMPATIBLE_MODE_WARNING = (
+		"This filetype does not support\n"
+		"patching using compatible mode strings.\n"
+		"Please make sure to convert the strindex to overwrite mode\n"
+		"(using the update action) before patching."
+	)
 
 	def __init__(self, module: ModuleProtocol | None = None):
 		self.module = module
@@ -93,9 +102,11 @@ class ModuleWrapper:
 				):
 					strindex.delete_index(i)
 
-			Print.debug(f"Filtered down to {len(strindex.strings)} / {starting_length} strings.")
+			Print.debug(f"Filtered down to {len(strindex.strings)} strings out of {starting_length}.")
 
 		if settings._compatible:
+			if not self.module.SETTINGS.supports_compatible:
+				Print.warning(self.COMPATIBLE_MODE_WARNING)
 			strindex.type_order = ["compatible"] * len(strindex.strings)
 			strindex.pointers = [[bool(p) for p in pointers] for pointers in strindex.pointers]
 			strindex.strings = [[s, s] for s in strindex.strings]
@@ -112,5 +123,8 @@ class ModuleWrapper:
 		""" Patches the file data with the Strindex object. """
 		if strindex.settings.md5 and strindex.settings.md5 != data.md5:
 			Print.warning("MD5 hash does not match the one the strindex was created for.\nYou may encounter issues.")
+
+		if not self.module.SETTINGS.supports_compatible and any(t == "compatible" for t in strindex.type_order):
+			raise NotImplementedError(self.COMPATIBLE_MODE_WARNING)
 
 		return self.module.patch(self.init(data), strindex)

@@ -2,7 +2,8 @@ from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 
 SETTINGS = ModuleSettings(
 	default_byte_length=4,
-	default_byte_order="little"
+	default_byte_order="little",
+	supports_compatible=True
 )
 
 
@@ -71,6 +72,8 @@ def get_structures_dict(data: FileBuffer) -> dict[int, tuple[int, int, str]]:
 		string = get_string(data, length)
 
 		structures[offset] = (meta, length, string)
+
+	Print.debug(f"Found {len(structures)} strings.")
 
 	return structures
 

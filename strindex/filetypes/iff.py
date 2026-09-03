@@ -5,7 +5,8 @@ from strindex.utils import FileBuffer, ModuleSettings, Strindex
 SETTINGS = ModuleSettings(
 	default_byte_length=4,
 	default_byte_order="little",
-	filter_after_create=False
+	filter_after_create=False,
+	supports_compatible=True
 )
 
 

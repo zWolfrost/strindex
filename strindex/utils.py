@@ -21,6 +21,7 @@ class Print:
 	class PrintLevel:
 		DEBUG = ""
 		INFO = "\033[1m"
+		SUCCESS = "\033[1m\033[92m"
 		WARNING = "\033[93m"
 		ERROR = "\033[91m"
 		RESET = "\033[0m"
@@ -44,6 +45,9 @@ class Print:
 	@classmethod
 	def info(cls, msg: str, **kwargs) -> str:
 		return cls.print(msg, level=cls.PrintLevel.INFO, **kwargs)
+	@classmethod
+	def success(cls, msg: str, **kwargs) -> str:
+		return cls.print(msg, level=cls.PrintLevel.SUCCESS, **kwargs)
 	@classmethod
 	def warning(cls, msg: str, **kwargs) -> str:
 		return cls.print(msg, tag="Warning", level=cls.PrintLevel.WARNING, **kwargs)
@@ -89,8 +93,8 @@ class Progress:
 			if self.total >= 100:
 				Print.debug(f"\r{self.percent:.{self.round}f}% ({iteration}/{self.total})",
 					end=("\r" if self.percent >= 100 else ""))
-			if self.percent >= 100:
-				Print.debug(f"Action completed in {time.time() - self.start:.2f}s.")
+			#if self.percent >= 100:
+			#	Print.debug(f"Action completed in {time.time() - self.start:.2f}s.")
 
 	@classmethod
 	def global_mark[**P, T](cls, func: Callable[P, T]) -> Callable[P, T]:
@@ -726,7 +730,7 @@ class FileBuffer(bytearray):
 				strindex.pointers.append(pointers)
 				strindex.strings.append(string)
 
-		Print.debug(f"Found pointers for {len(strindex.strings)} / {len(temp_strindex['original'])} strings.")
+		Print.debug(f"Found pointers for {len(strindex.strings)} strings out of {len(temp_strindex['original'])}.")
 
 		return strindex
 
@@ -820,6 +824,7 @@ class ModuleSettings:
 	"""Default byte order for the file buffer."""
 	filter_after_create: bool = True
 	"""Whether to filter the strindex after returning it using its settings."""
+	supports_compatible: bool = False
 
 
 class ModuleProtocol(Protocol):

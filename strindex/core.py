@@ -26,7 +26,7 @@ def create(file_filepath: str, strindex_filepath: str | None, settings: Strindex
 
 	strindex.write(strindex_filepath)
 
-	return Print.info(f"Successfully created strindex file at\n{strindex_filepath}")
+	return Print.success(f"Successfully created strindex file at\n{strindex_filepath}")
 
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None) -> str:
@@ -38,7 +38,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	backup_filepath = file_filepath + FileBuffer.read(file_filepath).md5_backup_suffix
 
 	if Path(backup_filepath).exists():
-		Print.debug("Detected backup file, patching that one instead.")
+		Print.info("Detected backup file, patching that one instead.")
 		data = FileBuffer.read(backup_filepath)
 	else:
 		data = FileBuffer.read(file_filepath)
@@ -54,7 +54,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	data.write(file_patched_filepath)
 
-	return Print.info("File was patched successfully.")
+	return Print.success("File was patched successfully.")
 
 
 def unpatch(file_filepath: str) -> str:
@@ -71,7 +71,7 @@ def unpatch(file_filepath: str) -> str:
 
 	Path(backup_filepath).replace(file_filepath)
 
-	return Print.info("File was restored from backup successfully.")
+	return Print.success("File was restored from backup successfully.")
 
 
 def infer(file_filepath: str, strindex_filepath: str) -> str:
@@ -183,7 +183,7 @@ def update(
 
 	strindex.write(strindex_updated_filepath)
 
-	return Print.info(f"Created updated strindex at\n{strindex_updated_filepath}")
+	return Print.success(f"Created updated strindex at\n{strindex_updated_filepath}")
 
 
 def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> str:
@@ -235,8 +235,8 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 
 	strindex.write(strindex_filtered_filepath)
 
-	return Print.info(
-		f"Created strindex file with {len(strindex.strings)} / {initial_count} strings at\n"
+	return Print.success(
+		f"Created strindex file with {len(strindex.strings)} strings out of {initial_count} at\n"
 		f"{strindex_filtered_filepath}"
 	)
 
@@ -274,8 +274,8 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 
 	strindex_1.write(strindex_delta_filepath)
 
-	return Print.info(
-		f"Created delta strindex file with {len(strindex_1.strings)} / {initial_count} strings at\n"
+	return Print.success(
+		f"Created delta strindex file with {len(strindex_1.strings)} strings out of {initial_count} at\n"
 		f"{strindex_delta_filepath}"
 	)
 
@@ -310,7 +310,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 			string_clean = strindex.settings.clean_string(string)
 			f.writelines("\n".join(str(error).split("\n")[-3:]) + "\n" for error in lang.check(string_clean))
 
-	return Print.info(f"Created spellcheck file at\n{strindex_spellcheck_filepath}")
+	return Print.success(f"Created spellcheck file at\n{strindex_spellcheck_filepath}")
 
 
 def help_whitelist():
@@ -448,7 +448,7 @@ def main(sysargs=None):
 					assert_files_num(1)
 					spellcheck(args.files[0], args.output)
 	except KeyboardInterrupt:
-		Print.info("Interrupted by user.")
+		Print.error("Interrupted by user.")
 	except Exception as e:
 		if "args" in locals() and args.verbose:
 			raise
