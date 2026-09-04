@@ -82,10 +82,10 @@ def test_test_data():
 	# FILES NEEDED FOR TESTING (in ./tests/data/ folder):
 
 	for filepath, md5 in (
-		("strindex_example.txt", "062713d0ca729317a04e5dc657b50895"), # from this repo
+		("strindex_example.txt", "b8ff46140d7e23b098e453a71d24c71c"), # from this repo
 		("locres_strindex.txt",  "f81120bbff6bba873afeab462e95c9de"), # from this repo
+		("kz_exe.gz",            "214056e44487a7d0b8486ce3713a1cb8"), # from this repo
 		("Katana ZERO.exe",      "29ed1f9e450d43815c2d1a0cab168da3"), # from Katana ZERO
-		("kz_exe.gz",            "509abb8f443b6e3327cde567ffe8b589"), # from es -> it translation patch
 		("data.win",             "5903fc5cb042a728d4ad8ee9e949c6eb"), # from Undertale
 		("Game.locres",          "419202a5ca1b343ec2011e1b610404e3"), # from MOLE
 	):

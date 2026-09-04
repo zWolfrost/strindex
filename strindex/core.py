@@ -74,6 +74,57 @@ def unpatch(file_filepath: str) -> str:
 	return Print.success("File was restored from backup successfully.")
 
 
+def update(
+	file_filepath: str,
+	strindex_filepath: str,
+	strindex_updated_filepath: str | None,
+	convert_type: str | None = None
+) -> str:
+	""" Update a strindex file with newly created pointers and settings. """
+
+	Progress.init_global_instance(6)
+
+	strindex_updated_filepath = strindex_updated_filepath or edit_extension(strindex_filepath, "_updated.txt")
+
+	data = FileBuffer.read(file_filepath)
+
+	strindex = Strindex.read(strindex_filepath)
+	strindex_updated = ModuleWrapper.detect_from_data(data).create(data, strindex.settings)
+
+	no_pointers_count = 0
+	search_index = 0
+	for index in range(len(strindex.strings)):
+		try:
+			if strindex.type_order[index] == "compatible":
+				search_index = strindex_updated.strings.index(strindex.strings[index][0], search_index)
+			elif strindex.type_order[index] == "overwrite":
+				search_index = strindex_updated.pointers.index(strindex.pointers[index], search_index)
+		except ValueError:
+			strindex.pointers[index] = []
+			no_pointers_count += 1
+		else:
+			if convert_type == "compatible" and strindex.type_order[index] == "overwrite":
+				strindex.type_order[index] = "compatible"
+				strindex.strings[index] = [strindex_updated.strings[search_index], strindex.strings[index]]
+			elif convert_type == "overwrite" and strindex.type_order[index] == "compatible":
+				strindex.type_order[index] = "overwrite"
+				strindex.strings[index] = strindex.strings[index][1]
+			strindex.pointers[index] = strindex_updated.pointers[search_index]
+			search_index += 1
+
+	if no_pointers_count > 0:
+		Print.warning(
+			f"{no_pointers_count} strings could not be found and therefore\n"
+			"will have no pointers in the updated strindex file."
+		)
+
+	Progress.global_instance()
+
+	strindex.write(strindex_updated_filepath)
+
+	return Print.success(f"Created updated strindex at\n{strindex_updated_filepath}")
+
+
 def infer(file_filepath: str, strindex_filepath: str) -> str:
 	"""
 		List the most common bytes that can prefix or suffix a pointer in a file,
@@ -133,57 +184,6 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 	Print.info("")
 
 	return Print.info(infer_output)
-
-
-def update(
-	file_filepath: str,
-	strindex_filepath: str,
-	strindex_updated_filepath: str | None,
-	convert_type: str | None = None
-) -> str:
-	""" Update a strindex file with newly created pointers and settings. """
-
-	Progress.init_global_instance(6)
-
-	strindex_updated_filepath = strindex_updated_filepath or edit_extension(strindex_filepath, "_updated.txt")
-
-	data = FileBuffer.read(file_filepath)
-
-	strindex = Strindex.read(strindex_filepath)
-	strindex_updated = ModuleWrapper.detect_from_data(data).create(data, strindex.settings)
-
-	no_pointers_count = 0
-	search_index = 0
-	for index in range(len(strindex.strings)):
-		try:
-			if strindex.type_order[index] == "compatible":
-				search_index = strindex_updated.strings.index(strindex.strings[index][0], search_index)
-			elif strindex.type_order[index] == "overwrite":
-				search_index = strindex_updated.pointers.index(strindex.pointers[index], search_index)
-		except ValueError:
-			strindex.pointers[index] = []
-			no_pointers_count += 1
-		else:
-			if convert_type == "compatible" and strindex.type_order[index] == "overwrite":
-				strindex.type_order[index] = "compatible"
-				strindex.strings[index] = [strindex_updated.strings[search_index], strindex.strings[index]]
-			elif convert_type == "overwrite" and strindex.type_order[index] == "compatible":
-				strindex.type_order[index] = "overwrite"
-				strindex.strings[index] = strindex.strings[index][1]
-			strindex.pointers[index] = strindex_updated.pointers[search_index]
-			search_index += 1
-
-	if no_pointers_count > 0:
-		Print.warning(
-			f"{no_pointers_count} strings could not be found and therefore\n"
-			"will have no pointers in the updated strindex file."
-		)
-
-	Progress.global_instance()
-
-	strindex.write(strindex_updated_filepath)
-
-	return Print.success(f"Created updated strindex at\n{strindex_updated_filepath}")
 
 
 def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> str:
@@ -323,56 +323,93 @@ def help_whitelist():
 	return prnt
 
 
-def main(sysargs=None):
+def get_parser() -> argparse.ArgumentParser:
 	parser = argparse.ArgumentParser(
 		prog="strindex",
 		exit_on_error=False,
-		description=(
-			"A command line utility that allows you to easily extract, list and patch "
-			"the strings embedded in a few filetypes. "
-		)
+		formatter_class=argparse.RawTextHelpFormatter
 	)
 
+	parser.description = """A command line utility that allows you to
+easily extract, list and patch the strings embedded in a few filetypes.
+
+\033[1m\033[34mactions:>
+  <gui>         Open strindex in GUI mode.
+  <create>      Create a list of string replacement instructions (a strindex file)
+                extracting them from a file.
+  <patch>       Patch a file using a strindex, or, in other words,
+                replace strings in the file following the strindex instructions.
+  <unpatch>     Unpatch a file that was patched with a strindex,
+                using the backup file that's created by default.
+  <update>      Update a strindex file pointers'
+                with another version of a file.
+  <infer>       Infer the most suitable values for
+                "prefix_bytes", "suffix_bytes" and "range"
+                given an already-filtered strindex.
+  <filter>      Filter a strindex by detected language, wordlist or length.
+                Those can be specified in the strindex settings.
+  <delta>       Subtract the entries of a strindex file from another,
+                creating a strindex file with their differences.
+  <spellcheck>  Spellcheck a strindex, and write the results to a file.
+                The target language can be specified in the strindex settings.
+
+  Strindex files compressed with gzip are also supported, for all actions.""" \
+	.replace("<", "\033[1m\033[36m").replace(">", "\033[0m")
+
 	parser.add_argument("action", type=str, nargs=argparse.OPTIONAL,
-		choices=["create", "patch", "unpatch", "infer", "update", "filter", "delta", "spellcheck", "gui"],
+		choices=["gui", "create", "patch", "unpatch", "update", "infer", "filter", "delta", "spellcheck"],
 		help="Action to perform.")
-	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE, help="One or more files to process.")
-	parser.add_argument("-o", "--output", type=str, help="Output file.")
-	parser.add_argument("--version", action="version", version=VERSION, help="Show the version of strindex and exit.")
+	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE,
+		help="One or more files/strindex files to pass to the action.")
+	parser.add_argument("-o", "--output", type=str,
+		help="Output file path.\nIf not specified, a default one will be used.")
+	parser.add_argument("-q", "--quiet", action="store_true",
+		help="Suppress all output except for errors.")
+	parser.add_argument("-v", "--verbose", action="store_true",
+		help="Print full error messages.")
+	parser.add_argument("--version", action="version", version=VERSION,
+		help="Show the version of strindex and exit.")
 
-	# Strindex create writing settings
-	parser.add_argument("-C", "--compatible", action="store_true",
-		help="Whether to create a strindex file compatible with the previous versions of a program.")
-	parser.add_argument("-R", "--references", action="store_true",
-		help="Whether to add string references comments to the strindex file.")
+	write_parser = parser.add_argument_group("[create] writing options")
+	write_parser.add_argument("-C", "--compatible", action="store_true",
+		help="Whether to create a strindex file which uses\nthe original strings as references instead of offsets.")
+	write_parser.add_argument("-R", "--references", action="store_true",
+		help="Whether to add string references comments\nto the strindex file.")
 
-	# Strindex create header settings
-	parser.add_argument("-f", "--force-mode", action="store_true",
-		help="Force the replacement of strings at the same offset they were found.")
-	parser.add_argument("-m", "--min-length", default=3, type=int,
+	create_parser = parser.add_argument_group("[create] options")
+	create_parser.add_argument("-f", "--force-mode", action="store_true",
+		help=('Use the "force" module\nand force the replacement of strings\nat the same offset they were found.\n'
+			"Force mode doesn't allow the replaced strings\nto be bigger in length than the original strings."))
+	create_parser.add_argument("-m", "--min-length", default=3, type=int,
 		help="Minimum length of the strings to be included.")
-	parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[],
-		help="Prefix bytes that can prefix a pointer.")
-	parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[],
-		help="Suffix bytes that can suffix a pointer.")
-	parser.add_argument("-r", "--range", type=str, action="append", default=[],
-		help=("Ranges of offsets to consider for searching pointers, in the format 'start:end'."
+	create_parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[],
+		help="Prefix bytes that must prefix a pointer, in hex format.\nCan be specified multiple times.")
+	create_parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[],
+		help="Suffix bytes that must suffix a pointer, in hex format.\nCan be specified multiple times.")
+	create_parser.add_argument("-r", "--range", type=str, action="append", default=[],
+		help=('Ranges of offsets to consider for searching pointers,\nin the format "start:end".\n'
 			"Can be specified multiple times."))
-	parser.add_argument("-w", "--whitelist", type=str, action="append", default=[],
-		help="Character sets to whitelist for filtering strings. Can be specified multiple times.")
+	create_parser.add_argument("-w", "--whitelist", type=str, action="append", default=[],
+		help="Character sets to whitelist for filtering strings.\nCan be specified multiple times.")
 
-	# Strindex update settings
-	to_type_parser = parser.add_mutually_exclusive_group()
-	to_type_parser.add_argument("--convert-to-compatible", action="store_true")
-	to_type_parser.add_argument("--convert-to-overwrite", action="store_true")
+	create_parser.description = """For more information about the following options,
+as well a showcase of a valid strindex file, please refer to
+  https://github.com/zWolfrost/strindex/blob/main/strindex_example.txt"""
 
-	parser.add_argument("-v", "--verbose", action="store_true", help="Print full error messages.")
-	parser.add_argument("-q", "--quiet", action="store_true", help="Suppress all output except for errors.")
+	update_parser = parser.add_argument_group("[update] options").add_mutually_exclusive_group()
+	update_parser.add_argument("--convert-to-compatible", action="store_true",
+		help="When using the [update] action,\nconvert overwrite strings to compatible strings.")
+	update_parser.add_argument("--convert-to-overwrite", action="store_true",
+		help="When using the [update] action,\nconvert compatible strings to overwrite strings.")
 
+	return parser
+
+
+def main(sysargs=None):
 	try:
 		Print.quiet_mode = False
 
-		args = parser.parse_args(sysargs)
+		args = get_parser().parse_args(sysargs)
 
 		Print.quiet_mode = args.quiet
 		Print.color_mode = sys.stdout.isatty()
@@ -384,69 +421,70 @@ def main(sysargs=None):
 		if args.action is None:
 			raise ValueError("No action specified. Use -h / --help to see the available actions.")
 
-		if not all(Path(file).is_file() for file in args.files):
-			raise FileNotFoundError("One or more specified files do not exist.")
+		for file in args.files:
+			if not Path(file).is_file():
+				raise FileNotFoundError(f"File '{file}' is not a file or does not exist.")
 
 		if "__compiled__" in globals() and args.action == "spellcheck":
 			raise ImportError("Spellchecking is not supported in compiled builds.")
 
-		if args.action == "gui":
-			try:
-				from strindex.gui import MainStrindexGUI
-			except ModuleNotFoundError:
-				raise ImportError(
-					'Please install the "PySide6" package (pip install pyside6) to use this feature.'
-				) from None
+		def require_files_num(n: int):
+			if len(args.files) != n:
+				raise ValueError(f'Expected {n} file(s) for "{args.action}" action, got {len(args.files)}.')
 
-			MainStrindexGUI()
-		else:
-			def assert_files_num(n: int):
-				assert len(args.files) == n, \
-					f'Expected {n} file(s) for "{args.action}" action, got {len(args.files)}.'
+		match args.action:
+			case "gui":
+				require_files_num(0)
 
-			match args.action:
-				case "create":
-					assert_files_num(1)
-					create(
-						args.files[0], args.output,
-						StrindexSettings(
-							_compatible = args.compatible,
-							_references = args.references,
-							force_mode = args.force_mode,
-							min_length = args.min_length,
-							prefix_bytes = args.prefix_bytes,
-							suffix_bytes = args.suffix_bytes,
-							ranges = args.range,
-							whitelist = args.whitelist
-						)
+				try:
+					from strindex.gui import MainStrindexGUI
+				except ModuleNotFoundError:
+					raise ImportError(
+						'Please install the "PySide6" package (pip install pyside6) to use this feature.'
+					) from None
+
+				MainStrindexGUI()
+			case "create":
+				require_files_num(1)
+				create(*args.files, args.output,
+					StrindexSettings(
+						_compatible = args.compatible,
+						_references = args.references,
+						force_mode = args.force_mode,
+						min_length = args.min_length,
+						prefix_bytes = args.prefix_bytes,
+						suffix_bytes = args.suffix_bytes,
+						ranges = args.range,
+						whitelist = args.whitelist
 					)
-				case "patch":
-					assert_files_num(2)
-					patch(args.files[0], args.files[1], args.output)
-				case "unpatch":
-					assert_files_num(1)
-					unpatch(args.files[0])
-				case "infer":
-					assert_files_num(2)
-					infer(args.files[0], args.files[1])
-				case "update":
-					assert_files_num(2)
-					update(
-						args.files[0], args.files[1], args.output,
-						convert_type = (
-							"overwrite" if args.convert_to_overwrite else
-							"compatible" if args.convert_to_compatible else None
-						)
+				)
+			case "patch":
+				require_files_num(2)
+				patch(*args.files, args.output)
+			case "unpatch":
+				require_files_num(1)
+				unpatch(*args.files)
+			case "infer":
+				require_files_num(2)
+				infer(*args.files)
+			case "update":
+				require_files_num(2)
+				update(
+					*args.files, args.output,
+					convert_type = (
+						"overwrite" if args.convert_to_overwrite else
+						"compatible" if args.convert_to_compatible else None
 					)
-				case "filter":
-					assert_files_num(1)
-					filter(args.files[0], args.output)
-				case "delta":
-					assert_files_num(2)
-					delta(args.files[0], args.files[1], args.output)
-				case "spellcheck":
-					assert_files_num(1)
-					spellcheck(args.files[0], args.output)
+				)
+			case "filter":
+				require_files_num(1)
+				filter(*args.files, args.output)
+			case "delta":
+				require_files_num(2)
+				delta(*args.files, args.output)
+			case "spellcheck":
+				require_files_num(1)
+				spellcheck(*args.files, args.output)
 	except KeyboardInterrupt:
 		Print.error("Interrupted by user.")
 	except Exception as e:

@@ -13,7 +13,7 @@
 # You can freely create, edit & delete comments and settings in the header.
 #
 # The arguments --force-mode, --min-length, --prefix-bytes, --suffix-bytes, --range & --whitelist
-# can be used with the "create" action to automatically create a strindex with those settings set.
+# can be used with the [create] action to automatically create a strindex with those settings set.
 #
 # Below lies an example of every setting along with a description of what it does.
 
@@ -54,17 +54,17 @@ whitelist = [ "latin", "spanish", "cyrillic" ]
 # but you still want to be grammatically correct in the strindex body.
 patch_replace = { "ì" = "í", "Ì" = "Í", "ò" = "ó", "Ò" = "Ó" }
 
-# Pattern used by the "spellcheck" action, which removes trash characters, to spellcheck correctly.
+# Pattern used by the [spellcheck] action, which removes trash characters, to spellcheck correctly.
 # In this case, this removes characters used to handle the game dialog boxes color, speed etc.
 clean_pattern = "\\[.*?\\]|\\*"
 
-# Used in the "filter" action to filter a Strindex by the detected language of the strings.
+# Used in the [filter] action to filter a Strindex by the detected language of the strings.
 source_language = "es"
 
-# Used in the "spellcheck" action to define which language are the Strindex lines translating to.
+# Used in the [spellcheck] action to define which language are the Strindex lines translating to.
 target_language = "it"
 
-# Used in the "filter" action to help identifying the languages better, giving it fewer options.
+# Used in the [filter] action to help identifying the languages better, giving it fewer options.
 among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 
 

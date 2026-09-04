@@ -176,8 +176,8 @@ class StrindexSettings:
 
 	@staticmethod
 	def handle_bytes_list(bytes_hex_list: list[str]) -> list[bytes]:
-		assert all(len(bytes_str) % 2 == 0 for bytes_str in bytes_hex_list), \
-			"All of the hex byte strings must contain an even number of characters."
+		if not all(len(bytes_str) % 2 == 0 for bytes_str in bytes_hex_list):
+			raise ValueError("All of the hex byte strings must contain an even number of characters.")
 		return [bytes.fromhex(bytes_hex_str) for bytes_hex_str in bytes_hex_list]
 
 	@staticmethod

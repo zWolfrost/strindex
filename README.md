@@ -29,18 +29,18 @@ Alternatively, the [releases tab](https://github.com/zWolfrost/strindex/releases
 ## Usage
 You can run the program with the command `strindex <action> <input file(s)> [arguments]`.
 
-`strindex -h` will show the available arguments.
+`strindex -h` will show more information about the available actions and arguments.
 
 These are the available actions:
-- `create`: Create a list of strings (a strindex) extracted from a file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-C` to create a strindex that uses the original strings as references, instead of pointers.
-- `patch`: Patch a file with a strindex. Strindex files compressed with gzip are also supported for all actions.
-- `unpatch`: Unpatch a file that was patched with a strindex, using the backup file.
-- `infer`: List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range to use.
-- `update` Update a strindex file pointers' with the updated version of a file.
-- `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
-- `delta`: Create a delta file between two strindex files, that only contains the lines of the first strindex missing in the second one (their difference).
-- `spellcheck`: Spellcheck a strindex. You can specify the target language in the strindex settings as an ISO 639-1 code.
 - `gui`: Open Strindex in GUI mode.
+- `create`: Create a list of string replacement instructions (a strindex) extracted from a file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-C` to create a strindex that uses the original strings as references, instead of pointers.
+- `patch`: Patch a file using a strindex. Strindex files compressed with gzip are also supported for all actions.
+- `unpatch`: Unpatch a file that was patched with a strindex, using the backup file.
+- `update` Update a strindex file pointers' with another version of a file.
+- `infer`: List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range to use.
+- `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
+- `delta`: Subtract the entries of a strindex file from another, creating a strindex file with their differences.
+- `spellcheck`: Spellcheck a strindex, and write the results to a file. You can specify the target language in the strindex settings as an ISO 639-1 code.
 
 ## Usage Examples
 - Open strindex in GUI mode:

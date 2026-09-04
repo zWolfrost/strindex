@@ -163,5 +163,6 @@ cython_debug/
 .vscode/
 
 tests/data/*
-!tests/data/locres_strindex.txt
 !tests/data/strindex_example.txt
+!tests/data/locres_strindex.txt
+!tests/data/kz_exe.gz
