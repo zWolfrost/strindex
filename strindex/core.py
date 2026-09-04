@@ -374,7 +374,9 @@ easily extract, list and patch the strings embedded in a few filetypes.
 	write_parser.add_argument("-C", "--compatible", action="store_true",
 		help="Whether to create a strindex file which uses\nthe original strings as references instead of offsets.")
 	write_parser.add_argument("-R", "--references", action="store_true",
-		help="Whether to add string references comments\nto the strindex file.")
+		help="Whether to add reference comments\nfor the original strings to the strindex file.")
+	write_parser.add_argument("-M", "--minimal", action="store_true",
+		help="Whether to strip the strindex file of\ninformational comments and unnecessary newlines.")
 
 	create_parser = parser.add_argument_group("[create] options")
 	create_parser.add_argument("-f", "--force-mode", action="store_true",
@@ -450,6 +452,7 @@ def main(sysargs=None):
 					StrindexSettings(
 						_compatible = args.compatible,
 						_references = args.references,
+						_minimal = args.minimal,
 						force_mode = args.force_mode,
 						min_length = args.min_length,
 						prefix_bytes = args.prefix_bytes,

@@ -127,8 +127,9 @@ class StrindexSettings:
 	}
 
 	_raw: str | None = None
-	_compatible: bool | None = None
-	_references: bool | None = None
+	_compatible: bool = False
+	_references: bool = False
+	_minimal: bool = False
 	_whitelist_set: set[str] = dataclasses.field(default_factory=set)
 
 	md5: str | None = None
@@ -384,7 +385,8 @@ class Strindex:
 				Strindex.OVERWRITE_PREFIX +
 				Strindex.TOKEN_DELIMITER.join(f"{p or 0:08x}" for p in self.pointers[index]) + "\n" +
 				(f"## {escaped_string}\n" if self.settings._references else "") +
-				Strindex.STRING_PREFIX + escaped_string + "\n\n"
+				Strindex.STRING_PREFIX + escaped_string +
+				("\n" if self.settings._minimal else "\n\n")
 			)
 		if self.type_order[index] == "compatible":
 			return (
@@ -392,7 +394,8 @@ class Strindex:
 				Strindex.escape_ctrl(self.strings[index][0]) + Strindex.TOKEN_DELIMITER +
 				(("x" + str(len(self.pointers[index]))) if all(self.pointers[index]) else
 				"".join((Strindex.COMPATIBLE_TRUE if p else Strindex.COMPATIBLE_FALSE) for p in self.pointers[index])) +
-				"\n" + Strindex.STRING_PREFIX + Strindex.escape_ctrl(self.strings[index][1]) + "\n\n"
+				"\n" + Strindex.STRING_PREFIX + Strindex.escape_ctrl(self.strings[index][1]) +
+				("\n" if self.settings._minimal else "\n\n")
 			)
 		raise ValueError(f"Invalid strindex type: {self.type_order[index]}")
 
@@ -457,10 +460,14 @@ class Strindex:
 			if self.settings._raw is not None:
 				f.write(self.settings._raw)
 			else:
-				f.write(HEADER_INFO + "\n" + Strindex.toml_dumps(self.settings.get_changed()) + "\n")
+				toml_dump = Strindex.toml_dumps(self.settings.get_changed())
 
-				if len(self.type_order) > 0:
-					f.write(COMPATIBLE_INFO if self.type_order[0] == "compatible" else OVERWRITE_INFO)
+				if self.settings._minimal:
+					f.write(toml_dump)
+				else:
+					f.write(HEADER_INFO + "\n" + toml_dump + "\n")
+					if len(self.type_order) > 0:
+						f.write(COMPATIBLE_INFO if self.type_order[0] == "compatible" else OVERWRITE_INFO)
 
 			f.writelines(self.dump_body_entry(i) for i in range(len(self.strings)))
 
