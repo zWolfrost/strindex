@@ -259,22 +259,22 @@ class MainStrindexGUI(BaseStrindexGUI):
 	def setup(self):
 		self.tab_widget = QtWidgets.QTabWidget()
 
-		gui_action_map = [
-			(CreateGUI, "Create", strindex.core.create),
-			(PatchGUI, "Patch", strindex.core.patch),
-			(UpdateGUI, "Update", strindex.core.update),
-			(InferGUI, "Infer", strindex.core.infer),
-			(FilterGUI, "Filter", strindex.core.filter),
-			(DeltaGUI, "Diff", strindex.core.diff),
-			(MergeGUI, "Merge", strindex.core.merge)
+		gui_action_map: list[tuple[type[BaseStrindexGUI], Callable]] = [
+			(CreateGUI, strindex.core.create),
+			(PatchGUI, strindex.core.patch),
+			(UpdateGUI, strindex.core.update),
+			(InferGUI, strindex.core.infer),
+			(FilterGUI, strindex.core.filter),
+			(DeltaGUI, strindex.core.diff),
+			(MergeGUI, strindex.core.merge)
 		]
 
 		if "__compiled__" not in globals():
-			gui_action_map.append((SpellcheckGUI, "Spellcheck", strindex.core.spellcheck))
+			gui_action_map.append((SpellcheckGUI, strindex.core.spellcheck))
 
-		for gui, title, function in gui_action_map:
+		for gui_class, function in gui_action_map:
 			self.tab_widget.setTabToolTip(
-				self.tab_widget.addTab(gui(), title),
+				self.tab_widget.addTab(gui_class(), function.__name__.capitalize()),
 				function.__doc__.strip()
 			)
 
@@ -290,7 +290,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		self.setWindowTitle("Strindex")
 
-		# Horrible implementation, but really convenient for now...
+		# HACK
 		ICON_BASE64 = (
 			"iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAJ1BMVEUAAAAsLCwtLS0xMTEwMDAwMDAwMDAwMDCgoKCEhIRoaGhM"
 			"TEwwMDBxvs7nAAAACHRSTlMAHSI/X3+fv7k/LJQAAAEzSURBVHjandfRqoMwEIThadPUrc77P++5sMMRdbvJ/BcWKvslRBBEHg9h"
@@ -387,11 +387,11 @@ class UpdateGUI(BaseStrindexGUI):
 		self.create_strindex_selection(line_text="*Select a strindex file to update")
 
 		chkbox_overwrite = self.create_checkbox("Convert to overwrite")
-		chkbox_overwrite.setToolTip("Convert all of the strindex entries to overwrite ones")
+		chkbox_overwrite.setToolTip("Convert all of the compatible entries\nin the strindex to overwrite ones.")
 		self.create_padding(1)
 
 		chkbox_compatible = self.create_checkbox("Convert to compatible")
-		chkbox_compatible.setToolTip("Convert all of the strindex entries to compatible ones")
+		chkbox_compatible.setToolTip("Convert all of the overwrite entries\nin the strindex to compatible ones.")
 		self.create_padding(1)
 
 		self.create_action_button(

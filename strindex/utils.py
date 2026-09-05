@@ -126,7 +126,7 @@ class StrindexSettings:
 		"cyrillic": """ЀЁЂЃЄЅІЇЈЉЊЋЌЍЎЏАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяѐёђѓєѕіїјљњћќѝўџѠѡѢѣѤѥѦѧѨѩѪѫѬѭѮѯѰѱѲѳѴѵѶѷѸѹѺѻѼѽѾѿҀҁ҂҃҄҅҆҇҈҉ҊҋҌҍҎҏҐґҒғҔҕҖҗҘҙҚқҜҝҞҟҠҡҢңҤҥҦҧҨҩҪҫҬҭҮүҰұҲҳҴҵҶҷҸҹҺһҼҽҾҿӀӁӂӃӄӅӆӇӈӉӊӋӌӍӎӏӐӑӒӓӔӕӖӗӘәӚӛӜӝӞӟӠӡӢӣӤӥӦӧӨөӪӫӬӭӮӯӰӱӲӳӴӵӶӷӸӹӺӻӼӽӾ""", # noqa: E501
 	}
 
-	_raw: str | None = None
+	_raw: str | None = dataclasses.field(default=None)
 	_compatible: bool = dataclasses.field(default=False, metadata={"help":
 		"Whether to create a strindex file which uses\nthe original strings as references instead of offsets."})
 	_references: bool = dataclasses.field(default=False, metadata={"help":
@@ -135,10 +135,11 @@ class StrindexSettings:
 		"Whether to strip the strindex file of\ninformational comments and unnecessary newlines."})
 	_whitelist_set: set[str] = dataclasses.field(default_factory=set)
 
-	md5: str | None = None
+	md5: str | None = dataclasses.field(default=None)
 	force_mode: bool = dataclasses.field(default=False, metadata={"help": (
-		'Use the "force" module\nand force the replacement of strings\nat the same offset they were found.\n'
-		"This will effectively make every file patchable,\nbut the length of the replaced strings\n")})
+		'Whether to use the "force" module\nand force the replacement of strings\n'
+		"at the same offset they were found.\nThis will effectively make every file patchable,\n"
+		"but the length of the replaced strings\ncannot exceed the length of the original strings.")})
 	min_length: int = dataclasses.field(default=1, metadata={"help":
 		"Minimum length of the strings to be included."})
 	prefix_bytes: list[bytes] = dataclasses.field(default_factory=list, metadata={"help":
@@ -150,9 +151,9 @@ class StrindexSettings:
 	whitelist: list[str] = dataclasses.field(default_factory=list, metadata={"help":
 		"Character sets to whitelist for filtering strings."})
 	patch_replace: dict[str, str] = dataclasses.field(default_factory=dict)
-	clean_pattern: str = ""
-	source_language: str | None = None
-	target_language: str | None = None
+	clean_pattern: str = dataclasses.field(default="")
+	source_language: str | None = dataclasses.field(default=None)
+	target_language: str | None = dataclasses.field(default=None)
 	among_languages: list[str] = dataclasses.field(default_factory=list)
 
 	def __post_init__(self):
@@ -303,41 +304,33 @@ class Strindex:
 	pointers: list[list[int | bool]]
 	type_order: list[str]
 
-	@property
 	def get_overwrite(self) -> list[str]:
 		return [string for string, type in zip(self.strings, self.type_order, strict=True) if type == "overwrite"]
 
-	@property
 	def get_original(self) -> list[str]:
 		return [string[0] for string, type in zip(self.strings, self.type_order, strict=True) if type == "compatible"]
 
-	@property
 	def get_replace(self) -> list[str]:
 		return [string[1] for string, type in zip(self.strings, self.type_order, strict=True) if type == "compatible"]
 
-	@property
 	def get_offsets(self) -> list[list[int]]:
 		return [pointers for pointers, type in zip(self.pointers, self.type_order, strict=True) if type == "overwrite"]
 
-	@property
 	def get_switches(self) -> list[list[bool]]:
 		return [pointers for pointers, type in zip(self.pointers, self.type_order, strict=True) if type == "compatible"]
 
-	@property
 	def get_overwrite_and_original(self) -> list[str]:
 		return [
 			(string[0] if type == "compatible" else string) for string, type in
 			zip(self.strings, self.type_order, strict=True)
 		]
 
-	@property
 	def get_overwrite_and_replace(self) -> list[str]:
 		return [
 			(string[1] if type == "compatible" else string) for string, type in
 			zip(self.strings, self.type_order, strict=True)
 		]
 
-	@property
 	def get_identifiers(self) -> list[str]:
 		return [
 			(string[0] if type == "compatible" else ",".join(str(p) for p in pointers)) for string, pointers, type in
@@ -439,7 +432,7 @@ class Strindex:
 			while line := f.readline():
 				strindex.parse_body_line(line)
 
-		if strindex.get_overwrite_and_replace[-1] is None:
+		if strindex.get_overwrite_and_replace()[-1] is None:
 			raise ValueError("The last entry in the strindex file is incomplete.")
 
 		strindex.assert_data()
@@ -774,9 +767,9 @@ class FileBuffer(bytearray):
 			"switches": []
 		}
 
-		strindex_original = strindex.get_original
-		strindex_replace = strindex.get_replace
-		strindex_switches = strindex.get_switches
+		strindex_original = strindex.get_original()
+		strindex_replace = strindex.get_replace()
+		strindex_switches = strindex.get_switches()
 
 		for i, offset in enumerate(self.strings_search_ordered(strindex_original)):
 			if offset is None:
@@ -798,11 +791,11 @@ class FileBuffer(bytearray):
 			"replaced_bytes": []
 		}
 
-		for overwrite in strindex.get_overwrite:
+		for overwrite in strindex.get_overwrite():
 			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
 			new_data += data_from_string(strindex.settings.patch_replace_string(overwrite))
 
-		self.update_references(strindex.get_offsets, update_dict["replaced_bytes"])
+		self.update_references(strindex.get_offsets(), update_dict["replaced_bytes"])
 
 		return new_data
 

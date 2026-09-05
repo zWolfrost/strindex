@@ -212,4 +212,4 @@ def test_merge(kz_pe_strindex_full_comp: Strindex):
 
 		strindex.core.merge(get_file_path("kz_exe.gz"), temp_strindex_in2.name, temp_strindex_out.name)
 
-		assert get_file_md5(temp_strindex_out.name) == "ab21c7ee283ea8c81c0143407ddc17c5"
+		assert get_file_md5(temp_strindex_out.name) == "5d630eb3794688b3c6c8f3d3c8cc56d8"

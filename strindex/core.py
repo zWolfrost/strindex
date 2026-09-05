@@ -173,7 +173,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 	strindex = Strindex.read(strindex_filepath)
 
-	STRINDEX_OFFSETS = flat_list(strindex.get_offsets)
+	STRINDEX_OFFSETS = flat_list(strindex.get_offsets())
 
 	def infer_affixes(start_fun, end_fun):
 		nonlocal infer_output
@@ -251,15 +251,12 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 		isocode_639_1 = IsoCode639_1.from_str(strindex.settings.source_language.upper())
 		return confidence.language.iso_code_639_1 == isocode_639_1 and confidence.value > 0.5
 
-	STRINDEX_OVERWRITE_AND_ORIGINAL = strindex.get_overwrite_and_original
-
-	for i in reversed(range(len(STRINDEX_OVERWRITE_AND_ORIGINAL))):
-		string = STRINDEX_OVERWRITE_AND_ORIGINAL[i]
-		valid_language = not strindex.settings.source_language or is_source_language(string)
-		valid_length = len(string.encode("utf-8")) >= strindex.settings.min_length
-		valid_whitelist = strindex.settings.is_in_whitelist(string)
-
-		if not all([valid_language, valid_length, valid_whitelist]):
+	for i, string in reversed(list(enumerate(strindex.get_overwrite_and_original()))):
+		if (
+			(len(string.encode("utf-8")) < strindex.settings.min_length) or
+			(not strindex.settings.is_in_whitelist(string)) or
+			(strindex.settings.source_language and not is_source_language(string))
+		):
 			strindex.delete_index(i)
 
 	Progress.global_instance()
@@ -287,8 +284,8 @@ def diff(strindex_1_filepath: str, strindex_2_filepath: str, strindex_diff_filep
 
 	initial_count = len(strindex_1.strings)
 
-	strindex_1_ids = strindex_1.get_identifiers
-	strindex_2_ids = strindex_2.get_identifiers
+	strindex_1_ids = strindex_1.get_identifiers()
+	strindex_2_ids = strindex_2.get_identifiers()
 
 	search_index = 0
 	for index in range(len(strindex_1.strings)):
@@ -327,21 +324,22 @@ def merge(strindex_1_filepath: str, strindex_2_filepath: str, strindex_merged_fi
 	strindex_1 = Strindex.read(strindex_1_filepath)
 	strindex_2 = Strindex.read(strindex_2_filepath)
 
+	strindex_1_ids = strindex_1.get_overwrite_and_original()
+	strindex_2_ids = strindex_2.get_overwrite_and_original()
+	strindex_1_replace = strindex_1.get_overwrite_and_replace()
+
 	merged_entries = 0
-
-	strindex_1_ids = strindex_1.get_identifiers
-	strindex_2_ids = strindex_2.get_identifiers
-
-	for index in range(len(strindex_2.strings)):
+	search_index = 0
+	for i in range(len(strindex_2.strings)):
 		try:
-			search_index = strindex_1_ids.index(strindex_2_ids[index])
+			search_index = strindex_1_ids.index(strindex_2_ids[i], search_index)
 		except ValueError:
 			pass
 		else:
-			if strindex_2.type_order[index] == "overwrite":
-				strindex_2.strings[index] = strindex_1.strings[search_index]
-			elif strindex_2.type_order[index] == "compatible":
-				strindex_2.strings[index][1] = strindex_1.strings[search_index][1]
+			if strindex_2.type_order[i] == "overwrite":
+				strindex_2.strings[i] = strindex_1_replace[search_index]
+			elif strindex_2.type_order[i] == "compatible":
+				strindex_2.strings[i][1] = strindex_1_replace[search_index]
 			search_index += 1
 			merged_entries += 1
 
@@ -383,7 +381,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	Progress.init_global_instance(len(strindex.strings), 1)
 
 	with Path(strindex_spellcheck_filepath).open("w", encoding="utf-8") as f:
-		for i, string in enumerate(strindex.get_overwrite_and_replace, start=1):
+		for i, string in enumerate(strindex.get_overwrite_and_replace(), start=1):
 			Progress.global_instance(i)
 			string_clean = strindex.settings.clean_string(string)
 			f.writelines("\n".join(str(error).split("\n")[-3:]) + "\n" for error in lang.check(string_clean))
@@ -435,7 +433,7 @@ def get_parser() -> argparse.ArgumentParser:
 	parser.add_argument("--version", action="version", version=VERSION,
 		help="Show the version of strindex and exit.")
 
-	write_parser = parser.add_argument_group("[create] writing options")
+	write_parser = parser.add_argument_group("[create] exclusive writing options")
 	write_parser.add_argument("-C", "--compatible", action="store_true",
 		help=StrindexSettings.get_doc("_compatible"))
 	write_parser.add_argument("-R", "--references", action="store_true",
@@ -445,7 +443,7 @@ def get_parser() -> argparse.ArgumentParser:
 
 	APPEND_SPECIFY_INFO = "\nCan be specified multiple times."
 
-	create_parser = parser.add_argument_group("[create] options")
+	create_parser = parser.add_argument_group("[create] exclusive options")
 	create_parser.add_argument("-f", "--force-mode", action="store_true",
 		help=StrindexSettings.get_doc("force_mode"))
 	create_parser.add_argument("-m", "--min-length", default=3, type=int,
@@ -465,11 +463,11 @@ def get_parser() -> argparse.ArgumentParser:
 		"https://github.com/zWolfrost/strindex/blob/main/strindex_example.txt"
 	)
 
-	update_parser = parser.add_argument_group("[update] options").add_mutually_exclusive_group()
+	update_parser = parser.add_argument_group("[update] exclusive options").add_mutually_exclusive_group()
 	update_parser.add_argument("--convert-to-compatible", action="store_true",
-		help="When using the [update] action,\nconvert overwrite strings to compatible strings.")
+		help="Convert all of the overwrite entries\nin the strindex to compatible ones.")
 	update_parser.add_argument("--convert-to-overwrite", action="store_true",
-		help="When using the [update] action,\nconvert compatible strings to overwrite strings.")
+		help="Convert all of the compatible entries\nin the strindex to overwrite ones.")
 
 	return parser
 
