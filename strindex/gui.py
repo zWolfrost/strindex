@@ -250,7 +250,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		)
 
 		if sys.platform == "win32":
-			self.setMinimumWidth(500)
+			self.setMinimumWidth(600)
 			self.setMaximumWidth(1600)
 			self.setFixedHeight(height_hint)
 		else:
