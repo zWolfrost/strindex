@@ -13,8 +13,26 @@ def edit_extension(filepath: str, suffix: str) -> str:
 	return _path.with_name(_path.stem + suffix).resolve().as_posix()
 
 
+def gui() -> None:
+	"""
+	Open strindex in GUI mode.
+	"""
+
+	try:
+		from strindex.gui import MainStrindexGUI
+	except ModuleNotFoundError:
+		raise ImportError(
+			'Please install the "PySide6" package (pip install pyside6) to use this feature.'
+		) from None
+
+	MainStrindexGUI()
+
+
 def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings) -> str:
-	""" Calls the create method of the module associated with the file type. """
+	"""
+	Create a list of string replacement instructions (a strindex file)
+	extracting them from a file.
+	"""
 
 	Progress.init_global_instance(4)
 
@@ -30,7 +48,10 @@ def create(file_filepath: str, strindex_filepath: str | None, settings: Strindex
 
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None) -> str:
-	""" Calls the patch method of the module associated with the file type. """
+	"""
+	Patch a file using a strindex, or, in other words,
+	replace strings in the file following the strindex instructions.
+	"""
 
 	if not hasattr(Progress, "global_instance"):
 		Progress.init_global_instance(6)
@@ -58,7 +79,10 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 
 def unpatch(file_filepath: str) -> str:
-	""" Restores a backup file if it exists. """
+	"""
+	Unpatch a file that was patched with a strindex,
+	using the backup file that's created by default.
+	"""
 
 	Progress.init_global_instance(1)
 
@@ -80,7 +104,10 @@ def update(
 	strindex_updated_filepath: str | None,
 	convert_type: str | None = None
 ) -> str:
-	""" Update a strindex file with newly created pointers and settings. """
+	"""
+	Update a strindex file pointers'
+	with another version of a file.
+	"""
 
 	Progress.init_global_instance(6)
 
@@ -127,8 +154,9 @@ def update(
 
 def infer(file_filepath: str, strindex_filepath: str) -> str:
 	"""
-		List the most common bytes that can prefix or suffix a pointer in a file,
-		as well as the most suitable range to use.
+	Infer the most suitable values for
+	"prefix_bytes", "suffix_bytes" and "range"
+	given an already-filtered strindex.
 	"""
 
 	Progress.init_global_instance(5)
@@ -187,7 +215,10 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 
 def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> str:
-	""" Filters a strindex file with respect to length, whitelist and source language. """
+	"""
+	Filter a strindex by detected language, wordlist or length.
+	Those can be specified in the strindex settings.
+	"""
 
 	Progress.init_global_instance(4)
 
@@ -241,15 +272,18 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 	)
 
 
-def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_delta_filepath: str | None) -> str:
-	""" Filters a full strindex file with a delta strindex file, or intersects them. """
+def diff(strindex_1_filepath: str, strindex_2_filepath: str, strindex_diff_filepath: str | None) -> str:
+	"""
+	Subtract the entries of a strindex file from another,
+	creating a strindex file with their differences.
+	"""
 
 	Progress.init_global_instance(4)
 
-	strindex_delta_filepath = strindex_delta_filepath or edit_extension(strindex_full_filepath, "_delta.txt")
+	strindex_diff_filepath = strindex_diff_filepath or edit_extension(strindex_1_filepath, "_diff.txt")
 
-	strindex_1 = Strindex.read(strindex_full_filepath)
-	strindex_2 = Strindex.read(strindex_diff_filepath)
+	strindex_1 = Strindex.read(strindex_1_filepath)
+	strindex_2 = Strindex.read(strindex_2_filepath)
 
 	initial_count = len(strindex_1.strings)
 
@@ -272,16 +306,60 @@ def delta(strindex_full_filepath: str, strindex_diff_filepath: str, strindex_del
 
 	Progress.global_instance()
 
-	strindex_1.write(strindex_delta_filepath)
+	strindex_1.write(strindex_diff_filepath)
 
 	return Print.success(
-		f"Created delta strindex file with {len(strindex_1.strings)} strings out of {initial_count} at\n"
-		f"{strindex_delta_filepath}"
+		f"Created diff strindex file with {len(strindex_1.strings)} strings out of {initial_count} at\n"
+		f"{strindex_diff_filepath}"
+	)
+
+
+def merge(strindex_1_filepath: str, strindex_2_filepath: str, strindex_merged_filepath: str | None) -> str:
+	"""
+	Merge the first strindex file into the second one,
+	prioritizing the first one in case of conflicts.
+	"""
+
+	Progress.init_global_instance(4)
+
+	strindex_merged_filepath = strindex_merged_filepath or edit_extension(strindex_2_filepath, "_merged.txt")
+
+	strindex_1 = Strindex.read(strindex_1_filepath)
+	strindex_2 = Strindex.read(strindex_2_filepath)
+
+	merged_entries = 0
+
+	strindex_1_ids = strindex_1.get_identifiers
+	strindex_2_ids = strindex_2.get_identifiers
+
+	for index in range(len(strindex_2.strings)):
+		try:
+			search_index = strindex_1_ids.index(strindex_2_ids[index])
+		except ValueError:
+			pass
+		else:
+			if strindex_2.type_order[index] == "overwrite":
+				strindex_2.strings[index] = strindex_1.strings[search_index]
+			elif strindex_2.type_order[index] == "compatible":
+				strindex_2.strings[index][1] = strindex_1.strings[search_index][1]
+			search_index += 1
+			merged_entries += 1
+
+	Progress.global_instance()
+
+	strindex_2.write(strindex_merged_filepath)
+
+	return Print.success(
+		f"Created merged strindex file with {merged_entries} entries merged out of {len(strindex_2.strings)} at\n"
+		f"{strindex_merged_filepath}"
 	)
 
 
 def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None) -> str:
-	""" Creates a spellcheck file from a strindex file, for the specified language. """
+	"""
+	Spellcheck a strindex, and write the results to a file.
+	The target language can be specified in the strindex settings.
+	"""
 
 	strindex_spellcheck_filepath = strindex_spellcheck_filepath or edit_extension(strindex_filepath, "_spellcheck.txt")
 
@@ -313,6 +391,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	return Print.success(f"Created spellcheck file at\n{strindex_spellcheck_filepath}")
 
 
+
 def help_whitelist():
 	prnt = Print.info("Available whitelist character sets (LEAVE EMPTY FOR NO FILTERING):\n", end="")
 	for key, value in StrindexSettings.CHARACTER_SETS.items():
@@ -324,40 +403,26 @@ def help_whitelist():
 
 
 def get_parser() -> argparse.ArgumentParser:
+	ACTIONS = (gui, create, patch, unpatch, infer, update, filter, diff, merge, spellcheck)
+
 	parser = argparse.ArgumentParser(
 		prog="strindex",
 		exit_on_error=False,
 		formatter_class=argparse.RawTextHelpFormatter
 	)
 
-	parser.description = """A command line utility that allows you to
-easily extract, list and patch the strings embedded in a few filetypes.
+	parser.description = (
+		"A command line utility that allows you to\n"
+		"easily extract, list and patch the strings embedded in a few filetypes.\n\n"
+		"\033[1m\033[34mactions:\033[0m\n" +
+		"\n".join(
+			f"  \033[1m\033[36m{action.__name__: <12}\033[0m{action.__doc__.strip().replace("\n", "\n" + " "*16)}"
+			for action in ACTIONS
+		) +
+		"\n\n  Strindex files compressed with gzip are also supported, for all actions."
+	)
 
-\033[1m\033[34mactions:>
-  <gui>         Open strindex in GUI mode.
-  <create>      Create a list of string replacement instructions (a strindex file)
-                extracting them from a file.
-  <patch>       Patch a file using a strindex, or, in other words,
-                replace strings in the file following the strindex instructions.
-  <unpatch>     Unpatch a file that was patched with a strindex,
-                using the backup file that's created by default.
-  <update>      Update a strindex file pointers'
-                with another version of a file.
-  <infer>       Infer the most suitable values for
-                "prefix_bytes", "suffix_bytes" and "range"
-                given an already-filtered strindex.
-  <filter>      Filter a strindex by detected language, wordlist or length.
-                Those can be specified in the strindex settings.
-  <delta>       Subtract the entries of a strindex file from another,
-                creating a strindex file with their differences.
-  <spellcheck>  Spellcheck a strindex, and write the results to a file.
-                The target language can be specified in the strindex settings.
-
-  Strindex files compressed with gzip are also supported, for all actions.""" \
-	.replace("<", "\033[1m\033[36m").replace(">", "\033[0m")
-
-	parser.add_argument("action", type=str, nargs=argparse.OPTIONAL,
-		choices=["gui", "create", "patch", "unpatch", "update", "infer", "filter", "delta", "spellcheck"],
+	parser.add_argument("action", type=str, nargs=argparse.OPTIONAL, choices=[a.__name__ for a in ACTIONS],
 		help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE,
 		help="One or more files/strindex files to pass to the action.")
@@ -372,31 +437,33 @@ easily extract, list and patch the strings embedded in a few filetypes.
 
 	write_parser = parser.add_argument_group("[create] writing options")
 	write_parser.add_argument("-C", "--compatible", action="store_true",
-		help="Whether to create a strindex file which uses\nthe original strings as references instead of offsets.")
+		help=StrindexSettings.get_doc("_compatible"))
 	write_parser.add_argument("-R", "--references", action="store_true",
-		help="Whether to add reference comments\nfor the original strings to the strindex file.")
+		help=StrindexSettings.get_doc("_references"))
 	write_parser.add_argument("-M", "--minimal", action="store_true",
-		help="Whether to strip the strindex file of\ninformational comments and unnecessary newlines.")
+		help=StrindexSettings.get_doc("_minimal"))
+
+	APPEND_SPECIFY_INFO = "\nCan be specified multiple times."
 
 	create_parser = parser.add_argument_group("[create] options")
 	create_parser.add_argument("-f", "--force-mode", action="store_true",
-		help=('Use the "force" module\nand force the replacement of strings\nat the same offset they were found.\n'
-			"Force mode doesn't allow the replaced strings\nto be bigger in length than the original strings."))
+		help=StrindexSettings.get_doc("force_mode"))
 	create_parser.add_argument("-m", "--min-length", default=3, type=int,
-		help="Minimum length of the strings to be included.")
+		help=StrindexSettings.get_doc("min_length"))
 	create_parser.add_argument("-p", "--prefix-bytes", type=str, action="append", default=[],
-		help="Prefix bytes that must prefix a pointer, in hex format.\nCan be specified multiple times.")
+		help=(StrindexSettings.get_doc("prefix_bytes") + APPEND_SPECIFY_INFO))
 	create_parser.add_argument("-s", "--suffix-bytes", type=str, action="append", default=[],
-		help="Suffix bytes that must suffix a pointer, in hex format.\nCan be specified multiple times.")
+		help=(StrindexSettings.get_doc("suffix_bytes") + APPEND_SPECIFY_INFO))
 	create_parser.add_argument("-r", "--range", type=str, action="append", default=[],
-		help=('Ranges of offsets to consider for searching pointers,\nin the format "start:end".\n'
-			"Can be specified multiple times."))
+		help=(StrindexSettings.get_doc("ranges") + APPEND_SPECIFY_INFO))
 	create_parser.add_argument("-w", "--whitelist", type=str, action="append", default=[],
-		help="Character sets to whitelist for filtering strings.\nCan be specified multiple times.")
+		help=(StrindexSettings.get_doc("whitelist") + APPEND_SPECIFY_INFO))
 
-	create_parser.description = """For more information about the following options,
-as well a showcase of a valid strindex file, please refer to
-  https://github.com/zWolfrost/strindex/blob/main/strindex_example.txt"""
+	create_parser.description = (
+		"For more information about the following options,\n"
+		"as well a showcase of a valid strindex file, please refer to\n"
+		"https://github.com/zWolfrost/strindex/blob/main/strindex_example.txt"
+	)
 
 	update_parser = parser.add_argument_group("[update] options").add_mutually_exclusive_group()
 	update_parser.add_argument("--convert-to-compatible", action="store_true",
@@ -437,15 +504,7 @@ def main(sysargs=None):
 		match args.action:
 			case "gui":
 				require_files_num(0)
-
-				try:
-					from strindex.gui import MainStrindexGUI
-				except ModuleNotFoundError:
-					raise ImportError(
-						'Please install the "PySide6" package (pip install pyside6) to use this feature.'
-					) from None
-
-				MainStrindexGUI()
+				gui()
 			case "create":
 				require_files_num(1)
 				create(*args.files, args.output,
@@ -482,9 +541,12 @@ def main(sysargs=None):
 			case "filter":
 				require_files_num(1)
 				filter(*args.files, args.output)
-			case "delta":
+			case "diff":
 				require_files_num(2)
-				delta(*args.files, args.output)
+				diff(*args.files, args.output)
+			case "merge":
+				require_files_num(2)
+				merge(*args.files, args.output)
 			case "spellcheck":
 				require_files_num(1)
 				spellcheck(*args.files, args.output)

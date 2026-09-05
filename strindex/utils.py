@@ -127,18 +127,28 @@ class StrindexSettings:
 	}
 
 	_raw: str | None = None
-	_compatible: bool = False
-	_references: bool = False
-	_minimal: bool = False
+	_compatible: bool = dataclasses.field(default=False, metadata={"help":
+		"Whether to create a strindex file which uses\nthe original strings as references instead of offsets."})
+	_references: bool = dataclasses.field(default=False, metadata={"help":
+		"Whether to add reference comments\nfor the original strings to the strindex file."})
+	_minimal: bool = dataclasses.field(default=False, metadata={"help":
+		"Whether to strip the strindex file of\ninformational comments and unnecessary newlines."})
 	_whitelist_set: set[str] = dataclasses.field(default_factory=set)
 
 	md5: str | None = None
-	force_mode: bool = False
-	min_length: int = 1
-	prefix_bytes: list[bytes] = dataclasses.field(default_factory=list)
-	suffix_bytes: list[bytes] = dataclasses.field(default_factory=list)
-	ranges: list[range] = dataclasses.field(default_factory=list)
-	whitelist: list[str] = dataclasses.field(default_factory=list)
+	force_mode: bool = dataclasses.field(default=False, metadata={"help": (
+		'Use the "force" module\nand force the replacement of strings\nat the same offset they were found.\n'
+		"This will effectively make every file patchable,\nbut the length of the replaced strings\n")})
+	min_length: int = dataclasses.field(default=1, metadata={"help":
+		"Minimum length of the strings to be included."})
+	prefix_bytes: list[bytes] = dataclasses.field(default_factory=list, metadata={"help":
+		"Prefix bytes that must prefix a pointer, in hex format."})
+	suffix_bytes: list[bytes] = dataclasses.field(default_factory=list, metadata={"help":
+		"Suffix bytes that must suffix a pointer, in hex format."})
+	ranges: list[range] = dataclasses.field(default_factory=list, metadata={"help":
+		'Ranges of offsets to consider for searching pointers,\nin the format "start:end".'})
+	whitelist: list[str] = dataclasses.field(default_factory=list, metadata={"help":
+		"Character sets to whitelist for filtering strings."})
 	patch_replace: dict[str, str] = dataclasses.field(default_factory=dict)
 	clean_pattern: str = ""
 	source_language: str | None = None
@@ -226,6 +236,10 @@ class StrindexSettings:
 
 	def get_dict(self) -> dict:
 		return {k: v for k, v in vars(self).items() if not k.startswith("_")}
+
+	@staticmethod
+	def get_doc(var):
+		return next((f.metadata.get("help") for f in dataclasses.fields(StrindexSettings) if f.name == var), None)
 
 	def __repr__(self) -> str:
 		return str(self.get_dict())

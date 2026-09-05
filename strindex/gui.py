@@ -259,39 +259,23 @@ class MainStrindexGUI(BaseStrindexGUI):
 	def setup(self):
 		self.tab_widget = QtWidgets.QTabWidget()
 
-		self.tab_widget.setTabToolTip(
-			self.tab_widget.addTab(CreateGUI(), "Create"),
-			"Create a list of strings (a strindex) extracted from a file."
-		)
-		self.tab_widget.setTabToolTip(
-			self.tab_widget.addTab(PatchGUI(), "Patch"),
-			"Patch a file with a strindex.\n"
-			"Strindex files compressed with gzip are also supported for all actions."
-		)
-		self.tab_widget.setTabToolTip(
-			self.tab_widget.addTab(UpdateGUI(), "Update"),
-			"Update a strindex file pointers' with the updated version of a file."
-		)
-		self.tab_widget.setTabToolTip(
-			self.tab_widget.addTab(InferGUI(), "Infer"),
-			"List the most common bytes that can prefix or suffix a pointer in a file,\n"
-			"as well as the most suitable range to use."
-		)
-		self.tab_widget.setTabToolTip(
-			self.tab_widget.addTab(FilterGUI(), "Filter"),
-			"Filter a strindex by detected language, wordlist or length.\n"
-			"You can specify those in the strindex settings."
-		)
-		self.tab_widget.setTabToolTip(
-			self.tab_widget.addTab(DeltaGUI(), "Delta"),
-			"Create a delta file between two strindex files,\n"
-			"that only contains the lines of the first strindex missing in the second one (their difference)."
-		)
+		gui_action_map = [
+			(CreateGUI, "Create", strindex.core.create),
+			(PatchGUI, "Patch", strindex.core.patch),
+			(UpdateGUI, "Update", strindex.core.update),
+			(InferGUI, "Infer", strindex.core.infer),
+			(FilterGUI, "Filter", strindex.core.filter),
+			(DeltaGUI, "Diff", strindex.core.diff),
+			(MergeGUI, "Merge", strindex.core.merge)
+		]
+
 		if "__compiled__" not in globals():
+			gui_action_map.append((SpellcheckGUI, "Spellcheck", strindex.core.spellcheck))
+
+		for gui, title, function in gui_action_map:
 			self.tab_widget.setTabToolTip(
-				self.tab_widget.addTab(SpellcheckGUI(), "Spellcheck"),
-				"Spellcheck a strindex.\n"
-				"You can specify the target language in the strindex settings as an ISO 639-1 code."
+				self.tab_widget.addTab(gui(), title),
+				function.__doc__.strip()
 			)
 
 		version_label = QtWidgets.QLabel(f"<a href='https://github.com/zWolfrost/strindex'>v{strindex.core.VERSION}</a>")
@@ -347,16 +331,10 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_lineedit("(Optional) Whitelisted character sets (comma-separated) e.g.: latin,cyrillic")
 		self.create_button(text="Help", callback=lambda: self.show_message(strindex.core.help_whitelist()))
 
-		self.create_checkbox("Force Mode").setToolTip(
-			"When patching, replace strings at the same offset they were found.\n"
-			"This means the program will effectively work with any filetype,\n"
-			"but the length of the patched strings can't be longer than the original ones."
-		)
+		self.create_checkbox("Force Mode").setToolTip(StrindexSettings.get_doc("force_mode"))
 		self.create_padding(1)
 
-		self.create_checkbox("Compatible Mode").setToolTip(
-			"Create a strindex that uses the original strings as references, instead of pointers."
-		)
+		self.create_checkbox("Compatible Mode").setToolTip(StrindexSettings.get_doc("_compatible"))
 		self.create_padding(1)
 
 		self.create_action_button(
@@ -477,7 +455,22 @@ class DeltaGUI(BaseStrindexGUI):
 		self.create_action_button(
 			text="Delta strindex",
 			progress_text="Subtracting... %p%",
-			callback=lambda strdex1, strdex2: strindex.core.delta(strdex1, strdex2, None)
+			callback=lambda strdex1, strdex2: strindex.core.diff(strdex1, strdex2, None)
+		)
+		self.create_padding(1)
+
+		self.create_grid_layout(2).setColumnStretch(0, 1)
+
+
+class MergeGUI(BaseStrindexGUI):
+	def setup(self):
+		self.create_strindex_selection(line_text="*Select a strindex to merge from")
+		self.create_strindex_selection(line_text="*Select a strindex to merge into")
+
+		self.create_action_button(
+			text="Merge strindex",
+			progress_text="Merging... %p%",
+			callback=lambda strdex1, strdex2: strindex.core.merge(strdex1, strdex2, None)
 		)
 		self.create_padding(1)
 

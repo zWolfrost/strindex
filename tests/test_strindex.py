@@ -197,11 +197,19 @@ def test_filter(kz_pe_strindex_full: Strindex):
 
 		assert len(Strindex.read(temp_strindex_out.name).strings) == 24180
 
-def test_delta(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
+def test_diff(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
 	with temp_open() as temp_strindex_in1, temp_open() as temp_strindex_in2, temp_open() as temp_strindex_out:
 		kz_pe_strindex_full.write(temp_strindex_in1.name)
 		kz_pe_strindex_part.write(temp_strindex_in2.name)
 
-		strindex.core.delta(temp_strindex_in1.name, temp_strindex_in2.name, temp_strindex_out.name)
+		strindex.core.diff(temp_strindex_in1.name, temp_strindex_in2.name, temp_strindex_out.name)
 
 		assert len(Strindex.read(temp_strindex_out.name).strings) == 20840
+
+def test_merge(kz_pe_strindex_full_comp: Strindex):
+	with temp_open() as temp_strindex_in2, temp_open() as temp_strindex_out:
+		kz_pe_strindex_full_comp.write(temp_strindex_in2.name)
+
+		strindex.core.merge(get_file_path("kz_exe.gz"), temp_strindex_in2.name, temp_strindex_out.name)
+
+		assert get_file_md5(temp_strindex_out.name) == "ab21c7ee283ea8c81c0143407ddc17c5"

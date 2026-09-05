@@ -39,7 +39,8 @@ These are the available actions:
 - `update` Update a strindex file pointers' with another version of a file.
 - `infer`: List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range to use.
 - `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
-- `delta`: Subtract the entries of a strindex file from another, creating a strindex file with their differences.
+- `diff`: Subtract the entries of a strindex file from another, creating a strindex file with their differences.
+- `merge`: Merge two strindex files into one, prioritizing the first one in case of conflicts.
 - `spellcheck`: Spellcheck a strindex, and write the results to a file. You can specify the target language in the strindex settings as an ISO 639-1 code.
 
 ## Usage Examples
