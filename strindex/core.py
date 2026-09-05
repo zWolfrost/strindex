@@ -427,25 +427,25 @@ def get_parser() -> argparse.ArgumentParser:
 		help="One or more files/strindex files to pass to the action.")
 	parser.add_argument("-o", "--output", type=str,
 		help="Output file path.\nIf not specified, a default one will be used.")
-	parser.add_argument("-q", "--quiet", action="store_const", const=True,
+	parser.add_argument("-q", "--quiet", action="store_true",
 		help="Suppress all output except for errors.")
-	parser.add_argument("-v", "--verbose", action="store_const", const=True,
+	parser.add_argument("-v", "--verbose", action="store_true",
 		help="Print full error messages.")
 	parser.add_argument("--version", action="version", version=VERSION,
 		help="Show the version of strindex and exit.")
 
 	write_parser = parser.add_argument_group("[create] exclusive writing options")
-	write_parser.add_argument("-C", "--compatible", action="store_const", const=True,
+	write_parser.add_argument("-C", "--compatible", action="store_true",
 		help=StrindexSettings.get_doc("_compatible"))
-	write_parser.add_argument("-R", "--references", action="store_const", const=True,
+	write_parser.add_argument("-R", "--references", action="store_true",
 		help=StrindexSettings.get_doc("_references"))
-	write_parser.add_argument("-M", "--minimal", action="store_const", const=True,
+	write_parser.add_argument("-M", "--minimal", action="store_true",
 		help=StrindexSettings.get_doc("_minimal"))
 
 	APPEND_SPECIFY_INFO = "\nCan be specified multiple times."
 
 	create_parser = parser.add_argument_group("[create] exclusive options")
-	create_parser.add_argument("-f", "--force-mode", action="store_const", const=True,
+	create_parser.add_argument("-f", "--force-mode", action="store_true",
 		help=StrindexSettings.get_doc("force_mode"))
 	create_parser.add_argument("-m", "--min-length", type=int, default=3,
 		help=StrindexSettings.get_doc("min_length"))
@@ -465,9 +465,9 @@ def get_parser() -> argparse.ArgumentParser:
 	)
 
 	update_parser = parser.add_argument_group("[update] exclusive options").add_mutually_exclusive_group()
-	update_parser.add_argument("--convert-to-compatible", action="store_const", const=True,
+	update_parser.add_argument("--convert-to-compatible", action="store_true",
 		help="Convert all of the overwrite entries\nin the strindex to compatible ones.")
-	update_parser.add_argument("--convert-to-overwrite", action="store_const", const=True,
+	update_parser.add_argument("--convert-to-overwrite", action="store_true",
 		help="Convert all of the compatible entries\nin the strindex to overwrite ones.")
 
 	return parser
