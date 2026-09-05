@@ -9,8 +9,9 @@ VERSION = "5.0.0"
 
 
 def edit_extension(filepath: str, suffix: str) -> str:
-	_path = Path(filepath)
-	return _path.with_name(_path.stem + suffix).resolve().as_posix()
+	path = Path(filepath)
+	return path.with_name(path.stem + suffix).resolve().as_posix()
+
 
 
 def gui() -> None:
