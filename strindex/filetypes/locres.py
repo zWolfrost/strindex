@@ -3,7 +3,7 @@ from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 SETTINGS = ModuleSettings(
 	default_byte_length=4,
 	default_byte_order="little",
-	supports_compatible=True
+	supports_dynamic=True
 )
 
 
@@ -95,7 +95,7 @@ def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	structures = get_structures_dict(data)
 
-	strindex.normalize_to_overwrite([[o] for o in structures], [p[2] for p in structures.values()])
+	strindex.normalize_to_fixed([[o] for o in structures], [p[2] for p in structures.values()])
 
 	for pointers, string in zip(strindex.pointers, strindex.strings, strict=True):
 		offset = pointers[0]

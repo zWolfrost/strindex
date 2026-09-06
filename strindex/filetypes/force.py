@@ -1,7 +1,7 @@
 from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 
 SETTINGS = ModuleSettings(
-	supports_compatible=True
+	supports_dynamic=True
 )
 
 
@@ -21,9 +21,9 @@ def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 
 def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	strindex_original = strindex.get_original()
-	strindex.normalize_to_overwrite([[p] for p in data.strings_search_ordered(strindex_original)], strindex_original)
+	strindex.normalize_to_fixed([[p] for p in data.strings_search_ordered(strindex_original)], strindex_original)
 
-	for overwrite, offset in zip(strindex.get_overwrite(), strindex.get_offsets(), strict=True):
+	for overwrite, offset in zip(strindex.strings, strindex.pointers, strict=True):
 		data.cursor = offset[0]
 		data.replace_string(overwrite)
 

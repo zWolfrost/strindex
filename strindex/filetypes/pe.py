@@ -5,7 +5,7 @@ from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 SETTINGS = ModuleSettings(
 	default_byte_order="little",
 	filter_after_create=False,
-	supports_compatible=True
+	supports_dynamic=True
 )
 
 SECTION_NAME = b".strdex"

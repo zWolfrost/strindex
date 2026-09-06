@@ -127,7 +127,7 @@ class StrindexSettings:
 	}
 
 	_raw: str | None = dataclasses.field(default=None)
-	_compatible: bool = dataclasses.field(default=False, metadata={"help":
+	_dynamic: bool = dataclasses.field(default=False, metadata={"help":
 		"Whether to create a strindex file which uses\nthe original strings as references instead of offsets."})
 	_references: bool = dataclasses.field(default=False, metadata={"help":
 		"Whether to add reference comments\nfor the original strings to the strindex file."})
@@ -251,11 +251,11 @@ class Strindex:
 
 	TOKEN_DELIMITER = " "
 	POINTERS_PREFIX = "@"
-	OVERWRITE_PREFIX = POINTERS_PREFIX + "o" + TOKEN_DELIMITER
-	COMPATIBLE_PREFIX = POINTERS_PREFIX + "c" + TOKEN_DELIMITER
+	FIXED_PREFIX = POINTERS_PREFIX + "f" + TOKEN_DELIMITER
+	DYNAMIC_PREFIX = POINTERS_PREFIX + "d" + TOKEN_DELIMITER
 	STRING_PREFIX = ">>" + TOKEN_DELIMITER
-	COMPATIBLE_TRUE = "+"
-	COMPATIBLE_FALSE = "-"
+	DYNAMIC_TRUE = "+"
+	DYNAMIC_FALSE = "-"
 
 	_UNESCAPE_DICT: ClassVar[dict[str, str]] = {
 		"\\": "\\",
@@ -300,41 +300,41 @@ class Strindex:
 
 	settings: StrindexSettings
 
-	strings: list[str | list[str]]
+	types: list[str]
 	pointers: list[list[int | bool]]
-	type_order: list[str]
+	strings: list[str | list[str]]
 
 	def get_overwrite(self) -> list[str]:
-		return [string for string, type in zip(self.strings, self.type_order, strict=True) if type == "overwrite"]
+		return [string for string, type in zip(self.strings, self.types, strict=True) if type == "fixed"]
 
 	def get_original(self) -> list[str]:
-		return [string[0] for string, type in zip(self.strings, self.type_order, strict=True) if type == "compatible"]
+		return [string[0] for string, type in zip(self.strings, self.types, strict=True) if type == "dynamic"]
 
 	def get_replace(self) -> list[str]:
-		return [string[1] for string, type in zip(self.strings, self.type_order, strict=True) if type == "compatible"]
+		return [string[1] for string, type in zip(self.strings, self.types, strict=True) if type == "dynamic"]
 
 	def get_offsets(self) -> list[list[int]]:
-		return [pointers for pointers, type in zip(self.pointers, self.type_order, strict=True) if type == "overwrite"]
+		return [pointers for pointers, type in zip(self.pointers, self.types, strict=True) if type == "fixed"]
 
 	def get_switches(self) -> list[list[bool]]:
-		return [pointers for pointers, type in zip(self.pointers, self.type_order, strict=True) if type == "compatible"]
+		return [pointers for pointers, type in zip(self.pointers, self.types, strict=True) if type == "dynamic"]
 
 	def get_overwrite_and_original(self) -> list[str]:
 		return [
-			(string[0] if type == "compatible" else string) for string, type in
-			zip(self.strings, self.type_order, strict=True)
+			(string if type == "fixed" else string[0]) for string, type in
+			zip(self.strings, self.types, strict=True)
 		]
 
 	def get_overwrite_and_replace(self) -> list[str]:
 		return [
-			(string[1] if type == "compatible" else string) for string, type in
-			zip(self.strings, self.type_order, strict=True)
+			(string if type == "fixed" else string[1]) for string, type in
+			zip(self.strings, self.types, strict=True)
 		]
 
 	def get_identifiers(self) -> list[str]:
 		return [
-			(string[0] if type == "compatible" else ",".join(str(p) for p in pointers)) for string, pointers, type in
-			zip(self.strings, self.pointers, self.type_order, strict=True)
+			(",".join(str(p) for p in pointers) if type == "fixed" else string[0]) for string, pointers, type in
+			zip(self.strings, self.pointers, self.types, strict=True)
 		]
 
 	def __init__(self):
@@ -344,7 +344,7 @@ class Strindex:
 
 		self.strings = []
 		self.pointers = []
-		self.type_order = []
+		self.types = []
 
 	def parse_body_line(self, line: str):
 		try:
@@ -352,31 +352,31 @@ class Strindex:
 
 			if line.startswith(Strindex.POINTERS_PREFIX):
 				if (
-					self.type_order and self.strings and
-					((self.type_order[-1] == "overwrite" and self.strings[-1] is None) or
-					(self.type_order[-1] == "compatible" and self.strings[-1][1] is None))
+					self.types and self.strings and
+					((self.types[-1] == "fixed" and self.strings[-1] is None) or
+					(self.types[-1] == "dynamic" and self.strings[-1][1] is None))
 				):
 					raise ValueError
 
-				if line.startswith(Strindex.OVERWRITE_PREFIX):
-					processed_line = line.removeprefix(Strindex.OVERWRITE_PREFIX)
+				if line.startswith(Strindex.FIXED_PREFIX):
+					processed_line = line.removeprefix(Strindex.FIXED_PREFIX)
 					self.strings.append(None)
 					self.pointers.append([int(p, 16) for p in processed_line.split(Strindex.TOKEN_DELIMITER) if p])
-					self.type_order.append("overwrite")
-				elif line.startswith(Strindex.COMPATIBLE_PREFIX):
-					processed_line = line.removeprefix(Strindex.COMPATIBLE_PREFIX)
+					self.types.append("fixed")
+				elif line.startswith(Strindex.DYNAMIC_PREFIX):
+					processed_line = line.removeprefix(Strindex.DYNAMIC_PREFIX)
 					original, switches = processed_line.rsplit(Strindex.TOKEN_DELIMITER, 1)
 					self.strings.append([Strindex.unescape_ctrl(original), None])
 					self.pointers.append(
 						[True] * int(switches.removeprefix("x")) if switches.removeprefix("x").isdigit() else
-						[s == Strindex.COMPATIBLE_TRUE for s in switches if s]
+						[s == Strindex.DYNAMIC_TRUE for s in switches if s]
 					)
-					self.type_order.append("compatible")
+					self.types.append("dynamic")
 			elif line.startswith(Strindex.STRING_PREFIX):
 				processed_line = Strindex.unescape_ctrl(line.removeprefix(Strindex.STRING_PREFIX))
-				if self.type_order[-1] == "overwrite" and self.strings[-1] is None:
+				if self.types[-1] == "fixed" and self.strings[-1] is None:
 					self.strings[-1] = processed_line
-				elif self.type_order[-1] == "compatible" and self.strings[-1][1] is None:
+				elif self.types[-1] == "dynamic" and self.strings[-1][1] is None:
 					self.strings[-1][1] = processed_line
 				else:
 					raise ValueError
@@ -386,25 +386,25 @@ class Strindex:
 			raise ValueError(f"Invalid line in strindex body:\n{line!r}") from e
 
 	def dump_body_entry(self, index: int) -> str:
-		if self.type_order[index] == "overwrite":
+		if self.types[index] == "fixed":
 			escaped_string = Strindex.escape_ctrl(self.strings[index])
 			return (
-				Strindex.OVERWRITE_PREFIX +
+				Strindex.FIXED_PREFIX +
 				Strindex.TOKEN_DELIMITER.join(f"{p or 0:08x}" for p in self.pointers[index]) + "\n" +
 				(f"## {escaped_string}\n" if self.settings._references else "") +
 				Strindex.STRING_PREFIX + escaped_string +
 				("\n" if self.settings._minimal else "\n\n")
 			)
-		if self.type_order[index] == "compatible":
+		if self.types[index] == "dynamic":
 			return (
-				Strindex.COMPATIBLE_PREFIX +
+				Strindex.DYNAMIC_PREFIX +
 				Strindex.escape_ctrl(self.strings[index][0]) + Strindex.TOKEN_DELIMITER +
 				(("x" + str(len(self.pointers[index]))) if all(self.pointers[index]) else
-				"".join((Strindex.COMPATIBLE_TRUE if p else Strindex.COMPATIBLE_FALSE) for p in self.pointers[index])) +
+				"".join((Strindex.DYNAMIC_TRUE if p else Strindex.DYNAMIC_FALSE) for p in self.pointers[index])) +
 				"\n" + Strindex.STRING_PREFIX + Strindex.escape_ctrl(self.strings[index][1]) +
 				("\n" if self.settings._minimal else "\n\n")
 			)
-		raise ValueError(f"Invalid strindex type: {self.type_order[index]}")
+		raise ValueError(f"Invalid strindex type: {self.types[index]}")
 
 	@classmethod
 	@Progress.global_mark
@@ -444,19 +444,19 @@ class Strindex:
 		""" Saves the strindex data to a file. """
 
 		HEADER_INFO = (
-			"# You can freely create & delete comments in the header like these ones and the example below.\n"
+			"# You can freely create & delete comments anywhere in the strindex file.\n"
 			"# For more information about strindex files' settings and syntax see:\n"
-			"# https://raw.githubusercontent.com/zWolfrost/strindex/refs/heads/main/strindex_example.txt\n"
+			"# https://github.com/zWolfrost/strindex/blob/main/strindex_example.txt\n"
 		)
-		OVERWRITE_INFO = (
+		FIXED_INFO = (
 			"# EXAMPLE OF REPLACEMENT:\n"
-			f"# {Strindex.OVERWRITE_PREFIX}"
+			f"# {Strindex.FIXED_PREFIX}"
 			f"[pointer]{Strindex.TOKEN_DELIMITER}[pointer]{Strindex.TOKEN_DELIMITER}[...]\n"
 			f"# {Strindex.STRING_PREFIX}replace the string that was previously provided here, with this one!\n\n"
 		)
-		COMPATIBLE_INFO = (
+		DYNAMIC_INFO = (
 			"# EXAMPLE OF REPLACEMENT:\n"
-			f"# {Strindex.COMPATIBLE_PREFIX}"
+			f"# {Strindex.DYNAMIC_PREFIX}"
 			f"replace this string...{Strindex.TOKEN_DELIMITER}[reallocate N pointers if [xN] OR [+/-] N times]\n"
 			f"# {Strindex.STRING_PREFIX}...with this string!\n\n"
 		)
@@ -473,23 +473,23 @@ class Strindex:
 					f.write(toml_dump)
 				else:
 					f.write(HEADER_INFO + "\n" + toml_dump + "\n")
-					if len(self.type_order) > 0:
-						f.write(COMPATIBLE_INFO if self.type_order[0] == "compatible" else OVERWRITE_INFO)
+					if len(self.types) > 0:
+						f.write(FIXED_INFO if self.types[0] == "fixed" else DYNAMIC_INFO)
 
 			f.writelines(self.dump_body_entry(i) for i in range(len(self.strings)))
 
 			f.seek(max(f.tell() - 1, 0))
 			f.truncate()
 
-	def normalize_to_overwrite(self, full_lst_offsets: list[int], full_lst_strings: list[str]):
-		""" Converts compatible strings to overwrite strings and deletes them if necessary. """
+	def normalize_to_fixed(self, full_lst_offsets: list[int], full_lst_strings: list[str]):
+		""" Converts dynamic strings to fixed strings and deletes them if necessary. """
 
 		assert len(full_lst_strings) == len(full_lst_offsets), \
 			"The full string and offset lists must be the same length."
 
 		search_i = 0
 		for i in range(len(self.strings)):
-			if self.type_order[i] != "compatible":
+			if self.types[i] != "dynamic":
 				continue
 
 			try:
@@ -499,7 +499,7 @@ class Strindex:
 				pass
 			else:
 				if any(self.pointers[i]):
-					self.type_order[i] = "overwrite"
+					self.types[i] = "fixed"
 					if len(offsets) != len(self.pointers[i]):
 						Print.warning(
 							f"The number of switches for string #{i}\n"
@@ -510,20 +510,20 @@ class Strindex:
 				search_i += 1
 
 		for i in reversed(range(len(self.strings))):
-			if self.type_order[i] == "compatible":
+			if self.types[i] == "dynamic":
 				Print.warning(f'String #{i+1} not found: "{self.strings[i][0]}"')
 				self.delete_index(i)
 
 	def delete_index(self, index: int):
-		if self.type_order:
-			del self.type_order[index]
+		if self.types:
+			del self.types[index]
 		del self.pointers[index]
 		del self.strings[index]
 
 	def assert_data(self):
-		assert len(self.strings) == len(self.pointers) == len(self.type_order), (
+		assert len(self.strings) == len(self.pointers) == len(self.types), (
 			f"Strings, pointers and type order lists are not the same length"
-			f" ({len(self.strings)} != {len(self.pointers)} != {len(self.type_order)})."
+			f" ({len(self.strings)} != {len(self.pointers)} != {len(self.types)})."
 		)
 
 
@@ -841,7 +841,7 @@ class ModuleSettings:
 	"""Default byte order for the file buffer."""
 	filter_after_create: bool = True
 	"""Whether to filter the strindex after returning it using its settings."""
-	supports_compatible: bool = False
+	supports_dynamic: bool = False
 
 
 class ModuleProtocol(Protocol):

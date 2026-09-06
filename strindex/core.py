@@ -123,20 +123,20 @@ def update(
 	search_index = 0
 	for index in range(len(strindex.strings)):
 		try:
-			if strindex.type_order[index] == "compatible":
-				search_index = strindex_updated.strings.index(strindex.strings[index][0], search_index)
-			elif strindex.type_order[index] == "overwrite":
+			if strindex.types[index] == "fixed":
 				search_index = strindex_updated.pointers.index(strindex.pointers[index], search_index)
+			elif strindex.types[index] == "dynamic":
+				search_index = strindex_updated.strings.index(strindex.strings[index][0], search_index)
 		except ValueError:
 			strindex.pointers[index] = []
 			no_pointers_count += 1
 		else:
-			if convert_type == "compatible" and strindex.type_order[index] == "overwrite":
-				strindex.type_order[index] = "compatible"
-				strindex.strings[index] = [strindex_updated.strings[search_index], strindex.strings[index]]
-			elif convert_type == "overwrite" and strindex.type_order[index] == "compatible":
-				strindex.type_order[index] = "overwrite"
+			if convert_type == "fixed" and strindex.types[index] == "dynamic":
+				strindex.types[index] = "fixed"
 				strindex.strings[index] = strindex.strings[index][1]
+			elif convert_type == "dynamic" and strindex.types[index] == "fixed":
+				strindex.types[index] = "dynamic"
+				strindex.strings[index] = [strindex_updated.strings[search_index], strindex.strings[index]]
 			strindex.pointers[index] = strindex_updated.pointers[search_index]
 			search_index += 1
 
@@ -337,9 +337,9 @@ def merge(strindex_1_filepath: str, strindex_2_filepath: str, strindex_merged_fi
 		except ValueError:
 			pass
 		else:
-			if strindex_2.type_order[i] == "overwrite":
+			if strindex_2.types[i] == "fixed":
 				strindex_2.strings[i] = strindex_1_replace[search_index]
-			elif strindex_2.type_order[i] == "compatible":
+			elif strindex_2.types[i] == "dynamic":
 				strindex_2.strings[i][1] = strindex_1_replace[search_index]
 			search_index += 1
 			merged_entries += 1
@@ -435,8 +435,8 @@ def get_parser() -> argparse.ArgumentParser:
 		help="Show the version of strindex and exit.")
 
 	write_parser = parser.add_argument_group("[create] exclusive writing options")
-	write_parser.add_argument("-C", "--compatible", action="store_true",
-		help=StrindexSettings.get_doc("_compatible"))
+	write_parser.add_argument("-D", "--dynamic", action="store_true",
+		help=StrindexSettings.get_doc("_dynamic"))
 	write_parser.add_argument("-R", "--references", action="store_true",
 		help=StrindexSettings.get_doc("_references"))
 	write_parser.add_argument("-M", "--minimal", action="store_true",
@@ -465,10 +465,10 @@ def get_parser() -> argparse.ArgumentParser:
 	)
 
 	update_parser = parser.add_argument_group("[update] exclusive options").add_mutually_exclusive_group()
-	update_parser.add_argument("--convert-to-compatible", action="store_true",
-		help="Convert all of the overwrite entries\nin the strindex to compatible ones.")
-	update_parser.add_argument("--convert-to-overwrite", action="store_true",
-		help="Convert all of the compatible entries\nin the strindex to overwrite ones.")
+	update_parser.add_argument("--convert-to-dynamic", action="store_true",
+		help="Convert all of the fixed entries\nin the strindex to dynamic ones.")
+	update_parser.add_argument("--convert-to-fixed", action="store_true",
+		help="Convert all of the dynamic entries\nin the strindex to fixed ones.")
 
 	return parser
 
@@ -508,7 +508,7 @@ def main(sysargs=None):
 				require_files_num(1)
 				create(*args.files, args.output,
 					StrindexSettings(
-						_compatible = args.compatible,
+						_dynamic = args.dynamic,
 						_references = args.references,
 						_minimal = args.minimal,
 						force_mode = args.force_mode,
@@ -533,8 +533,8 @@ def main(sysargs=None):
 				update(
 					*args.files, args.output,
 					convert_type = (
-						"overwrite" if args.convert_to_overwrite else
-						"compatible" if args.convert_to_compatible else None
+						"fixed" if args.convert_to_fixed else
+						"dynamic" if args.convert_to_dynamic else None
 					)
 				)
 			case "filter":

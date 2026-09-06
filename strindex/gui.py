@@ -334,15 +334,15 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_checkbox("Force Mode").setToolTip(StrindexSettings.get_doc("force_mode"))
 		self.create_padding(1)
 
-		self.create_checkbox("Compatible Mode").setToolTip(StrindexSettings.get_doc("_compatible"))
+		self.create_checkbox("Dynamic Mode").setToolTip(StrindexSettings.get_doc("_dynamic"))
 		self.create_padding(1)
 
 		self.create_action_button(
 			text="Create strindex",
 			progress_text="Creating... %p%",
-			callback=lambda file, min_length, prefix, suffix, ranges, whitelists, force_mode, compatible:
+			callback=lambda file, min_length, prefix, suffix, ranges, whitelists, force_mode, dynamic:
 			strindex.core.create(file, None, StrindexSettings(
-				_compatible = compatible,
+				_dynamic = dynamic,
 				force_mode = force_mode,
 				min_length = min_length if min_length else 3,
 				prefix_bytes = prefix.split(",") if prefix else [],
@@ -386,20 +386,20 @@ class UpdateGUI(BaseStrindexGUI):
 		self.create_file_selection(line_text="*Select a file to update from")
 		self.create_strindex_selection(line_text="*Select a strindex file to update")
 
-		chkbox_overwrite = self.create_checkbox("Convert to overwrite")
-		chkbox_overwrite.setToolTip("Convert all of the compatible entries\nin the strindex to overwrite ones.")
+		chkbox_fixed = self.create_checkbox("Convert to fixed")
+		chkbox_fixed.setToolTip("Convert all of the dynamic entries\nin the strindex to fixed ones.")
 		self.create_padding(1)
 
-		chkbox_compatible = self.create_checkbox("Convert to compatible")
-		chkbox_compatible.setToolTip("Convert all of the overwrite entries\nin the strindex to compatible ones.")
+		chkbox_dynamic = self.create_checkbox("Convert to dynamic")
+		chkbox_dynamic.setToolTip("Convert all of the fixed entries\nin the strindex to dynamic ones.")
 		self.create_padding(1)
 
 		self.create_action_button(
 			text="Update strindex",
 			progress_text="Updating... %p%",
-			callback=lambda file, strdex, overwrite, compatible:
+			callback=lambda file, strdex, fixed, dynamic:
 			strindex.core.update(file, strdex, None, convert_type=(
-				"overwrite" if overwrite else "compatible" if compatible else None
+				"fixed" if fixed else "dynamic" if dynamic else None
 			))
 		)
 		self.create_padding(1)
@@ -408,13 +408,13 @@ class UpdateGUI(BaseStrindexGUI):
 
 		def exclusive_checkbox(chkbox: QtWidgets.QCheckBox):
 			if chkbox.isChecked():
-				if chkbox is chkbox_overwrite:
-					chkbox_compatible.setChecked(False)
-				if chkbox is chkbox_compatible:
-					chkbox_overwrite.setChecked(False)
+				if chkbox is chkbox_fixed:
+					chkbox_dynamic.setChecked(False)
+				if chkbox is chkbox_dynamic:
+					chkbox_fixed.setChecked(False)
 
-		chkbox_overwrite.stateChanged.connect(lambda _: exclusive_checkbox(chkbox_overwrite))
-		chkbox_compatible.stateChanged.connect(lambda _: exclusive_checkbox(chkbox_compatible))
+		chkbox_fixed.stateChanged.connect(lambda _: exclusive_checkbox(chkbox_fixed))
+		chkbox_dynamic.stateChanged.connect(lambda _: exclusive_checkbox(chkbox_dynamic))
 
 
 

@@ -6,7 +6,7 @@ SETTINGS = ModuleSettings(
 	default_byte_length=4,
 	default_byte_order="little",
 	filter_after_create=False,
-	supports_compatible=True
+	supports_dynamic=True
 )
 
 

@@ -41,10 +41,10 @@ class ModuleWrapper:
 		"and attempt to extract strings from the file anyway."
 	)
 
-	COMPATIBLE_MODE_WARNING = (
+	DYNAMIC_MODE_WARNING = (
 		"This filetype does not support\n"
-		"patching using compatible mode strings.\n"
-		"Please make sure to convert the strindex to overwrite mode\n"
+		"patching using dynamic mode strings.\n"
+		"Please make sure to convert the strindex to fixed mode\n"
 		"(using the update action) before patching."
 	)
 
@@ -104,14 +104,14 @@ class ModuleWrapper:
 
 			Print.debug(f"Filtered down to {len(strindex.strings)} strings out of {starting_length}.")
 
-		if settings._compatible:
-			if not self.module.SETTINGS.supports_compatible:
-				Print.warning(self.COMPATIBLE_MODE_WARNING)
-			strindex.type_order = ["compatible"] * len(strindex.strings)
+		if settings._dynamic:
+			if not self.module.SETTINGS.supports_dynamic:
+				Print.warning(self.DYNAMIC_MODE_WARNING)
+			strindex.types = ["dynamic"] * len(strindex.strings)
 			strindex.pointers = [[bool(p) for p in pointers] for pointers in strindex.pointers]
 			strindex.strings = [[s, s] for s in strindex.strings]
 		else:
-			strindex.type_order = ["overwrite"] * len(strindex.strings)
+			strindex.types = ["fixed"] * len(strindex.strings)
 
 		strindex.settings = settings
 		strindex.settings.md5 = data.md5
@@ -124,7 +124,7 @@ class ModuleWrapper:
 		if strindex.settings.md5 and strindex.settings.md5 != data.md5:
 			Print.warning("MD5 hash does not match the one the strindex was created for.\nYou may encounter issues.")
 
-		if not self.module.SETTINGS.supports_compatible and any(t == "compatible" for t in strindex.type_order):
-			raise NotImplementedError(self.COMPATIBLE_MODE_WARNING)
+		if not self.module.SETTINGS.supports_dynamic and any(t == "dynamic" for t in strindex.types):
+			raise NotImplementedError(self.DYNAMIC_MODE_WARNING)
 
 		return self.module.patch(self.init(data), strindex)
