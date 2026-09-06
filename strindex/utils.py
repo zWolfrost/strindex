@@ -188,7 +188,7 @@ class StrindexSettings:
 
 	@staticmethod
 	def handle_bytes_list(bytes_hex_list: list[str]) -> list[bytes]:
-		if not all(len(bytes_str) % 2 == 0 for bytes_str in bytes_hex_list):
+		if any(len(bytes_str) % 2 != 0 for bytes_str in bytes_hex_list):
 			raise ValueError("All of the hex byte strings must contain an even number of characters.")
 		return [bytes.fromhex(bytes_hex_str) for bytes_hex_str in bytes_hex_list]
 
@@ -370,6 +370,8 @@ class Strindex:
 						[s == Strindex.DYNAMIC_TRUE for s in switches if s]
 					)])
 					self.strings.append(None)
+				else:
+					raise ValueError
 			elif line.startswith(Strindex.STRING_PREFIX):
 				processed_line = line.removeprefix(Strindex.STRING_PREFIX)
 				if self.strings[-1] is None:
@@ -512,8 +514,10 @@ class Strindex:
 	def delete_index(self, i: int):
 		if self.types:
 			del self.types[i]
-		del self.pointers[i]
-		del self.strings[i]
+		if self.pointers:
+			del self.pointers[i]
+		if self.strings:
+			del self.strings[i]
 
 	def assert_data(self):
 		assert len(self.types) == len(self.pointers) == len(self.strings), (

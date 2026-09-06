@@ -108,10 +108,8 @@ class ModuleWrapper:
 			if not self.module.SETTINGS.supports_dynamic:
 				Print.warning(self.DYNAMIC_MODE_WARNING)
 			strindex.types = [Strindex.Type.DYNAMIC] * strindex.count
-			strindex.pointers = [
-				[string, *pointers] for pointers, string in
-				zip(strindex.pointers, strindex.strings, strict=True)
-			]
+			for i in range(strindex.count):
+				strindex.pointers[i].insert(0, strindex.strings[i])
 		else:
 			strindex.types = [Strindex.Type.FIXED] * strindex.count
 

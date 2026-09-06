@@ -60,10 +60,20 @@ def kz_pe_strindex_part() -> Strindex:
 	))
 
 @fixture
+def kz_pe_strindex_part_comp() -> Strindex:
+	return get_strindex("Katana ZERO.exe", StrindexSettings(
+		_dynamic=True,
+		min_length=3,
+		prefix_bytes=["24c7442404", "ec04c70424"],
+		ranges=["00441078:0060e501"]
+	))
+
+@fixture
 def ut_iff_strindex_part() -> Strindex:
 	return get_strindex("data.win", StrindexSettings(
 		_raw="",
 		_dynamic=False,
+		min_length=3,
 		prefix_bytes=["d000"],
 		ranges=["00c96ce0:00c98410"]
 	))
@@ -158,14 +168,9 @@ def test_patch_force():
 		strindex.core.patch(get_file_path("Game.locres"), temp_strindex.name, temp_file.name)
 		assert get_file_md5(temp_file.name) == "a885ec6f2cb6e9bb4cc1d56be1d1949f"
 
-def test_update():
+def test_update(kz_pe_strindex_part_comp: Strindex):
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:
-		kz_pe_strindex_part_comp = get_strindex("Katana ZERO.exe", StrindexSettings(
-			_dynamic=True,
-			min_length=3,
-			prefix_bytes=["24c7442404", "ec04c70424"],
-			ranges=["00441078:0060e501"]
-		))
+		kz_pe_strindex_part_comp = deepcopy(kz_pe_strindex_part_comp)
 		kz_pe_strindex_part_comp.pointers[0] = kz_pe_strindex_part_comp.pointers[0][:1]
 		kz_pe_strindex_part_comp.write(temp_strindex_in.name)
 
@@ -175,17 +180,21 @@ def test_update():
 
 		assert get_strindex_md5(kz_pe_strindex_part_comp) == get_file_md5(temp_strindex_out.name)
 
+def test_update_conversion(kz_pe_strindex_part_comp: Strindex):
+	with temp_open() as temp_strindex:
+		kz_pe_strindex_part_comp.write(temp_strindex.name)
+
 		strindex.core.update(
-			get_file_path("Katana ZERO.exe"), temp_strindex_out.name,
-			temp_strindex_out.name, convert_type=Strindex.Type.DYNAMIC
+			get_file_path("Katana ZERO.exe"), temp_strindex.name,
+			temp_strindex.name, convert_type=Strindex.Type.FIXED
 		)
 
 		strindex.core.update(
-			get_file_path("Katana ZERO.exe"), temp_strindex_out.name,
-			temp_strindex_out.name, convert_type=Strindex.Type.DYNAMIC
+			get_file_path("Katana ZERO.exe"), temp_strindex.name,
+			temp_strindex.name, convert_type=Strindex.Type.DYNAMIC
 		)
 
-		assert get_strindex_md5(kz_pe_strindex_part_comp) == get_file_md5(temp_strindex_out.name)
+		assert get_strindex_md5(kz_pe_strindex_part_comp) == get_file_md5(temp_strindex.name)
 
 def test_filter(kz_pe_strindex_full: Strindex):
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:

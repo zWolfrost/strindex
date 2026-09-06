@@ -290,13 +290,13 @@ def diff(strindex_1_filepath: str, strindex_2_filepath: str, strindex_diff_filep
 	strindex_2_ids = strindex_2.get_offsets_or_original()
 
 	search_index = 0
-	for i in range(strindex_1.count):
+	for i in range(strindex_2.count):
 		try:
-			search_index = strindex_2_ids.index(strindex_1_ids[i], search_index)
+			search_index = strindex_1_ids.index(strindex_2_ids[i], search_index)
 		except ValueError:
 			pass
 		else:
-			strindex_1.pointers[i] = []
+			strindex_1.pointers[search_index] = []
 			search_index += 1
 
 	for i in reversed(range(strindex_1.count)):
@@ -331,13 +331,13 @@ def merge(strindex_1_filepath: str, strindex_2_filepath: str, strindex_merged_fi
 
 	merged_entries = 0
 	search_index = 0
-	for i in range(strindex_2.count):
+	for i in range(strindex_1.count):
 		try:
-			search_index = strindex_1_ids.index(strindex_2_ids[i], search_index)
+			search_index = strindex_2_ids.index(strindex_1_ids[i], search_index)
 		except ValueError:
 			pass
 		else:
-			strindex_2.strings[i] = strindex_1.strings[search_index]
+			strindex_2.strings[search_index] = strindex_1.strings[i]
 			search_index += 1
 			merged_entries += 1
 
