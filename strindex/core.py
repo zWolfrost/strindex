@@ -103,7 +103,7 @@ def update(
 	file_filepath: str,
 	strindex_filepath: str,
 	strindex_updated_filepath: str | None,
-	convert_type: str | None = None
+	convert_type: Strindex.Type | None = None
 ) -> str:
 	"""
 	Update a strindex file pointers'
@@ -121,23 +121,24 @@ def update(
 
 	no_pointers_count = 0
 	search_index = 0
-	for index in range(len(strindex.strings)):
+	for i in range(strindex.count):
 		try:
-			if strindex.types[index] == "fixed":
-				search_index = strindex_updated.pointers.index(strindex.pointers[index], search_index)
-			elif strindex.types[index] == "dynamic":
-				search_index = strindex_updated.strings.index(strindex.strings[index][0], search_index)
+			if strindex.types[i] == Strindex.Type.FIXED:
+				search_index = strindex_updated.pointers.index(strindex.pointers[i], search_index)
+			elif strindex.types[i] == Strindex.Type.DYNAMIC:
+				search_index = strindex_updated.strings.index(strindex.pointers[i][0], search_index)
 		except ValueError:
-			strindex.pointers[index] = []
+			strindex.pointers[i] = [] if strindex.types[i] == Strindex.Type.FIXED else strindex.pointers[i][:1]
 			no_pointers_count += 1
 		else:
-			if convert_type == "fixed" and strindex.types[index] == "dynamic":
-				strindex.types[index] = "fixed"
-				strindex.strings[index] = strindex.strings[index][1]
-			elif convert_type == "dynamic" and strindex.types[index] == "fixed":
-				strindex.types[index] = "dynamic"
-				strindex.strings[index] = [strindex_updated.strings[search_index], strindex.strings[index]]
-			strindex.pointers[index] = strindex_updated.pointers[search_index]
+			strindex.pointers[i] = strindex_updated.pointers[search_index]
+
+			if convert_type:
+				strindex.types[i] = convert_type
+
+			if strindex.types[i] == Strindex.Type.DYNAMIC:
+				strindex.pointers[i].insert(0, strindex_updated.strings[search_index])
+
 			search_index += 1
 
 	if no_pointers_count > 0:
@@ -174,7 +175,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 	strindex = Strindex.read(strindex_filepath)
 
-	STRINDEX_OFFSETS = flat_list(strindex.get_offsets())
+	STRINDEX_FIXED_POINTERS = flat_list(strindex.get_type_pointers(Strindex.Type.FIXED))
 
 	def infer_affixes(start_fun, end_fun):
 		nonlocal infer_output
@@ -184,7 +185,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 		affixes = set()
 		length = 1
 		while length <= MAX_LENGTH:
-			for offsets in STRINDEX_OFFSETS:
+			for offsets in STRINDEX_FIXED_POINTERS:
 				affixes.add(bytes(data[start_fun(offsets, length) : end_fun(offsets, length)]))
 
 			if len(affixes) >= MAX_COUNT:
@@ -198,7 +199,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 
 		return got_any
 
-	if STRINDEX_OFFSETS:
+	if STRINDEX_FIXED_POINTERS:
 		infer_output += "[PREFIXES]\n"
 		if not infer_affixes(lambda offset, length: offset - length, lambda offset, _: offset):
 			infer_output += "No suitable prefixes found.\n"
@@ -207,7 +208,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 		if not infer_affixes(lambda offset, _: offset + 4, lambda offset, length: offset + 4 + length):
 			infer_output += "No suitable suffixes found.\n"
 
-		infer_output += f"\n[NARROWEST RANGE]\n{min(STRINDEX_OFFSETS):08x}:{max(STRINDEX_OFFSETS):08x}"
+		infer_output += f"\n[NARROWEST RANGE]\n{min(STRINDEX_FIXED_POINTERS):08x}:{max(STRINDEX_FIXED_POINTERS):08x}"
 
 	Progress.global_instance()
 	Print.info("")
@@ -226,7 +227,7 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 	strindex_filtered_filepath = strindex_filtered_filepath or edit_extension(strindex_filepath, "_filtered.txt")
 
 	strindex = Strindex.read(strindex_filepath)
-	initial_count = len(strindex.strings)
+	initial_count = strindex.count
 
 	if strindex.settings.source_language:
 		try:
@@ -252,7 +253,7 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 		isocode_639_1 = IsoCode639_1.from_str(strindex.settings.source_language.upper())
 		return confidence.language.iso_code_639_1 == isocode_639_1 and confidence.value > 0.5
 
-	for i, string in reversed(list(enumerate(strindex.get_overwrite_and_original()))):
+	for i, string in reversed(list(enumerate(strindex.get_overwrite_or_original()))):
 		if (
 			(len(string.encode("utf-8")) < strindex.settings.min_length) or
 			(not strindex.settings.is_in_whitelist(string)) or
@@ -265,7 +266,7 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 	strindex.write(strindex_filtered_filepath)
 
 	return Print.success(
-		f"Created strindex file with {len(strindex.strings)} strings out of {initial_count} at\n"
+		f"Created strindex file with {strindex.count} strings out of {initial_count} at\n"
 		f"{strindex_filtered_filepath}"
 	)
 
@@ -283,22 +284,22 @@ def diff(strindex_1_filepath: str, strindex_2_filepath: str, strindex_diff_filep
 	strindex_1 = Strindex.read(strindex_1_filepath)
 	strindex_2 = Strindex.read(strindex_2_filepath)
 
-	initial_count = len(strindex_1.strings)
+	initial_count = strindex_1.count
 
-	strindex_1_ids = strindex_1.get_identifiers()
-	strindex_2_ids = strindex_2.get_identifiers()
+	strindex_1_ids = strindex_1.get_offsets_or_original()
+	strindex_2_ids = strindex_2.get_offsets_or_original()
 
 	search_index = 0
-	for index in range(len(strindex_1.strings)):
+	for i in range(strindex_1.count):
 		try:
-			search_index = strindex_2_ids.index(strindex_1_ids[index], search_index)
+			search_index = strindex_2_ids.index(strindex_1_ids[i], search_index)
 		except ValueError:
 			pass
 		else:
-			strindex_1.pointers[index] = []
+			strindex_1.pointers[i] = []
 			search_index += 1
 
-	for i in reversed(range(len(strindex_1.strings))):
+	for i in reversed(range(strindex_1.count)):
 		if not strindex_1.pointers[i]:
 			strindex_1.delete_index(i)
 
@@ -307,7 +308,7 @@ def diff(strindex_1_filepath: str, strindex_2_filepath: str, strindex_diff_filep
 	strindex_1.write(strindex_diff_filepath)
 
 	return Print.success(
-		f"Created diff strindex file with {len(strindex_1.strings)} strings out of {initial_count} at\n"
+		f"Created diff strindex file with {strindex_1.count} strings out of {initial_count} at\n"
 		f"{strindex_diff_filepath}"
 	)
 
@@ -325,22 +326,18 @@ def merge(strindex_1_filepath: str, strindex_2_filepath: str, strindex_merged_fi
 	strindex_1 = Strindex.read(strindex_1_filepath)
 	strindex_2 = Strindex.read(strindex_2_filepath)
 
-	strindex_1_ids = strindex_1.get_overwrite_and_original()
-	strindex_2_ids = strindex_2.get_overwrite_and_original()
-	strindex_1_replace = strindex_1.get_overwrite_and_replace()
+	strindex_1_ids = strindex_1.get_overwrite_or_original()
+	strindex_2_ids = strindex_2.get_overwrite_or_original()
 
 	merged_entries = 0
 	search_index = 0
-	for i in range(len(strindex_2.strings)):
+	for i in range(strindex_2.count):
 		try:
 			search_index = strindex_1_ids.index(strindex_2_ids[i], search_index)
 		except ValueError:
 			pass
 		else:
-			if strindex_2.types[i] == "fixed":
-				strindex_2.strings[i] = strindex_1_replace[search_index]
-			elif strindex_2.types[i] == "dynamic":
-				strindex_2.strings[i][1] = strindex_1_replace[search_index]
+			strindex_2.strings[i] = strindex_1.strings[search_index]
 			search_index += 1
 			merged_entries += 1
 
@@ -349,7 +346,7 @@ def merge(strindex_1_filepath: str, strindex_2_filepath: str, strindex_merged_fi
 	strindex_2.write(strindex_merged_filepath)
 
 	return Print.success(
-		f"Created merged strindex file with {merged_entries} entries merged out of {len(strindex_2.strings)} at\n"
+		f"Created merged strindex file with {merged_entries} entries merged out of {strindex_2.count} at\n"
 		f"{strindex_merged_filepath}"
 	)
 
@@ -379,10 +376,10 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	lang = LanguageTool(strindex.settings.target_language)
 	Print.debug("Created language tool.")
 
-	Progress.init_global_instance(len(strindex.strings), 1)
+	Progress.init_global_instance(strindex.count, 1)
 
 	with Path(strindex_spellcheck_filepath).open("w", encoding="utf-8") as f:
-		for i, string in enumerate(strindex.get_overwrite_and_replace(), start=1):
+		for i, string in enumerate(strindex.strings, start=1):
 			Progress.global_instance(i)
 			string_clean = strindex.settings.clean_string(string)
 			f.writelines("\n".join(str(error).split("\n")[-3:]) + "\n" for error in lang.check(string_clean))
@@ -533,8 +530,8 @@ def main(sysargs=None):
 				update(
 					*args.files, args.output,
 					convert_type = (
-						"fixed" if args.convert_to_fixed else
-						"dynamic" if args.convert_to_dynamic else None
+						Strindex.Type.FIXED if args.convert_to_fixed else
+						Strindex.Type.DYNAMIC if args.convert_to_dynamic else None
 					)
 				)
 			case "filter":

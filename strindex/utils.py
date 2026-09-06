@@ -249,11 +249,16 @@ class StrindexSettings:
 class Strindex:
 	""" A class to parse and create strindex files. """
 
+	class Type:
+		FIXED = 1
+		DYNAMIC = 2
+
 	TOKEN_DELIMITER = " "
 	POINTERS_PREFIX = "@"
+	STRING_PREFIX = ">>" + TOKEN_DELIMITER
+
 	FIXED_PREFIX = POINTERS_PREFIX + "f" + TOKEN_DELIMITER
 	DYNAMIC_PREFIX = POINTERS_PREFIX + "d" + TOKEN_DELIMITER
-	STRING_PREFIX = ">>" + TOKEN_DELIMITER
 	DYNAMIC_TRUE = "+"
 	DYNAMIC_FALSE = "-"
 
@@ -300,84 +305,75 @@ class Strindex:
 
 	settings: StrindexSettings
 
-	types: list[str]
-	pointers: list[list[int | bool]]
-	strings: list[str | list[str]]
+	types: list[int]
+	pointers: list[list[int | str | bool]]
+	strings: list[str]
 
-	def get_overwrite(self) -> list[str]:
-		return [string for string, type in zip(self.strings, self.types, strict=True) if type == "fixed"]
+	@property
+	def count(self) -> int:
+		return max(len(self.types), len(self.pointers), len(self.strings))
 
-	def get_original(self) -> list[str]:
-		return [string[0] for string, type in zip(self.strings, self.types, strict=True) if type == "dynamic"]
 
-	def get_replace(self) -> list[str]:
-		return [string[1] for string, type in zip(self.strings, self.types, strict=True) if type == "dynamic"]
+	def get_type_pointers(self, ch_type: "Strindex.Type") -> list[list[int]] | tuple[list[str], list[list[bool]]]:
+		res = [pointers for type, pointers in zip(self.types, self.pointers, strict=True) if type == ch_type]
+		if ch_type == Strindex.Type.FIXED:
+			return res
+		if ch_type == Strindex.Type.DYNAMIC:
+			return zip(*((p[0], p[1:]) for p in res), strict=True) if res else ([], [])
+		raise ValueError(f"Invalid strindex type: {ch_type}.")
 
-	def get_offsets(self) -> list[list[int]]:
-		return [pointers for pointers, type in zip(self.pointers, self.types, strict=True) if type == "fixed"]
+	def get_type_strings(self, ch_type: "Strindex.Type") -> list[str]:
+		return [string for type, string in zip(self.types, self.strings, strict=True) if type == ch_type]
 
-	def get_switches(self) -> list[list[bool]]:
-		return [pointers for pointers, type in zip(self.pointers, self.types, strict=True) if type == "dynamic"]
 
-	def get_overwrite_and_original(self) -> list[str]:
+	def get_overwrite_or_original(self) -> list[str]:
 		return [
-			(string if type == "fixed" else string[0]) for string, type in
-			zip(self.strings, self.types, strict=True)
+			(string if type == Strindex.Type.FIXED else pointers[0])
+			for type, pointers, string in zip(self.types, self.pointers, self.strings, strict=True)
 		]
 
-	def get_overwrite_and_replace(self) -> list[str]:
+	def get_offsets_or_original(self) -> list[str]:
 		return [
-			(string if type == "fixed" else string[1]) for string, type in
-			zip(self.strings, self.types, strict=True)
+			(",".join(str(p) for p in pointers) if type == Strindex.Type.FIXED else string[0])
+			for type, pointers, string in zip(self.types, self.pointers, self.strings, strict=True)
 		]
 
-	def get_identifiers(self) -> list[str]:
-		return [
-			(",".join(str(p) for p in pointers) if type == "fixed" else string[0]) for string, pointers, type in
-			zip(self.strings, self.pointers, self.types, strict=True)
-		]
 
 	def __init__(self):
 		""" Parses a strindex file and returns a dictionary with the data. """
 
 		self.settings = StrindexSettings()
 
-		self.strings = []
-		self.pointers = []
 		self.types = []
+		self.pointers = []
+		self.strings = []
 
 	def parse_body_line(self, line: str):
 		try:
 			line = line.removesuffix("\n")
 
 			if line.startswith(Strindex.POINTERS_PREFIX):
-				if (
-					self.types and self.strings and
-					((self.types[-1] == "fixed" and self.strings[-1] is None) or
-					(self.types[-1] == "dynamic" and self.strings[-1][1] is None))
-				):
+				if self.strings and self.strings[-1] is None:
 					raise ValueError
 
 				if line.startswith(Strindex.FIXED_PREFIX):
 					processed_line = line.removeprefix(Strindex.FIXED_PREFIX)
-					self.strings.append(None)
+					self.types.append(Strindex.Type.FIXED)
 					self.pointers.append([int(p, 16) for p in processed_line.split(Strindex.TOKEN_DELIMITER) if p])
-					self.types.append("fixed")
+					self.strings.append(None)
 				elif line.startswith(Strindex.DYNAMIC_PREFIX):
 					processed_line = line.removeprefix(Strindex.DYNAMIC_PREFIX)
 					original, switches = processed_line.rsplit(Strindex.TOKEN_DELIMITER, 1)
-					self.strings.append([Strindex.unescape_ctrl(original), None])
-					self.pointers.append(
+					self.types.append(Strindex.Type.DYNAMIC)
+					self.pointers.append([Strindex.unescape_ctrl(original), *(
 						[True] * int(switches.removeprefix("x")) if switches.removeprefix("x").isdigit() else
 						[s == Strindex.DYNAMIC_TRUE for s in switches if s]
-					)
-					self.types.append("dynamic")
+					)])
+					self.strings.append(None)
 			elif line.startswith(Strindex.STRING_PREFIX):
-				processed_line = Strindex.unescape_ctrl(line.removeprefix(Strindex.STRING_PREFIX))
-				if self.types[-1] == "fixed" and self.strings[-1] is None:
-					self.strings[-1] = processed_line
-				elif self.types[-1] == "dynamic" and self.strings[-1][1] is None:
-					self.strings[-1][1] = processed_line
+				processed_line = line.removeprefix(Strindex.STRING_PREFIX)
+				if self.strings[-1] is None:
+					self.strings[-1] = Strindex.unescape_ctrl(processed_line)
 				else:
 					raise ValueError
 			elif line and not line.startswith("#"):
@@ -385,26 +381,26 @@ class Strindex:
 		except ValueError as e:
 			raise ValueError(f"Invalid line in strindex body:\n{line!r}") from e
 
-	def dump_body_entry(self, index: int) -> str:
-		if self.types[index] == "fixed":
-			escaped_string = Strindex.escape_ctrl(self.strings[index])
+	def dump_body_entry(self, i: int) -> str:
+		if self.types[i] == Strindex.Type.FIXED:
+			escaped_string = Strindex.escape_ctrl(self.strings[i])
 			return (
 				Strindex.FIXED_PREFIX +
-				Strindex.TOKEN_DELIMITER.join(f"{p or 0:08x}" for p in self.pointers[index]) + "\n" +
+				Strindex.TOKEN_DELIMITER.join(f"{p or 0:08x}" for p in self.pointers[i]) + "\n" +
 				(f"## {escaped_string}\n" if self.settings._references else "") +
 				Strindex.STRING_PREFIX + escaped_string +
 				("\n" if self.settings._minimal else "\n\n")
 			)
-		if self.types[index] == "dynamic":
+		if self.types[i] == Strindex.Type.DYNAMIC:
 			return (
 				Strindex.DYNAMIC_PREFIX +
-				Strindex.escape_ctrl(self.strings[index][0]) + Strindex.TOKEN_DELIMITER +
-				(("x" + str(len(self.pointers[index]))) if all(self.pointers[index]) else
-				"".join((Strindex.DYNAMIC_TRUE if p else Strindex.DYNAMIC_FALSE) for p in self.pointers[index])) +
-				"\n" + Strindex.STRING_PREFIX + Strindex.escape_ctrl(self.strings[index][1]) +
+				Strindex.escape_ctrl(self.pointers[i][0]) + Strindex.TOKEN_DELIMITER +
+				(("x" + str(len(self.pointers[i][1:]))) if all(self.pointers[i][1:]) else
+				"".join((Strindex.DYNAMIC_TRUE if p else Strindex.DYNAMIC_FALSE) for p in self.pointers[i][1:])) +
+				"\n" + Strindex.STRING_PREFIX + Strindex.escape_ctrl(self.strings[i]) +
 				("\n" if self.settings._minimal else "\n\n")
 			)
-		raise ValueError(f"Invalid strindex type: {self.types[index]}")
+		raise ValueError(f"Invalid strindex type: {self.types[i]}")
 
 	@classmethod
 	@Progress.global_mark
@@ -432,7 +428,7 @@ class Strindex:
 			while line := f.readline():
 				strindex.parse_body_line(line)
 
-		if strindex.get_overwrite_and_replace()[-1] is None:
+		if strindex.strings[-1] is None:
 			raise ValueError("The last entry in the strindex file is incomplete.")
 
 		strindex.assert_data()
@@ -473,10 +469,10 @@ class Strindex:
 					f.write(toml_dump)
 				else:
 					f.write(HEADER_INFO + "\n" + toml_dump + "\n")
-					if len(self.types) > 0:
-						f.write(FIXED_INFO if self.types[0] == "fixed" else DYNAMIC_INFO)
+					if self.count > 0:
+						f.write(FIXED_INFO if self.types[0] == Strindex.Type.FIXED else DYNAMIC_INFO)
 
-			f.writelines(self.dump_body_entry(i) for i in range(len(self.strings)))
+			f.writelines(self.dump_body_entry(i) for i in range(self.count))
 
 			f.seek(max(f.tell() - 1, 0))
 			f.truncate()
@@ -488,42 +484,41 @@ class Strindex:
 			"The full string and offset lists must be the same length."
 
 		search_i = 0
-		for i in range(len(self.strings)):
-			if self.types[i] != "dynamic":
+		for i in range(self.count):
+			if self.types[i] != Strindex.Type.DYNAMIC:
 				continue
 
 			try:
-				search_i = full_lst_strings.index(self.strings[i][0], search_i)
+				search_i = full_lst_strings.index(self.pointers[i][0], search_i)
 				offsets = full_lst_offsets[search_i]
 			except ValueError:
 				pass
 			else:
-				if any(self.pointers[i]):
-					self.types[i] = "fixed"
-					if len(offsets) != len(self.pointers[i]):
+				if any(self.pointers[i][1:]):
+					self.types[i] = Strindex.Type.FIXED
+					if len(offsets) != len(self.pointers[i][1:]):
 						Print.warning(
 							f"The number of switches for string #{i}\n"
-							f"doesn't match the number of pointers ({len(offsets)} != {len(self.pointers[i])})"
+							f"doesn't match the number of pointers ({len(offsets)} != {len(self.pointers[i][1:])})"
 						)
-					self.pointers[i] = [p for p, s in zip(offsets, self.pointers[i], strict=False) if s]
-					self.strings[i] = self.strings[i][1]
+					self.pointers[i] = [p for p, s in zip(offsets, self.pointers[i][1:], strict=False) if s]
 				search_i += 1
 
-		for i in reversed(range(len(self.strings))):
-			if self.types[i] == "dynamic":
-				Print.warning(f'String #{i+1} not found: "{self.strings[i][0]}"')
+		for i in reversed(range(self.count)):
+			if self.types[i] == Strindex.Type.DYNAMIC:
+				Print.warning(f'String #{i+1} not found: "{self.strings[i]}"')
 				self.delete_index(i)
 
-	def delete_index(self, index: int):
+	def delete_index(self, i: int):
 		if self.types:
-			del self.types[index]
-		del self.pointers[index]
-		del self.strings[index]
+			del self.types[i]
+		del self.pointers[i]
+		del self.strings[i]
 
 	def assert_data(self):
-		assert len(self.strings) == len(self.pointers) == len(self.types), (
-			f"Strings, pointers and type order lists are not the same length"
-			f" ({len(self.strings)} != {len(self.pointers)} != {len(self.types)})."
+		assert len(self.types) == len(self.pointers) == len(self.strings), (
+			f"Types, pointers and strings lists are not the same length"
+			f" ({len(self.types)} != {len(self.pointers)} != {len(self.strings)})."
 		)
 
 
@@ -587,8 +582,8 @@ class FileBuffer(bytearray):
 		start_index = 0
 		misses = 0
 		for search_index in range(len(search_lst)):
-			index = self.find(prefix + search_lst[search_index] + suffix, start_index)
-			if index == -1:
+			found_index = self.find(prefix + search_lst[search_index] + suffix, start_index)
+			if found_index == -1:
 				indices.append(None)
 				misses += 1
 				if misses > 1000:
@@ -598,8 +593,8 @@ class FileBuffer(bytearray):
 						"and that the strings are present in the bytearray."
 					)
 				continue
-			start_index = index + prefix_length + len(search_lst[search_index])
-			indices.append(index + prefix_length)
+			start_index = found_index + prefix_length + len(search_lst[search_index])
+			indices.append(found_index + prefix_length)
 		return indices
 
 	@Progress.global_mark
@@ -646,8 +641,8 @@ class FileBuffer(bytearray):
 
 		ac = BytesAhoCorasick(search_lst_full, implementation=Implementation.ContiguousNFA)
 
-		for index, start, _ in ac.find_matches_as_indexes(self, overlapping=True):
-			search_lst_indices[index].append(start + search_lst_prefix_length[index])
+		for i, start, _ in ac.find_matches_as_indexes(self, overlapping=True):
+			search_lst_indices[i].append(start + search_lst_prefix_length[i])
 
 		return search_lst_indices[::len(prefixes) * len(suffixes)]
 
@@ -721,9 +716,9 @@ class FileBuffer(bytearray):
 		original_bytes_from_offset: Callable[[int], bytes]
 	) -> Strindex:
 		temp_strindex = {
-			"original": [],
+			"original_bytes": [],
 			"pointers": [],
-			"original_bytes": []
+			"strings": []
 		}
 
 		for string, start_offset, _ in self.strings_find(min_length=strindex.settings.min_length):
@@ -731,23 +726,23 @@ class FileBuffer(bytearray):
 				original_bytes := original_bytes_from_offset(start_offset))
 				and strindex.settings.is_in_whitelist(string)
 			):
-				temp_strindex["original"].append(string)
 				temp_strindex["original_bytes"].append(original_bytes)
+				temp_strindex["strings"].append(string)
 
-		if not temp_strindex["original"]:
+		if not temp_strindex["strings"]:
 			raise ValueError("No strings found in the file.")
 
 		temp_strindex["pointers"] = self.strings_search(
 			temp_strindex["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes
 		)
 
-		for string, pointers in zip(temp_strindex["original"], temp_strindex["pointers"], strict=True):
+		for string, pointers in zip(temp_strindex["strings"], temp_strindex["pointers"], strict=True):
 			pointers = [p for p in pointers if strindex.settings.is_in_any_range(p)]
 			if pointers:
 				strindex.pointers.append(pointers)
 				strindex.strings.append(string)
 
-		Print.debug(f"Found pointers for {len(strindex.strings)} strings out of {len(temp_strindex['original'])}.")
+		Print.debug(f"Found pointers for {strindex.count} strings out of {len(temp_strindex['strings'])}.")
 
 		return strindex
 
@@ -767,9 +762,8 @@ class FileBuffer(bytearray):
 			"switches": []
 		}
 
-		strindex_original = strindex.get_original()
-		strindex_replace = strindex.get_replace()
-		strindex_switches = strindex.get_switches()
+		strindex_original, strindex_switches = strindex.get_type_pointers(Strindex.Type.DYNAMIC)
+		strindex_dynamic_strings = strindex.get_type_strings(Strindex.Type.DYNAMIC)
 
 		for i, offset in enumerate(self.strings_search_ordered(strindex_original)):
 			if offset is None:
@@ -779,7 +773,7 @@ class FileBuffer(bytearray):
 			update_dict["original_bytes"].append(original_bytes_from_offset(offset))
 			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
 			update_dict["switches"].append(strindex_switches[i])
-			new_data += data_from_string(strindex.settings.patch_replace_string(strindex_replace[i]))
+			new_data += data_from_string(strindex.settings.patch_replace_string(strindex_dynamic_strings[i]))
 
 		update_dict["pointers"] = self.strings_search(
 			update_dict["original_bytes"], strindex.settings.prefix_bytes, strindex.settings.suffix_bytes
@@ -791,11 +785,11 @@ class FileBuffer(bytearray):
 			"replaced_bytes": []
 		}
 
-		for overwrite in strindex.get_overwrite():
+		for string in strindex.get_type_strings(Strindex.Type.FIXED):
 			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
-			new_data += data_from_string(strindex.settings.patch_replace_string(overwrite))
+			new_data += data_from_string(strindex.settings.patch_replace_string(string))
 
-		self.update_references(strindex.get_offsets(), update_dict["replaced_bytes"])
+		self.update_references(strindex.get_type_pointers(Strindex.Type.FIXED), update_dict["replaced_bytes"])
 
 		return new_data
 

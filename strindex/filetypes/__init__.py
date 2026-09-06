@@ -86,9 +86,9 @@ class ModuleWrapper:
 		strindex = self.module.create(self.init(data), empty_strindex)
 
 		if self.module.SETTINGS.filter_after_create:
-			starting_length = len(strindex.strings)
+			initial_count = strindex.count
 
-			for i in reversed(range(len(strindex.strings))):
+			for i in reversed(range(strindex.count)):
 				string_length = len(strindex.strings[i].encode("utf-8"))
 				pointers = [p for p in strindex.pointers[i] if (
 					settings.is_in_any_range(p) and
@@ -102,16 +102,18 @@ class ModuleWrapper:
 				):
 					strindex.delete_index(i)
 
-			Print.debug(f"Filtered down to {len(strindex.strings)} strings out of {starting_length}.")
+			Print.debug(f"Filtered down to {strindex.count} strings out of {initial_count}.")
 
 		if settings._dynamic:
 			if not self.module.SETTINGS.supports_dynamic:
 				Print.warning(self.DYNAMIC_MODE_WARNING)
-			strindex.types = ["dynamic"] * len(strindex.strings)
-			strindex.pointers = [[bool(p) for p in pointers] for pointers in strindex.pointers]
-			strindex.strings = [[s, s] for s in strindex.strings]
+			strindex.types = [Strindex.Type.DYNAMIC] * strindex.count
+			strindex.pointers = [
+				[string, *pointers] for pointers, string in
+				zip(strindex.pointers, strindex.strings, strict=True)
+			]
 		else:
-			strindex.types = ["fixed"] * len(strindex.strings)
+			strindex.types = [Strindex.Type.FIXED] * strindex.count
 
 		strindex.settings = settings
 		strindex.settings.md5 = data.md5
@@ -124,7 +126,7 @@ class ModuleWrapper:
 		if strindex.settings.md5 and strindex.settings.md5 != data.md5:
 			Print.warning("MD5 hash does not match the one the strindex was created for.\nYou may encounter issues.")
 
-		if not self.module.SETTINGS.supports_dynamic and any(t == "dynamic" for t in strindex.types):
+		if not self.module.SETTINGS.supports_dynamic and any(t == Strindex.Type.DYNAMIC for t in strindex.types):
 			raise NotImplementedError(self.DYNAMIC_MODE_WARNING)
 
 		return self.module.patch(self.init(data), strindex)

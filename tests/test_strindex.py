@@ -82,7 +82,7 @@ def test_test_data():
 	# FILES NEEDED FOR TESTING (in ./tests/data/ folder):
 
 	for filepath, md5 in (
-		("strindex_example.txt", "26e749dc46f4857afc760d29de6cb864"), # from this repo
+		("strindex_example.txt", "bb083349012da9270c80791f532636bb"), # from this repo
 		("locres_strindex.txt",  "f68f45f91e46e81a077dd830d8a69f2b"), # from this repo
 		("kz_exe.gz",            "32517618e96777d60224fa2704cf61ac"), # from this repo
 		("Katana ZERO.exe",      "29ed1f9e450d43815c2d1a0cab168da3"), # from Katana ZERO
@@ -166,7 +166,7 @@ def test_update():
 			prefix_bytes=["24c7442404", "ec04c70424"],
 			ranges=["00441078:0060e501"]
 		))
-		kz_pe_strindex_part_comp.pointers[0] = []
+		kz_pe_strindex_part_comp.pointers[0] = kz_pe_strindex_part_comp.pointers[0][:1]
 		kz_pe_strindex_part_comp.write(temp_strindex_in.name)
 
 		strindex.core.update(get_file_path("Katana ZERO.exe"), temp_strindex_in.name, temp_strindex_out.name)
@@ -177,12 +177,12 @@ def test_update():
 
 		strindex.core.update(
 			get_file_path("Katana ZERO.exe"), temp_strindex_out.name,
-			temp_strindex_out.name, convert_type="fixed"
+			temp_strindex_out.name, convert_type=Strindex.Type.DYNAMIC
 		)
 
 		strindex.core.update(
 			get_file_path("Katana ZERO.exe"), temp_strindex_out.name,
-			temp_strindex_out.name, convert_type="dynamic"
+			temp_strindex_out.name, convert_type=Strindex.Type.DYNAMIC
 		)
 
 		assert get_strindex_md5(kz_pe_strindex_part_comp) == get_file_md5(temp_strindex_out.name)
@@ -195,7 +195,7 @@ def test_filter(kz_pe_strindex_full: Strindex):
 
 		strindex.core.filter(temp_strindex_in.name, temp_strindex_out.name)
 
-		assert len(Strindex.read(temp_strindex_out.name).strings) == 24180
+		assert Strindex.read(temp_strindex_out.name).count == 24180
 
 def test_diff(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
 	with temp_open() as temp_strindex_in1, temp_open() as temp_strindex_in2, temp_open() as temp_strindex_out:
@@ -204,7 +204,7 @@ def test_diff(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
 
 		strindex.core.diff(temp_strindex_in1.name, temp_strindex_in2.name, temp_strindex_out.name)
 
-		assert len(Strindex.read(temp_strindex_out.name).strings) == 20840
+		assert Strindex.read(temp_strindex_out.name).count == 20840
 
 def test_merge(kz_pe_strindex_full_comp: Strindex):
 	with temp_open() as temp_strindex_in2, temp_open() as temp_strindex_out:
@@ -212,10 +212,9 @@ def test_merge(kz_pe_strindex_full_comp: Strindex):
 
 		strindex.core.merge(get_file_path("kz_exe.gz"), temp_strindex_in2.name, temp_strindex_out.name)
 
-		merged_count = sum(s1[1] != s2[1] for s1, s2 in zip(
-			kz_pe_strindex_full_comp.strings,
-			Strindex.read(temp_strindex_out.name).strings,
-			strict=True
-		))
+		merged_count = sum(
+			s1 != s2 for s1, s2 in
+			zip(kz_pe_strindex_full_comp.strings, Strindex.read(temp_strindex_out.name).strings, strict=True)
+		)
 
 		assert merged_count == 2148

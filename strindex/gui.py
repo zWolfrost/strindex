@@ -7,7 +7,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import QTimer
 
 import strindex.core
-from strindex.utils import Progress, StrindexSettings
+from strindex.utils import Progress, Strindex, StrindexSettings
 
 
 class CallbackWorker(QtCore.QThread):
@@ -165,21 +165,21 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 	def create_grid_layout(self, columns: int) -> QtWidgets.QGridLayout:
 		widget_col_span = []
-		index = 0
-		while index < len(self.__widgets__):
-			if self.__widgets__[index] is None:
-				self.__widgets__.pop(index)
+		i = 0
+		while i < len(self.__widgets__):
+			if self.__widgets__[i] is None:
+				self.__widgets__.pop(i)
 				widget_col_span[-1] += 1
 			else:
 				widget_col_span.append(1)
-				index += 1
+				i += 1
 
-		index = 0
+		i = 0
 		grid_layout = QtWidgets.QGridLayout()
 		for widget, col_span in zip(self.__widgets__, widget_col_span, strict=True):
 			if widget is not None:
-				grid_layout.addWidget(widget, index // columns, index % columns, 1, col_span)
-				index += col_span
+				grid_layout.addWidget(widget, i // columns, i % columns, 1, col_span)
+				i += col_span
 
 		grid_layout.setSpacing(10)
 		for i in range(columns):
@@ -399,7 +399,7 @@ class UpdateGUI(BaseStrindexGUI):
 			progress_text="Updating... %p%",
 			callback=lambda file, strdex, fixed, dynamic:
 			strindex.core.update(file, strdex, None, convert_type=(
-				"fixed" if fixed else "dynamic" if dynamic else None
+				Strindex.Type.FIXED if fixed else Strindex.Type.DYNAMIC if dynamic else None
 			))
 		)
 		self.create_padding(1)
