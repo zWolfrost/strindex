@@ -464,9 +464,9 @@ def get_parser() -> argparse.ArgumentParser:
 
 	update_parser = parser.add_argument_group("[update] exclusive options").add_mutually_exclusive_group()
 	update_parser.add_argument("--convert-to-dynamic", action="store_true",
-		help="Convert all of the fixed entries\nin the strindex to dynamic ones.")
+		help="Convert all of the fixed pointers\nin the strindex to dynamic ones.")
 	update_parser.add_argument("--convert-to-fixed", action="store_true",
-		help="Convert all of the dynamic entries\nin the strindex to fixed ones.")
+		help="Convert all of the dynamic pointers\nin the strindex to fixed ones.")
 
 	return parser
 

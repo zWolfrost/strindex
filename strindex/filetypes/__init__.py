@@ -43,8 +43,8 @@ class ModuleWrapper:
 
 	DYNAMIC_MODE_WARNING = (
 		"This filetype does not support\n"
-		"patching using dynamic mode strings.\n"
-		"Please make sure to convert the strindex to fixed mode\n"
+		"patching using dynamic pointers.\n"
+		"Please make sure to convert the strindex to fixed pointers.\n"
 		"(using the update action) before patching."
 	)
 

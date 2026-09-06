@@ -31,18 +31,40 @@ class CallbackWorker(QtCore.QThread):
 
 
 class BaseStrindexGUI(QtWidgets.QWidget):
-	__widgets__: list[QtWidgets.QWidget]
-	__required__: list[QtWidgets.QWidget]
-	__actions__: list[QtWidgets.QWidget]
-	__callback_worker__: CallbackWorker
+	_widgets: list[QtWidgets.QWidget]
+	_required: list[QtWidgets.QWidget]
+	_actions: list[QtWidgets.QWidget]
+	_callback_worker: CallbackWorker
 
 	def __init__(self):
 		super().__init__()
 
-		self.__widgets__ = []
-		self.__required__ = []
-		self.__actions__ = []
+		self._widgets = []
+		self._required = []
+		self._actions = []
+		self._callback_worker = None
+
 		self.setup()
+
+	def setup(self):
+		pass
+
+	def closeEvent(self, event: QtGui.QCloseEvent):
+		worker: CallbackWorker = self.tab_widget.currentWidget()._callback_worker
+		if worker is not None and worker.isRunning():
+			reply = QtWidgets.QMessageBox.question(self, "Operation in progress", (
+				"An operation is still running.\n"
+				"Closing this window will terminate it and may leave files incomplete.\n"
+				"Are you sure you want to exit?"
+			))
+
+			if reply == QtWidgets.QMessageBox.StandardButton.No:
+				event.ignore()
+				return
+			
+			worker.terminate()
+			worker.wait()
+		event.accept()
 
 	@staticmethod
 	def parse_widgets(args):
@@ -52,19 +74,18 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 				parsed_args.append(arg.text())
 			elif isinstance(arg, QtWidgets.QCheckBox):
 				parsed_args.append(arg.isChecked())
+			elif isinstance(arg, QtWidgets.QWidget) and arg.children():
+				parsed_args.extend(BaseStrindexGUI.parse_widgets(arg.children()))
 		return parsed_args
 
-	def setup(self):
-		pass
-
-	def create_file_selection(self, line_text: str, button_text: str = "Browse Files"):
+	def create_file_selection(self, line_text: str, button_text: str = "Browse files"):
 		file_select = self.create_lineedit(line_text)
 		file_browse = self.create_button(
 			button_text,
 			lambda: self.browse_files(file_select, "Select File", "All Files (*)")
 		)
 
-		self.__required__.append(file_select)
+		self._required.append(file_select)
 
 		return file_select, file_browse
 
@@ -75,7 +96,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 			lambda: self.browse_files(strindex_select, "Select Strindex", "Strindex Files (*.txt *.gz)")
 		)
 
-		self.__required__.append(strindex_select)
+		self._required.append(strindex_select)
 
 		return strindex_select, strindex_browse
 
@@ -96,7 +117,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 			QtWidgets.QApplication.processEvents()
 
 			def callback_wrapper():
-				return callback(*self.parse_widgets(self.__widgets__))
+				return callback(*self.parse_widgets(self._widgets))
 
 			def callback_progress(progress):
 				progress_bar.setValue(progress.percent)
@@ -116,22 +137,22 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 				self.window().setEnabled(True)
 				QtWidgets.QApplication.processEvents()
 
-			self.__callback_worker__ = CallbackWorker(callback_wrapper)
-			self.__callback_worker__.sig_progress.connect(callback_progress)
-			self.__callback_worker__.sig_except.connect(callback_except)
-			self.__callback_worker__.sig_else.connect(callback_else)
-			self.__callback_worker__.start()
+			self._callback_worker = CallbackWorker(callback_wrapper)
+			self._callback_worker.sig_progress.connect(callback_progress)
+			self._callback_worker.sig_except.connect(callback_except)
+			self._callback_worker.sig_else.connect(callback_else)
+			self._callback_worker.start()
 
 		action_button.clicked.connect(callback_worker_start)
 
-		self.__widgets__.append(action_button)
-		self.__actions__.append(action_button)
+		self._widgets.append(action_button)
+		self._actions.append(action_button)
 
 		return action_button
 
 	def update_action_button(self):
-		enabled = all(Path(file_select.text()).is_file() for file_select in self.__required__)
-		for widget in self.__actions__:
+		enabled = all(Path(file_select.text()).is_file() for file_select in self._required)
+		for widget in self._actions:
 			widget.setEnabled(enabled)
 
 	def create_lineedit(self, text: str) -> QtWidgets.QLineEdit:
@@ -139,11 +160,11 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		line_edit.setPlaceholderText(text)
 		line_edit.textChanged.connect(self.update_action_button)
 		line_edit.textChanged.connect(lambda: line_edit.setStyleSheet(line_edit.styleSheet()))
-		line_edit.dragEnterEvent = lambda event: event.accept() if event.mimeData().hasUrls() else event.ignore()
-		line_edit.dropEvent = lambda event: line_edit.setText(event.mimeData().urls()[0].toLocalFile())
+		line_edit.dragEnterEvent = lambda e: e.acceptProposedAction() if e.mimeData().hasUrls() else e.ignore()
+		line_edit.dropEvent = lambda e: line_edit.setText(e.mimeData().urls()[0].toLocalFile())
 		line_edit.setFont(QtGui.QFont("monospace"))
 
-		self.__widgets__.append(line_edit)
+		self._widgets.append(line_edit)
 
 		return line_edit
 
@@ -151,24 +172,31 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		button = QtWidgets.QPushButton(text)
 		button.clicked.connect(callback)
 
-		self.__widgets__.append(button)
+		self._widgets.append(button)
 
 		return button
 
-	def create_checkbox(self, text: str) -> QtWidgets.QCheckBox:
-		checkbox = QtWidgets.QCheckBox(text)
-		checkbox.stateChanged.connect(self.update_action_button)
+	def create_hbox_widget(self, widgets: list[QtWidgets.QWidget]) -> QtWidgets.QWidget:
+		hbox = QtWidgets.QHBoxLayout()
+		for widget in widgets:
+			hbox.addWidget(widget)
+		hbox.setContentsMargins(0, 0, 0, 0)
+		hbox.setSpacing(10)
+		hbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
-		self.__widgets__.append(checkbox)
+		widget = QtWidgets.QWidget()
+		widget.setLayout(hbox)
 
-		return checkbox
+		self._widgets.append(widget)
+
+		return widget
 
 	def create_grid_layout(self, columns: int) -> QtWidgets.QGridLayout:
 		widget_col_span = []
 		i = 0
-		while i < len(self.__widgets__):
-			if self.__widgets__[i] is None:
-				self.__widgets__.pop(i)
+		while i < len(self._widgets):
+			if self._widgets[i] is None:
+				self._widgets.pop(i)
 				widget_col_span[-1] += 1
 			else:
 				widget_col_span.append(1)
@@ -176,7 +204,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 		i = 0
 		grid_layout = QtWidgets.QGridLayout()
-		for widget, col_span in zip(self.__widgets__, widget_col_span, strict=True):
+		for widget, col_span in zip(self._widgets, widget_col_span, strict=True):
 			if widget is not None:
 				grid_layout.addWidget(widget, i // columns, i % columns, 1, col_span)
 				i += col_span
@@ -192,7 +220,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		return grid_layout
 
 	def create_padding(self, padding: int):
-		self.__widgets__ += [None] * padding
+		self._widgets += [None] * padding
 
 	def browse_files(self, line: QtWidgets.QLineEdit, caption, filter):
 		if filepath := QtWidgets.QFileDialog.getOpenFileName(self, caption, "", filter)[0]:
@@ -238,6 +266,11 @@ class MainStrindexGUI(BaseStrindexGUI):
 	def set_custom_appearance(self):
 		if sys.platform == "win32":
 			self.app.setStyle("Fusion")
+
+			palette = self.app.palette()
+			palette.setColor(QtGui.QPalette.ColorGroup.Inactive, QtGui.QPalette.ColorRole.Highlight, "")
+			self.app.setPalette(palette)
+
 			self.setStyleSheet(f"""QLineEdit{{padding: 3px; margin: 1px 0px;}}""") # noqa: F541
 		else:
 			self.setStyleSheet(f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}""")
@@ -284,7 +317,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
 		self.tab_widget.currentChanged.connect(lambda _: QTimer.singleShot(0, self.set_custom_size))
 
-		self.__widgets__.append(self.tab_widget)
+		self._widgets.append(self.tab_widget)
 
 		self.create_grid_layout(1)
 
@@ -331,18 +364,31 @@ class CreateGUI(BaseStrindexGUI):
 		self.create_lineedit("(Optional) Whitelisted character sets (comma-separated) e.g.: latin,cyrillic")
 		self.create_button(text="Help", callback=lambda: self.show_message(strindex.core.help_whitelist()))
 
-		self.create_checkbox("Force Mode").setToolTip(StrindexSettings.get_doc("force_mode"))
-		self.create_padding(1)
+		chkbox_force = QtWidgets.QCheckBox("Force Mode")
+		chkbox_force.setToolTip(StrindexSettings.get_doc("force_mode"))
 
-		self.create_checkbox("Dynamic Mode").setToolTip(StrindexSettings.get_doc("_dynamic"))
+		chkbox_dynamic = QtWidgets.QCheckBox("Dynamic Pointers")
+		chkbox_dynamic.setToolTip(StrindexSettings.get_doc("_dynamic"))
+
+		chkbox_reference = QtWidgets.QCheckBox("References")
+		chkbox_reference.setToolTip(StrindexSettings.get_doc("_references"))
+
+		chkbox_minimal = QtWidgets.QCheckBox("Minimal")
+		chkbox_minimal.setToolTip(StrindexSettings.get_doc("_minimal"))
+
+		self.create_hbox_widget([chkbox_force, chkbox_dynamic, chkbox_reference, chkbox_minimal])
 		self.create_padding(1)
 
 		self.create_action_button(
 			text="Create strindex",
 			progress_text="Creating... %p%",
-			callback=lambda file, min_length, prefix, suffix, ranges, whitelists, force_mode, dynamic:
+			callback=lambda
+				file, min_length, prefix, suffix, ranges, whitelists,
+				force_mode, dynamic, reference, minimal:
 			strindex.core.create(file, None, StrindexSettings(
 				_dynamic = dynamic,
+				_references = reference,
+				_minimal = minimal,
 				force_mode = force_mode,
 				min_length = min_length if min_length else 3,
 				prefix_bytes = prefix.split(",") if prefix else [],
@@ -376,9 +422,9 @@ class PatchGUI(BaseStrindexGUI):
 		self.create_grid_layout(2).setColumnStretch(0, 1)
 
 	def update_action_button(self):
-		enabled = [Path(file_select.text()).is_file() for file_select in self.__required__]
-		self.__actions__[0].setEnabled(all(enabled))
-		self.__actions__[1].setEnabled(enabled[0])
+		enabled = [Path(file_select.text()).is_file() for file_select in self._required]
+		self._actions[0].setEnabled(all(enabled))
+		self._actions[1].setEnabled(enabled[0])
 
 
 class UpdateGUI(BaseStrindexGUI):
@@ -386,12 +432,14 @@ class UpdateGUI(BaseStrindexGUI):
 		self.create_file_selection(line_text="*Select a binary file to update from")
 		self.create_strindex_selection(line_text="*Select a strindex file to update")
 
-		chkbox_fixed = self.create_checkbox("Convert to fixed")
-		chkbox_fixed.setToolTip("Convert all of the dynamic entries\nin the strindex to fixed ones.")
-		self.create_padding(1)
+		chkbox_fixed = QtWidgets.QCheckBox("Convert all to fixed")
+		chkbox_fixed.setToolTip("Convert all of the dynamic pointers\nin the strindex to fixed ones.")
 
-		chkbox_dynamic = self.create_checkbox("Convert to dynamic")
-		chkbox_dynamic.setToolTip("Convert all of the fixed entries\nin the strindex to dynamic ones.")
+		chkbox_dynamic = QtWidgets.QCheckBox("Convert all to dynamic")
+		chkbox_dynamic.setToolTip("Convert all of the fixed pointers\nin the strindex to dynamic ones.")
+
+		self.create_hbox_widget([chkbox_fixed, chkbox_dynamic])
+
 		self.create_padding(1)
 
 		self.create_action_button(
@@ -424,7 +472,7 @@ class InferGUI(BaseStrindexGUI):
 		self.create_strindex_selection(line_text="*Select a strindex file to infer from")
 
 		self.create_action_button(
-			text="Infer",
+			text="Infer information",
 			progress_text="Inferring... %p%",
 			callback=lambda file, strdex: strindex.core.infer(file, strdex)
 		)

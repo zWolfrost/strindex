@@ -1,7 +1,8 @@
 import hashlib
+from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
-from tempfile import NamedTemporaryFile as temp_open
+from tempfile import NamedTemporaryFile
 
 import pytest
 
@@ -9,10 +10,24 @@ import strindex.core
 from strindex.utils import Strindex, StrindexSettings
 
 
+@contextmanager
+def temp_open(*args, **kwargs):
+	kwargs["delete"] = False
+
+	with NamedTemporaryFile(*args, **kwargs) as f:
+		try:
+			yield f
+		finally:
+			name = f.name
+			f.close()
+			Path(name).unlink(missing_ok=True)
+
 def fixture(func):
 	return pytest.fixture(scope="module")(func)
 
 def get_file_path(filename: str) -> str:
+	if Path(filename).exists():
+		return Path(filename).resolve().as_posix()
 	return (Path(__file__).parent / "data" / filename).resolve().as_posix()
 
 def get_file_md5(file: str) -> str:

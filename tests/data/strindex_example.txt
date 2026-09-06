@@ -1,1 +1,0 @@
-/home/zwolfrost/Luca/Coding/Python/strindex/strindex_example.txt

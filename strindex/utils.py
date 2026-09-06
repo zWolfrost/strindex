@@ -128,9 +128,10 @@ class StrindexSettings:
 
 	_raw: str | None = dataclasses.field(default=None)
 	_dynamic: bool = dataclasses.field(default=False, metadata={"help":
-		"Whether to create a strindex file which uses\nthe original strings as references instead of offsets."})
+		"Whether to create a strindex file with\ndynamic pointers instead of fixed pointers.\n"
+		"Dynamic pointers use the original strings\nas references, instead of offsets."})
 	_references: bool = dataclasses.field(default=False, metadata={"help":
-		"Whether to add reference comments\nfor the original strings to the strindex file."})
+		"Whether to add reference comments\nof the original strings to fixed pointers."})
 	_minimal: bool = dataclasses.field(default=False, metadata={"help":
 		"Whether to strip the strindex file of\ninformational comments and unnecessary newlines."})
 	_whitelist_set: set[str] = dataclasses.field(default_factory=set)
