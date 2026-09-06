@@ -32,7 +32,7 @@ def gui() -> None:
 def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings) -> str:
 	"""
 	Create a list of string replacement instructions (a strindex file)
-	extracting them from a file.
+	extracting them from a binary file.
 	"""
 
 	Progress.init_global_instance(4)
@@ -50,7 +50,7 @@ def create(file_filepath: str, strindex_filepath: str | None, settings: Strindex
 
 def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None) -> str:
 	"""
-	Patch a file using a strindex, or, in other words,
+	Patch a binary file using a strindex, or, in other words,
 	replace strings in the file following the strindex instructions.
 	"""
 
@@ -81,7 +81,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 def unpatch(file_filepath: str) -> str:
 	"""
-	Unpatch a file that was patched with a strindex,
+	Unpatch a binary file that was patched with a strindex,
 	using the backup file that's created by default.
 	"""
 
@@ -107,7 +107,7 @@ def update(
 ) -> str:
 	"""
 	Update a strindex file pointers'
-	with another version of a file.
+	with another version of a binary file.
 	"""
 
 	Progress.init_global_instance(6)
@@ -273,8 +273,8 @@ def filter(strindex_filepath: str, strindex_filtered_filepath: str | None) -> st
 
 def diff(strindex_1_filepath: str, strindex_2_filepath: str, strindex_diff_filepath: str | None) -> str:
 	"""
-	Subtract the entries of a strindex file from another,
-	creating a strindex file with their differences.
+	Subtract (remove) the entries of the first strindex file
+	that are also present in the second strindex file.
 	"""
 
 	Progress.init_global_instance(4)
@@ -315,8 +315,9 @@ def diff(strindex_1_filepath: str, strindex_2_filepath: str, strindex_diff_filep
 
 def merge(strindex_1_filepath: str, strindex_2_filepath: str, strindex_merged_filepath: str | None) -> str:
 	"""
-	Merge the first strindex file into the second one,
-	prioritizing the first one in case of conflicts.
+	Merge the first strindex file *into* the second one,
+	overriding the entries of the second strindex file
+	with the entries of the first one.
 	"""
 
 	Progress.init_global_instance(4)
@@ -409,7 +410,7 @@ def get_parser() -> argparse.ArgumentParser:
 
 	parser.description = (
 		"A command line utility that allows you to\n"
-		"easily extract, list and patch the strings embedded in a few filetypes.\n\n"
+		"easily extract, list and patch the strings embedded in a few binary filetypes.\n\n"
 		"\033[1m\033[34mactions:\033[0m\n" +
 		"\n".join(
 			f"  \033[1m\033[36m{action.__name__: <12}\033[0m{action.__doc__.strip().replace("\n", "\n" + " "*16)}"
@@ -421,7 +422,7 @@ def get_parser() -> argparse.ArgumentParser:
 	parser.add_argument("action", type=str, nargs=argparse.OPTIONAL, choices=[a.__name__ for a in ACTIONS],
 		help="Action to perform.")
 	parser.add_argument("files", type=str, nargs=argparse.ZERO_OR_MORE,
-		help="One or more files/strindex files to pass to the action.")
+		help="One or more binary/strindex files to pass to the action.")
 	parser.add_argument("-o", "--output", type=str,
 		help="Output file path.\nIf not specified, a default one will be used.")
 	parser.add_argument("-q", "--quiet", action="store_true",

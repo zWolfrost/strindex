@@ -33,11 +33,11 @@ You can run the program with the command `strindex <action> <input file(s)> [arg
 
 These are the available actions:
 - `gui`: Open Strindex in GUI mode.
-- `create`: Create a list of string replacement instructions (a strindex) extracted from a file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-D` to create a strindex that uses the original strings as references, instead of pointers.
-- `patch`: Patch a file using a strindex. Strindex files compressed with gzip are also supported for all actions.
-- `unpatch`: Unpatch a file that was patched with a strindex, using the backup file.
-- `update` Update a strindex file pointers' with another version of a file.
-- `infer`: List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range to use.
+- `create`: Create a list of string replacement instructions (a strindex) extracted from a binary file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-D` to create a strindex that uses the original strings as references, instead of pointers.
+- `patch`: Patch a binary file using a strindex. Strindex files compressed with gzip are also supported for all actions.
+- `unpatch`: Unpatch a binary file that was patched with a strindex, using the backup file.
+- `update` Update a strindex file pointers' with another version of a binary file.
+- `infer`: List the most common bytes that can prefix or suffix a pointer in a binary file, as well as the most suitable range to use.
 - `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
 - `diff`: Subtract the entries of a strindex file from another, creating a strindex file with their differences.
 - `merge`: Merge two strindex files into one, prioritizing the first one in case of conflicts.

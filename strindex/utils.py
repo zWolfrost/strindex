@@ -138,7 +138,7 @@ class StrindexSettings:
 	md5: str | None = dataclasses.field(default=None)
 	force_mode: bool = dataclasses.field(default=False, metadata={"help": (
 		'Whether to use the "force" module\nand force the replacement of strings\n'
-		"at the same offset they were found.\nThis will effectively make every file patchable,\n"
+		"at the same offset they were found.\nThis will effectively make every binary file patchable,\n"
 		"but the length of the replaced strings\ncannot exceed the length of the original strings.")})
 	min_length: int = dataclasses.field(default=1, metadata={"help":
 		"Minimum length of the strings to be included."})

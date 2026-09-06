@@ -314,7 +314,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 class CreateGUI(BaseStrindexGUI):
 	def setup(self):
-		self.create_file_selection(line_text="*Select a file")
+		self.create_file_selection(line_text="*Select a binary file")
 
 		self.create_lineedit("(Optional) Minimum length of strings to extract (default: 3)")
 		self.create_padding(1)
@@ -358,8 +358,8 @@ class CreateGUI(BaseStrindexGUI):
 
 class PatchGUI(BaseStrindexGUI):
 	def setup(self):
-		self.create_file_selection(line_text="*Select a file to patch")
-		self.create_strindex_selection(line_text="*Select a strindex file")
+		self.create_file_selection(line_text="*Select a binary file to patch")
+		self.create_strindex_selection(line_text="*Select a strindex file to patch with")
 
 		self.create_action_button(
 			text="Patch file",
@@ -383,7 +383,7 @@ class PatchGUI(BaseStrindexGUI):
 
 class UpdateGUI(BaseStrindexGUI):
 	def setup(self):
-		self.create_file_selection(line_text="*Select a file to update from")
+		self.create_file_selection(line_text="*Select a binary file to update from")
 		self.create_strindex_selection(line_text="*Select a strindex file to update")
 
 		chkbox_fixed = self.create_checkbox("Convert to fixed")
@@ -420,7 +420,7 @@ class UpdateGUI(BaseStrindexGUI):
 
 class InferGUI(BaseStrindexGUI):
 	def setup(self):
-		self.create_file_selection(line_text="*Select a file to infer from")
+		self.create_file_selection(line_text="*Select a binary file to infer from")
 		self.create_strindex_selection(line_text="*Select a strindex file to infer from")
 
 		self.create_action_button(
