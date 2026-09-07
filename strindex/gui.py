@@ -158,9 +158,11 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		for widget in self._actions:
 			widget.setEnabled(enabled)
 
-	def create_lineedit(self, text: str) -> QtWidgets.QLineEdit:
+	def create_lineedit(self, text: str, tooltip: str | None = None) -> QtWidgets.QLineEdit:
 		line_edit = QtWidgets.QLineEdit()
 		line_edit.setPlaceholderText(text)
+		if tooltip:
+			line_edit.setToolTip(tooltip)
 		line_edit.textChanged.connect(self.update_action_button)
 		line_edit.textChanged.connect(lambda: line_edit.setStyleSheet(line_edit.styleSheet()))
 		line_edit.dragEnterEvent = lambda e: e.acceptProposedAction() if e.mimeData().hasUrls() else e.ignore()
@@ -286,7 +288,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		)
 
 		if sys.platform == "win32":
-			self.setMinimumWidth(600)
+			self.setMinimumWidth(650)
 			self.setMaximumWidth(1600)
 			self.setFixedHeight(height_hint)
 		else:
@@ -314,7 +316,10 @@ class MainStrindexGUI(BaseStrindexGUI):
 				function.__doc__.strip()
 			)
 
-		version_label = QtWidgets.QLabel(f"<a href='https://github.com/zWolfrost/strindex'>v{strindex.core.VERSION}</a>")
+		version_label = QtWidgets.QLabel(
+			f"<a href='https://github.com/zWolfrost/strindex'>v{strindex.core.VERSION}</a>"
+			" - press F1 for help"
+		)
 		version_label.setOpenExternalLinks(True)
 		version_label.setContentsMargins(3, 3, 3, 3)
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
@@ -347,24 +352,48 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		self.tab_widget.currentChanged.emit(0)
 
+	def keyPressEvent(self, event: QtGui.QKeyEvent):
+		if event.key() == QtCore.Qt.Key.Key_F1:
+			self.show_message(
+				"Strindex is a program that allows you to easily "
+				"extract, list and patch (replace) the strings embedded in a few filetypes.\n\n"
+				"You can hover your mouse over most elements to see a tooltip explaining their purpose.",
+				QtWidgets.QMessageBox.Icon.Information
+			)
+
 
 class CreateGUI(BaseStrindexGUI):
 	def setup(self):
 		self.create_file_selection(line_text="*Select a binary file")
 
-		self.create_lineedit("(Optional) Minimum length of strings to extract (default: 3)")
+		self.create_lineedit(
+			"(Optional) Minimum length of strings to extract (default: 3)",
+			tooltip=StrindexSettings.get_doc("min_length")
+		)
 		self.create_padding(1)
 
-		self.create_lineedit("(Optional) Prefix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
+		self.create_lineedit(
+			"(Optional) Prefix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424",
+			tooltip=StrindexSettings.get_doc("prefix_bytes")
+		)
 		self.create_padding(1)
 
-		self.create_lineedit("(Optional) Suffix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424")
+		self.create_lineedit(
+			"(Optional) Suffix bytes hex (comma-separated) e.g.: 24c7442404,ec04c70424",
+			tooltip=StrindexSettings.get_doc("suffix_bytes")
+		)
 		self.create_padding(1)
 
-		self.create_lineedit("(Optional) Range offsets hex (comma-separated) e.g.: 018bc5ec:01a09fb1,00441078:0060e501")
+		self.create_lineedit(
+			"(Optional) Range offsets hex (comma-separated) e.g.: 018bc5ec:01a09fb1,00441078:0060e501",
+			tooltip=StrindexSettings.get_doc("ranges")
+		)
 		self.create_padding(1)
 
-		self.create_lineedit("(Optional) Whitelisted character sets (comma-separated) e.g.: latin,cyrillic")
+		self.create_lineedit(
+			"(Optional) Whitelisted character sets (comma-separated) e.g.: latin,cyrillic",
+			tooltip=StrindexSettings.get_doc("whitelist")
+		)
 		self.create_button(text="Help", callback=lambda: self.show_message(strindex.core.help_whitelist()))
 
 		chkbox_force = QtWidgets.QCheckBox("Force Mode")

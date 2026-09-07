@@ -15,21 +15,6 @@ def edit_extension(filepath: str, suffix: str) -> str:
 
 
 
-def gui() -> None:
-	"""
-	Open strindex in GUI mode.
-	"""
-
-	try:
-		from strindex.gui import MainStrindexGUI
-	except ModuleNotFoundError:
-		raise ImportError(
-			'Please install the "PySide6" package (pip install pyside6) to use this feature.'
-		) from None
-
-	MainStrindexGUI()
-
-
 def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings) -> str:
 	"""
 	Create a list of string replacement instructions (a strindex file)
@@ -389,9 +374,24 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 	return Print.success(f"Created spellcheck file at\n{strindex_spellcheck_filepath}")
 
 
+def gui() -> None:
+	"""
+	Open strindex in GUI mode.
+	"""
+
+	try:
+		from strindex.gui import MainStrindexGUI
+	except ModuleNotFoundError:
+		raise ImportError(
+			'Please install the "PySide6" package (pip install pyside6) to use this feature.'
+		) from None
+
+	MainStrindexGUI()
+
+
 
 def help_whitelist():
-	prnt = Print.info("Available whitelist character sets (LEAVE EMPTY FOR NO FILTERING):\n", end="")
+	prnt = Print.info("Available whitelist character sets:\n", end="")
 	for key, value in StrindexSettings.CHARACTER_SETS.items():
 		prnt += Print.info(f'\n"{key}":', end="")
 		if key == "_default":
@@ -401,7 +401,7 @@ def help_whitelist():
 
 
 def get_parser() -> argparse.ArgumentParser:
-	ACTIONS = (gui, create, patch, unpatch, infer, update, filter, diff, merge, spellcheck)
+	ACTIONS = (create, patch, unpatch, infer, update, filter, diff, merge, spellcheck, gui)
 
 	parser = argparse.ArgumentParser(
 		prog="strindex",
@@ -503,9 +503,6 @@ def main(sysargs=None):
 				raise ValueError(f'Expected {n} file(s) for "{args.action}" action, got {len(args.files)}.')
 
 		match args.action:
-			case "gui":
-				require_files_num(0)
-				gui()
 			case "create":
 				require_files_num(1)
 				create(*args.files, args.output,
@@ -551,6 +548,9 @@ def main(sysargs=None):
 			case "spellcheck":
 				require_files_num(1)
 				spellcheck(*args.files, args.output)
+			case "gui":
+				require_files_num(0)
+				gui()
 	except KeyboardInterrupt:
 		Print.error("Interrupted by user.")
 	except Exception as e:

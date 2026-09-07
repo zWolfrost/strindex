@@ -142,15 +142,16 @@ class StrindexSettings:
 		"at the same offset they were found.\nThis will effectively make every binary file patchable,\n"
 		"but the length of the replaced strings\ncannot exceed the length of the original strings.")})
 	min_length: int = dataclasses.field(default=1, metadata={"help":
-		"Minimum length of the strings to be included."})
+		"Minimum length of the strings to be considered."})
 	prefix_bytes: list[bytes] = dataclasses.field(default_factory=list, metadata={"help":
 		"Prefix bytes that must prefix a pointer, in hex format."})
 	suffix_bytes: list[bytes] = dataclasses.field(default_factory=list, metadata={"help":
 		"Suffix bytes that must suffix a pointer, in hex format."})
 	ranges: list[range] = dataclasses.field(default_factory=list, metadata={"help":
-		'Ranges of offsets to consider for searching pointers,\nin the format "start:end".'})
+		'Ranges of offsets to consider when searching pointers,\nin the format "start:end".\n'
+		'If not set, all offsets are considered.'})
 	whitelist: list[str] = dataclasses.field(default_factory=list, metadata={"help":
-		"Character sets to whitelist for filtering strings."})
+		"Character sets to whitelist when filtering strings.\nIf not set, all characters are allowed."})
 	patch_replace: dict[str, str] = dataclasses.field(default_factory=dict)
 	clean_pattern: str = dataclasses.field(default="")
 	source_language: str | None = dataclasses.field(default=None)

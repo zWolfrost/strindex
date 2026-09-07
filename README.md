@@ -31,17 +31,10 @@ You can run the program with the command `strindex <action> <input file(s)> [arg
 
 `strindex -h` will show more information about the available actions and arguments.
 
-These are the available actions:
-- `gui`: Open Strindex in GUI mode.
+*Most importantly*, the program supports the following actions:
 - `create`: Create a list of string replacement instructions (a strindex) extracted from a binary file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-D` to create a strindex that uses the original strings as references (dynamic pointers), instead of offsets (fixed pointers).
 - `patch`: Patch a binary file using a strindex. Strindex files compressed with gzip are also supported for all actions.
-- `unpatch`: Unpatch a binary file that was patched with a strindex, using the backup file.
-- `update` Update a strindex file pointers' with another version of a binary file.
-- `infer`: List the most common bytes that can prefix or suffix a pointer in a binary file, as well as the most suitable range to use.
-- `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
-- `diff`: Subtract the entries of a strindex file from another, creating a strindex file with their differences.
-- `merge`: Merge two strindex files into one, prioritizing the first one in case of conflicts.
-- `spellcheck`: Spellcheck a strindex, and write the results to a file. You can specify the target language in the strindex settings as an ISO 639-1 code.
+- `gui`: Open Strindex in GUI mode.
 
 ## Usage Examples
 - Open strindex in GUI mode:
