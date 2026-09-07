@@ -114,15 +114,15 @@ class ModuleWrapper:
 			strindex.types = [Strindex.Type.FIXED] * strindex.count
 
 		strindex.settings = settings
-		strindex.settings.md5 = data.md5
+		strindex.settings.hash = data.hash
 
 		return strindex
 
 	@use_force_module(lambda _, strindex: strindex.settings.force_mode)
 	def patch(self, data: FileBuffer, strindex: Strindex) -> FileBuffer:
 		""" Patches the file data with the Strindex object. """
-		if strindex.settings.md5 and strindex.settings.md5 != data.md5:
-			Print.warning("MD5 hash does not match the one the strindex was created for.\nYou may encounter issues.")
+		if strindex.settings.hash and strindex.settings.hash != data.hash:
+			Print.warning("CRC32 hash does not match the one the strindex was created for.\nYou may encounter issues.")
 
 		if not self.module.SETTINGS.supports_dynamic and any(t == Strindex.Type.DYNAMIC for t in strindex.types):
 			raise NotImplementedError(self.DYNAMIC_MODE_WARNING)

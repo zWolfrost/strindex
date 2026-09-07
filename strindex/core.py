@@ -58,7 +58,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	if not hasattr(Progress, "global_instance"):
 		Progress.init_global_instance(6)
 
-	backup_filepath = file_filepath + FileBuffer.read(file_filepath).md5_backup_suffix
+	backup_filepath = file_filepath + FileBuffer.read(file_filepath).hash_backup_suffix
 
 	if Path(backup_filepath).exists():
 		Print.info("Detected backup file, patching that one instead.")
@@ -72,7 +72,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	if not file_patched_filepath:
 		backup_filepath = backup_filepath if Path(backup_filepath).exists() else file_filepath
-		Path(backup_filepath).replace(file_filepath + data.md5_backup_suffix)
+		Path(backup_filepath).replace(file_filepath + data.hash_backup_suffix)
 		file_patched_filepath = file_filepath
 
 	data.write(file_patched_filepath)
@@ -88,9 +88,9 @@ def unpatch(file_filepath: str) -> str:
 
 	Progress.init_global_instance(1)
 
-	file_md5 = FileBuffer.read(file_filepath).md5_backup_suffix
+	file_hash = FileBuffer.read(file_filepath).hash_backup_suffix
 
-	backup_filepath = file_filepath + file_md5
+	backup_filepath = file_filepath + file_hash
 
 	if not Path(backup_filepath).exists():
 		raise FileNotFoundError("No backup file was found to restore from.")

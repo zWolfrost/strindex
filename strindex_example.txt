@@ -20,9 +20,9 @@
 #
 # Below lies an example of every setting along with a description of what it does.
 
-# The md5 hash of the file this strindex was created with.
-# Useful for many reasons, such as debugging, but mainly to avoid patching the wrong file.
-md5 = "29ed1f9e450d43815c2d1a0cab168da3"
+# The CRC32 hash of the file this strindex was created with.
+# Useful for many reasons; mainly to warn the user if they're patching a different file.
+hash = "b40bda78"
 
 # Whether the strindex was created using the "force" mode.
 # This mode tells the program hard-replace strings at the same offset they were found,

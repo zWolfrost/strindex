@@ -33,7 +33,7 @@ You can run the program with the command `strindex <action> <input file(s)> [arg
 
 These are the available actions:
 - `gui`: Open Strindex in GUI mode.
-- `create`: Create a list of string replacement instructions (a strindex) extracted from a binary file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-D` to create a strindex that uses the original strings as references, instead of pointers.
+- `create`: Create a list of string replacement instructions (a strindex) extracted from a binary file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-D` to create a strindex that uses the original strings as references (dynamic pointers), instead of offsets (fixed pointers).
 - `patch`: Patch a binary file using a strindex. Strindex files compressed with gzip are also supported for all actions.
 - `unpatch`: Unpatch a binary file that was patched with a strindex, using the backup file.
 - `update` Update a strindex file pointers' with another version of a binary file.

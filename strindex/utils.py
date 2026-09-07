@@ -1,10 +1,10 @@
 import dataclasses
 import functools
 import gzip
-import hashlib
 import re
 import time
 import tomllib
+import zlib
 from collections.abc import Callable
 from json import JSONEncoder
 from pathlib import Path
@@ -136,7 +136,7 @@ class StrindexSettings:
 		"Whether to strip the strindex file of\ninformational comments and unnecessary newlines."})
 	_whitelist_set: set[str] = dataclasses.field(default_factory=set)
 
-	md5: str | None = dataclasses.field(default=None)
+	hash: str | None = dataclasses.field(default=None)
 	force_mode: bool = dataclasses.field(default=False, metadata={"help": (
 		'Whether to use the "force" module\nand force the replacement of strings\n'
 		"at the same offset they were found.\nThis will effectively make every binary file patchable,\n"
@@ -168,11 +168,9 @@ class StrindexSettings:
 	def read_from_toml_data(cls, toml_data: str) -> "StrindexSettings":
 		""" Reads the settings from TOML data. """
 		try:
-			toml_dict = tomllib.loads(toml_data)
+			return cls(**tomllib.loads(toml_data), _raw=toml_data)
 		except Exception as e:
-			raise ValueError("Error parsing Strindex TOML header.") from e
-
-		return cls(**toml_dict, _raw=toml_data)
+			raise ValueError(f"Error parsing Strindex TOML header:\n{e}") from e
 
 	def get_changed(self) -> dict:
 		""" Returns a dictionary with the settings that are different from the default settings. """
@@ -823,13 +821,13 @@ class FileBuffer(bytearray):
 				Print.warning(f"No pointers found for string #{i}")
 
 	@property
-	def md5(self) -> str:
-		return hashlib.md5(self).hexdigest()
+	def hash(self) -> str:
+		""" Hash is CRC32 """
+		return f"{zlib.crc32(self):08x}"
 
 	@property
-	def md5_backup_suffix(self) -> str:
-		MD5_SLICE_LENGTH = 8
-		return "_" + self.md5[:MD5_SLICE_LENGTH] + ".bak"
+	def hash_backup_suffix(self) -> str:
+		return "_" + self.hash + ".bak"
 
 
 @dataclasses.dataclass(frozen=True)
