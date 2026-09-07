@@ -1,0 +1,11 @@
+hash = "e4175036"
+min_length = 3
+
+@f 00028faf
+>> Careful. \r\n\r\nIt is here and something else.
+
+@d Cassette type is seismic. \r\nInsert to a cockpit reader to read x1
+>> TEST REPLACEMENT
+
+@f 00029323
+>> ClearCoatRoughness

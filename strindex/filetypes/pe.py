@@ -1,6 +1,14 @@
 import pefile
 
-from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
+from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
+
+SETTINGS = ModuleSettings(
+	default_byte_order="little",
+	filter_after_create=False,
+	supports_dynamic=True
+)
+
+SECTION_NAME = b".strdex"
 
 
 class PEFileWrapper(pefile.PE):
@@ -11,8 +19,9 @@ class PEFileWrapper(pefile.PE):
 	def get_new_section_rva(self) -> int:
 		""" Returns the base rva for a possibly new PE section. """
 		new_section_base_rva = self.sections[-1].VirtualAddress + self.sections[-1].Misc_VirtualSize
-		if (self.sections[-1].Misc_VirtualSize % self.OPTIONAL_HEADER.SectionAlignment) != 0:
-			new_section_base_rva += self.OPTIONAL_HEADER.SectionAlignment - (self.sections[-1].Misc_VirtualSize % self.OPTIONAL_HEADER.SectionAlignment)
+		virtual_size_remainder = self.sections[-1].Misc_VirtualSize % self.OPTIONAL_HEADER.SectionAlignment
+		if virtual_size_remainder != 0:
+			new_section_base_rva += self.OPTIONAL_HEADER.SectionAlignment - virtual_size_remainder
 		return new_section_base_rva
 
 
@@ -25,12 +34,17 @@ class PEFileWrapper(pefile.PE):
 			If any data directory entry points to the moved data the pointer is adjusted.
 		"""
 
-		data = b'\x00' * self.OPTIONAL_HEADER.FileAlignment
+		data = b"\x00" * self.OPTIONAL_HEADER.FileAlignment
+
+		def insert_at_offset(offset: int, data: bytes):
+			self.__data__ = self.__data__[:offset] + data + self.__data__[offset:]
 
 		# Adding the null buffer.
-		self.__data__ = self.__data__[:self.OPTIONAL_HEADER.SizeOfHeaders] + data + self.__data__[self.OPTIONAL_HEADER.SizeOfHeaders:]
+		insert_at_offset(self.OPTIONAL_HEADER.SizeOfHeaders, data)
 
-		section_table_offset = self.DOS_HEADER.e_lfanew + 4 + self.FILE_HEADER.sizeof() + self.FILE_HEADER.SizeOfOptionalHeader
+		section_table_offset = (
+			self.DOS_HEADER.e_lfanew + 4 + self.FILE_HEADER.sizeof() + self.FILE_HEADER.SizeOfOptionalHeader
+		)
 
 		# Copying the data between the last section header and SizeOfHeaders to the newly allocated space.
 		new_section_offset = section_table_offset + self.FILE_HEADER.NumberOfSections * 0x28
@@ -38,7 +52,7 @@ class PEFileWrapper(pefile.PE):
 		self.set_bytes_at_offset(new_section_offset + self.OPTIONAL_HEADER.FileAlignment, data)
 
 		# Filling the space, from which the data was copied from, with NULLs.
-		self.set_bytes_at_offset(new_section_offset, b'\x00' * self.OPTIONAL_HEADER.FileAlignment)
+		self.set_bytes_at_offset(new_section_offset, b"\x00" * self.OPTIONAL_HEADER.FileAlignment)
 
 		data_directory_offset = section_table_offset - self.OPTIONAL_HEADER.NumberOfRvaAndSizes * 0x8
 
@@ -53,14 +67,20 @@ class PEFileWrapper(pefile.PE):
 		SizeOfHeaders_offset = self.DOS_HEADER.e_lfanew + 4 + self.FILE_HEADER.sizeof() + 0x3C
 
 		# Adjusting the SizeOfHeaders value.
-		self.set_dword_at_offset(SizeOfHeaders_offset, self.OPTIONAL_HEADER.SizeOfHeaders + self.OPTIONAL_HEADER.FileAlignment)
+		self.set_dword_at_offset(
+			SizeOfHeaders_offset,
+			self.OPTIONAL_HEADER.SizeOfHeaders + self.OPTIONAL_HEADER.FileAlignment
+		)
 
 		section_raw_address_offset = section_table_offset + 0x14
 
 		# The raw addresses of the sections are adjusted.
 		for section in self.sections:
 			if section.PointerToRawData != 0:
-				self.set_dword_at_offset(section_raw_address_offset, section.PointerToRawData + self.OPTIONAL_HEADER.FileAlignment)
+				self.set_dword_at_offset(
+					section_raw_address_offset,
+					section.PointerToRawData + self.OPTIONAL_HEADER.FileAlignment
+				)
 
 			section_raw_address_offset += 0x28
 
@@ -88,24 +108,30 @@ class PEFileWrapper(pefile.PE):
 		"""
 
 		if self.FILE_HEADER.NumberOfSections != len(self.sections):
-			raise ValueError("The NumberOfSections specified in the file header and the size of the sections list of pefile don't match.")
+			raise ValueError(
+				"The NumberOfSections specified in the file header "
+				"and the size of the sections list of pefile don't match."
+			)
 
 		if len(Name) > 8:
 			raise ValueError("The name is too long for a section.")
 
 		if (len(Data) % self.OPTIONAL_HEADER.FileAlignment) != 0:
 			# Padding the data of the section.
-			Data += b'\x00' * (self.OPTIONAL_HEADER.FileAlignment - (len(Data) % self.OPTIONAL_HEADER.FileAlignment))
+			Data += b"\x00" * (self.OPTIONAL_HEADER.FileAlignment - (len(Data) % self.OPTIONAL_HEADER.FileAlignment))
 
-		section_table_offset = self.DOS_HEADER.e_lfanew + 4 + self.FILE_HEADER.sizeof() + self.FILE_HEADER.SizeOfOptionalHeader
+		section_table_offset = (
+			self.DOS_HEADER.e_lfanew + 4 + self.FILE_HEADER.sizeof() + self.FILE_HEADER.SizeOfOptionalHeader
+		)
 
 		# If the new section header exceeds the SizeOfHeaders there won't be enough space
 		# for an additional section header. Besides that it's checked if the 0x28 bytes
 		# (size of one section header) after the last current section header are filled
 		# with nulls / are free to use.
+		_num_sections = self.FILE_HEADER.NumberOfSections
 		if (
-			self.OPTIONAL_HEADER.SizeOfHeaders < section_table_offset + (self.FILE_HEADER.NumberOfSections + 1) * 0x28 or
-			not all(char == b'\x00' for char in self.get_data(section_table_offset + (self.FILE_HEADER.NumberOfSections) * 0x28, 0x28))
+			self.OPTIONAL_HEADER.SizeOfHeaders < section_table_offset + (_num_sections + 1) * 0x28 or
+			not all(char == b"\x00" for char in self.get_data(section_table_offset + _num_sections * 0x28, 0x28))
 		):
 			# Checking if more space can be added.
 			if self.OPTIONAL_HEADER.SizeOfHeaders < self.sections[0].VirtualAddress:
@@ -163,7 +189,7 @@ class PEFileWrapper(pefile.PE):
 
 	def section_exists(self, section_name: str) -> bool:
 		""" Checks if a section with the specified name exists. """
-		return any(sect.Name == section_name.ljust(8, b'\x00') for sect in self.sections)
+		return any(sect.Name == section_name.ljust(8, b"\x00") for sect in self.sections)
 
 
 	def get_rva_from_offset(self, offset: int) -> int:
@@ -175,7 +201,7 @@ class PEFileWrapper(pefile.PE):
 	def get_section_range(self, section_name: str) -> range:
 		""" Returns the start and end offset of the specified section. """
 		for sect in self.sections:
-			if sect.Name == section_name.ljust(8, b'\x00'):
+			if sect.Name == section_name.ljust(8, b"\x00"):
 				return range(sect.PointerToRawData, sect.PointerToRawData + sect.SizeOfRawData)
 		return None
 
@@ -186,45 +212,43 @@ class PEFileWrapper(pefile.PE):
 		return 4 if self.OPTIONAL_HEADER.Magic == 0x10b else 8
 
 
-SECTION_NAME = b".strdex"
-
-
-def init(data: FileBytearray) -> FileBytearray:
-	data.byte_order = 'little'
-	return data
-
-
-def match(data: FileBytearray) -> bool:
+def match(data: FileBuffer) -> bool:
 	""" Checks if the file is a valid PE file. """
+	if data[0:2] != b"\x4d\x5a":
+		return False
+
 	try:
 		PEFileWrapper(data)
 	except pefile.PEFormatError:
 		return False
 
 	if b"\0Cabinet.dll\0" in data:
-		Print.warning("This PE file is likely a self-extracting CAB file;\nYou might want to extract the embedded files first.")
+		Print.warning(
+			"This PE file is likely a self-extracting CAB file;\n"
+			"You might want to extract the embedded files first."
+		)
 
 	return True
 
 
-def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
+def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 	pe = PEFileWrapper(data)
 
 	if pe.section_exists(SECTION_NAME):
-		Print.warning(f"This file contains a \"{SECTION_NAME.decode('utf-8')}\" section;\nIt has likely already been patched once.")
+		Print.warning(
+			f'This file contains a "{SECTION_NAME.decode('utf-8')}" section;\n'
+			"It has likely already been patched once."
+		)
 
 	data.byte_length = pe.byte_length
 
-	#TODO: implement a way to only get pointers from a specific section
-	#text_sect_range = pe.get_section_range(b".text")
-
 	return data.create_pointers_macro(
-		settings,
+		strindex,
 		lambda offset: data.from_int(rva) if (rva := pe.get_rva_from_offset(offset)) is not None else None
 	)
 
 
-def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
+def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	"""
 		The patching is done by adding a new section to the PE file, containing the new data.
 		The pointers are changed to reference the new data RVAs'.
@@ -233,7 +257,9 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 	pe = PEFileWrapper(data)
 
 	if pe.section_exists(SECTION_NAME):
-		raise ValueError(f"This file already contains a \"{SECTION_NAME.decode('utf-8')}\" section. It can't be patched again.")
+		raise ValueError(
+			f"This file already contains a \"{SECTION_NAME.decode('utf-8')}\" section. It can't be patched again."
+		)
 
 	data.byte_length = pe.byte_length
 
@@ -243,10 +269,10 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		strindex,
 		lambda offset: data.from_int(rva) if (rva := pe.get_rva_from_offset(offset)) is not None else None,
 		lambda offset: data.from_int(STRDEX_SECTION_BASE_RVA + offset),
-		lambda string: string.encode('utf-8') + b'\x00'
+		lambda string: string.encode("utf-8") + b"\x00"
 	)
 
 	pe = PEFileWrapper(data)
 	pe.add_section(Name=SECTION_NAME, Data=new_data, Characteristics=0xF0000040)
 
-	return FileBytearray(pe.write())
+	return FileBuffer(pe.write())

@@ -12,9 +12,11 @@ A string can be referenced not only by its pointer / offset, but also by the ori
 It features various built-in features to help with translation, such as spellchecking & filtering strings by length and character set.
 
 ## Supported filetypes
-*Support for more filetypes is not planned.*
+*Support for more filetypes is possible, but not planned*
+
 - PE files (".exe", ".dll"...) *(direct pointers only!)*
 - Gamemaker data files ("data.win")
+- Unreal Engine localization files (".locres")
 - Every filetype, if using force mode*...
 
 **Force mode doesn't allow the replaced strings to be bigger in length than the original strings.*
@@ -27,17 +29,11 @@ Alternatively, the [releases tab](https://github.com/zWolfrost/strindex/releases
 ## Usage
 You can run the program with the command `strindex <action> <input file(s)> [arguments]`.
 
-`strindex -h` will show the available arguments.
+`strindex -h` will show more information about the available actions and arguments.
 
-These are the available actions:
-- `create`: Create a list of strings (a strindex) extracted from a file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-c` to create a strindex that uses the original strings as references, instead of pointers.
-- `patch`: Patch a file with a strindex. Strindex files compressed with gzip are also supported for all actions.
-- `unpatch`: Unpatch a file that was patched with a strindex, using the backup file.
-- `infer`: List the most common bytes that can prefix or suffix a pointer in a file, as well as the most suitable range to use.
-- `update` Update a strindex file pointers' with the updated version of a file.
-- `filter`: Filter a strindex by detected language, wordlist or length. You can specify those in the strindex settings.
-- `delta`: Create a delta file between two strindex files, that only contains the lines of the first strindex missing in the second one (their difference).
-- `spellcheck`: Spellcheck a strindex. You can specify the target language in the strindex settings as an ISO 639-1 code.
+*Most importantly*, the program supports the following actions:
+- `create`: Create a list of string replacement instructions (a strindex) extracted from a binary file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-D` to create a strindex that uses the original strings as references (dynamic pointers), instead of offsets (fixed pointers).
+- `patch`: Patch a binary file using a strindex. Strindex files compressed with gzip are also supported for all actions.
 - `gui`: Open Strindex in GUI mode.
 
 ## Usage Examples
@@ -49,7 +45,7 @@ These are the available actions:
   ```sh
   strindex create program.exe -p "24c7442404" -p "ec04c70424"
   ```
-- Create a strindex from a PE file, considering only strings that are present between offsets 0x018bc5ec and 0x01a09fb1.
+- Create a strindex from a PE file, considering only pointers in the range from 0x018bc5ec to 0x01a09fb1.
   ```sh
   strindex create program.exe -m 3 -r "018bc5ec:01a09fb1"
   ```

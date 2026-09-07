@@ -1,9 +1,16 @@
-from strindex.utils import FileBytearray, Strindex, StrindexSettings
-
 # https://github.com/panzi/cook-serve-hoomans/blob/master/fileformat.md
 
+from strindex.utils import FileBuffer, ModuleSettings, Strindex
 
-def get_last_chunk_pointer(data: FileBytearray) -> int:
+SETTINGS = ModuleSettings(
+	default_byte_length=4,
+	default_byte_order="little",
+	filter_after_create=False,
+	supports_dynamic=True
+)
+
+
+def get_last_chunk_pointer(data: FileBuffer) -> int:
 	data.cursor = 12
 	while data.cursor < len(data):
 		size = data.get_int()
@@ -13,25 +20,19 @@ def get_last_chunk_pointer(data: FileBytearray) -> int:
 	return prev_offset
 
 
-def init(data: FileBytearray) -> FileBytearray:
-	data.byte_length = 4
-	data.byte_order = 'little'
-	return data
-
-
-def match(data: FileBytearray) -> bool:
+def match(data: FileBuffer) -> bool:
 	""" Checks if the file is an IFF file. """
 	return data[0:4] == b"FORM"
 
 
-def create(data: FileBytearray, settings: StrindexSettings) -> Strindex:
+def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 	return data.create_pointers_macro(
-		settings,
+		strindex,
 		lambda offset: data.from_int(offset - data.byte_length)
 	)
 
 
-def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
+def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	"""
 		The patching is done by increasing both
 		the "FORM" chunk size and the last chunk size to fit the new data.
@@ -46,7 +47,7 @@ def patch(data: FileBytearray, strindex: Strindex) -> FileBytearray:
 		strindex,
 		lambda offset: data.from_int(offset - data.byte_length),
 		lambda offset: data.from_int(len(data) + offset),
-		lambda string: data.from_int(len(string.encode('utf-8'))) + string.encode('utf-8') + b'\x00'
+		lambda string: data.from_int(len(string.encode("utf-8"))) + string.encode("utf-8") + b"\x00"
 	)
 
 	data.cursor = 4

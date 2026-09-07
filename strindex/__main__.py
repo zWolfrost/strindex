@@ -1,5 +1,5 @@
 # nuitka-project: --product-name=strindex
-# nuitka-project: --product-version=4.0.0
+# nuitka-project: --product-version=5.0.0
 
 # nuitka-project: --mode=app
 
@@ -20,15 +20,16 @@
 # nuitka-project: --nofollow-import-to=language_tool_python
 
 # nuitka-project: --windows-console-mode=hide
-# nuitka-project: --windows-icon-from-ico=icon.png
-# nuitka-project: --linux-icon=icon.png
+# nuitka-project: --windows-icon-from-ico=assets/icon.ico
+# nuitka-project: --linux-app-console-mode=disable
+# nuitka-project: --linux-app-icon=assets/icon.png
 
 import sys
 
-from strindex import strindex
+from strindex.core import main
 
 if __name__ == "__main__":
 	if "__compiled__" in globals() and len(sys.argv) <= 1:
-		strindex.main(["gui", "--verbose"])
+		main(["gui", "--verbose"])
 	else:
-		strindex.main()
+		main()

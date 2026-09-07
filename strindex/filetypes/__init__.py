@@ -1,46 +1,125 @@
-from strindex.filetypes import force, iff, pe
-from strindex.utils import FileBytearray, Print, Strindex, StrindexSettings
+import functools
 
-MODULES = (force, pe, iff)
+from strindex.filetypes import force, iff, locres, pe
+from strindex.utils import FileBuffer, ModuleProtocol, Print, Strindex, StrindexSettings
 
+MODULES = [iff, locres, pe]
 
-class GenericModule:
-	"""
-	A class representing a generic module that can be used to extract and patch strings from a filetype.
-	"""
+def use_force_module(force_mode):
+	def decorator(func):
+		@functools.wraps(func)
+		def wrapper(self: "ModuleWrapper", *args, **kwargs):
+			if force_mode(*args, **kwargs):
+				prev_module = self.module
+				self.module = force
+				try:
+					return func(self, *args, **kwargs)
+				finally:
+					self.module = prev_module
+			else:
+				if self.module is None:
+					raise NotImplementedError(self.NO_MODULE_WARNING)
+				return func(self, *args, **kwargs)
 
-	def __init__(self, data: FileBytearray, force_mode: bool = False):
-		if force_mode:
-			self.module = force
-			Print.debug("Force mode enabled.")
-			return
+		return wrapper
+	return decorator
+
+class ModuleWrapper:
+	""" A class representing a generic module that can be used to extract and patch strings from a filetype. """
+
+	module: ModuleProtocol | None
+
+	NO_MODULE_WARNING = (
+		"This file type has no associated module,\n"
+		"or the required libraries to handle it are not installed.\n"
+		"You can use the --force flag to enable force mode\n"
+		"and attempt to extract strings from the file anyway."
+	)
+
+	DYNAMIC_MODE_WARNING = (
+		"This filetype does not support\n"
+		"patching using dynamic pointers.\n"
+		"Please make sure to convert the strindex to fixed pointers.\n"
+		"(using the update action) before patching."
+	)
+
+	def __init__(self, module: ModuleProtocol | None = None):
+		self.module = module
+
+	@classmethod
+	def detect_from_data(cls, data: FileBuffer):
+		generic_module = cls()
 
 		for module in MODULES:
-			self.module = module
-			if self.match(data):
+			generic_module.module = module
+			if generic_module.match(data):
 				filetype = module.__name__.split(".")[-1]
-				Print.debug(f'Detected filetype: "{filetype}".')
-				return
+				Print.info(f'Detected filetype: "{filetype}".')
+				break
+		else:
+			generic_module.module = None
 
-		raise NotImplementedError(
-			"This file type has no associated module,\n"
-			"or the required libraries to handle it are not installed.\n"
-			"You can use the --force flag to enable force mode\n"
-			"and attempt to extract strings from the file anyway."
-		)
+		return generic_module
 
-	def init(self, data: FileBytearray) -> FileBytearray:
+	def init(self, data: FileBuffer) -> FileBuffer:
 		""" Initializes the file data for the module. """
-		return self.module.init(data.copy()) if hasattr(self.module, "init") else data.copy()
+		data = data.copy()
+		data.cursor = 0
+		data.byte_length = self.module.SETTINGS.default_byte_length
+		data.byte_order = self.module.SETTINGS.default_byte_order
+		return data
 
-	def match(self, data: FileBytearray) -> bool:
+	def match(self, data: FileBuffer) -> bool:
 		""" Checks if the file is of the target filetype. """
-		return self.module.match(self.init(data))
+		return self.module.match(self.init(data)) if self.module else False
 
-	def create(self, data: FileBytearray, settings: StrindexSettings) -> Strindex:
+	@use_force_module(lambda _, settings: settings.force_mode)
+	def create(self, data: FileBuffer, settings: StrindexSettings) -> Strindex:
 		""" Creates a Strindex object from the file data. """
-		return self.module.create(self.init(data), settings)
+		empty_strindex = Strindex()
+		empty_strindex.settings = settings
+		strindex = self.module.create(self.init(data), empty_strindex)
 
-	def patch(self, data: FileBytearray, strindex: Strindex) -> FileBytearray:
+		if self.module.SETTINGS.filter_after_create:
+			initial_count = strindex.count
+
+			for i in reversed(range(strindex.count)):
+				string_length = len(strindex.strings[i].encode("utf-8"))
+				pointers = [p for p in strindex.pointers[i] if (
+					settings.is_in_any_range(p) and
+					settings.matches_prefix(data, p) and
+					settings.matches_suffix(data, p + string_length)
+				)]
+				if not (
+					pointers and
+					string_length >= settings.min_length and
+					settings.is_in_whitelist(strindex.strings[i])
+				):
+					strindex.delete_index(i)
+
+			Print.debug(f"Filtered down to {strindex.count} strings out of {initial_count}.")
+
+		if settings._dynamic:
+			if not self.module.SETTINGS.supports_dynamic:
+				Print.warning(self.DYNAMIC_MODE_WARNING)
+			strindex.types = [Strindex.Type.DYNAMIC] * strindex.count
+			for i in range(strindex.count):
+				strindex.pointers[i].insert(0, strindex.strings[i])
+		else:
+			strindex.types = [Strindex.Type.FIXED] * strindex.count
+
+		strindex.settings = settings
+		strindex.settings.hash = data.hash
+
+		return strindex
+
+	@use_force_module(lambda _, strindex: strindex.settings.force_mode)
+	def patch(self, data: FileBuffer, strindex: Strindex) -> FileBuffer:
 		""" Patches the file data with the Strindex object. """
+		if strindex.settings.hash and strindex.settings.hash != data.hash:
+			Print.warning("CRC32 hash does not match the one the strindex was created for.\nYou may encounter issues.")
+
+		if not self.module.SETTINGS.supports_dynamic and any(t == Strindex.Type.DYNAMIC for t in strindex.types):
+			raise NotImplementedError(self.DYNAMIC_MODE_WARNING)
+
 		return self.module.patch(self.init(data), strindex)
