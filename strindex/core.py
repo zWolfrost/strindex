@@ -1,4 +1,5 @@
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -473,6 +474,9 @@ def get_parser() -> argparse.ArgumentParser:
 
 def main(sysargs=None):
 	try:
+		if sys.platform == "win32":
+			subprocess.run("", shell=True, check=False) # HACK: Fixes color on cmd.exe
+
 		Print.quiet_mode = False
 
 		args = get_parser().parse_args(sysargs)
