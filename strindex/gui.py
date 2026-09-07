@@ -176,13 +176,17 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 		return button
 
-	def create_hbox_widget(self, widgets: list[QtWidgets.QWidget]) -> QtWidgets.QWidget:
+	def create_hbox_widget(
+		self,
+		widgets: list[QtWidgets.QWidget],
+		alignment: QtCore.Qt.AlignmentFlag = QtCore.Qt.AlignmentFlag.AlignLeft
+	) -> QtWidgets.QWidget:
 		hbox = QtWidgets.QHBoxLayout()
 		for widget in widgets:
 			hbox.addWidget(widget)
 		hbox.setContentsMargins(0, 0, 0, 0)
 		hbox.setSpacing(10)
-		hbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+		hbox.setAlignment(alignment)
 
 		widget = QtWidgets.QWidget()
 		widget.setLayout(hbox)
