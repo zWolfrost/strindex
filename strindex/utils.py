@@ -159,7 +159,7 @@ class StrindexSettings:
 	among_languages: list[str] = dataclasses.field(default_factory=list)
 
 	def __post_init__(self):
-		self.min_length = int(self.min_length)
+		self.min_length = max(int(self.min_length), 1)
 		self.prefix_bytes = self.handle_bytes_list(self.prefix_bytes)
 		self.suffix_bytes = self.handle_bytes_list(self.suffix_bytes)
 		self.ranges = self.handle_ranges(self.ranges)

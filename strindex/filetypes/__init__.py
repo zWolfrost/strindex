@@ -1,19 +1,14 @@
 import functools
-import importlib
-import pkgutil
 
-from strindex.filetypes import force
+from strindex.filetypes import force, iff, locres, pe
 from strindex.utils import FileBuffer, ModuleProtocol, Print, Strindex, StrindexSettings
 
-MODULES = [
-	importlib.import_module(f"{__name__}.{name}") for _, name, _ in
-	pkgutil.iter_modules(__path__) if not name.startswith("_")
-]
+MODULES = [iff, locres, pe]
 
 def use_force_module(force_mode):
 	def decorator(func):
 		@functools.wraps(func)
-		def wrapper(self: ModuleWrapper, *args, **kwargs):
+		def wrapper(self: "ModuleWrapper", *args, **kwargs):
 			if force_mode(*args, **kwargs):
 				prev_module = self.module
 				self.module = force
