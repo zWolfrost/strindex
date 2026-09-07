@@ -50,7 +50,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 		pass
 
 	def closeEvent(self, event: QtGui.QCloseEvent):
-		worker: CallbackWorker = self.tab_widget.currentWidget()._callback_worker
+		worker: CallbackWorker = self._callback_worker
 		if worker is not None and worker.isRunning():
 			reply = QtWidgets.QMessageBox.question(self, "Operation in progress", (
 				"An operation is still running.\n"
@@ -61,7 +61,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 			if reply == QtWidgets.QMessageBox.StandardButton.No:
 				event.ignore()
 				return
-			
+
 			worker.terminate()
 			worker.wait()
 		event.accept()
@@ -135,13 +135,16 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 				self.layout().replaceWidget(progress_bar, action_button)
 				progress_bar.setParent(None)
 				self.window().setEnabled(True)
+				self.window()._callback_worker = None
 				QtWidgets.QApplication.processEvents()
 
-			self._callback_worker = CallbackWorker(callback_wrapper)
-			self._callback_worker.sig_progress.connect(callback_progress)
-			self._callback_worker.sig_except.connect(callback_except)
-			self._callback_worker.sig_else.connect(callback_else)
-			self._callback_worker.start()
+			worker = CallbackWorker(callback_wrapper)
+			self.window()._callback_worker = worker
+
+			worker.sig_progress.connect(callback_progress)
+			worker.sig_except.connect(callback_except)
+			worker.sig_else.connect(callback_else)
+			worker.start()
 
 		action_button.clicked.connect(callback_worker_start)
 
@@ -176,17 +179,13 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 		return button
 
-	def create_hbox_widget(
-		self,
-		widgets: list[QtWidgets.QWidget],
-		alignment: QtCore.Qt.AlignmentFlag = QtCore.Qt.AlignmentFlag.AlignLeft
-	) -> QtWidgets.QWidget:
+	def create_hbox_widget(self, widgets: list[QtWidgets.QWidget]) -> QtWidgets.QWidget:
 		hbox = QtWidgets.QHBoxLayout()
 		for widget in widgets:
 			hbox.addWidget(widget)
 		hbox.setContentsMargins(0, 0, 0, 0)
 		hbox.setSpacing(10)
-		hbox.setAlignment(alignment)
+		hbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
 		widget = QtWidgets.QWidget()
 		widget.setLayout(hbox)
