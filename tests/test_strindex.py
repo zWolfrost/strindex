@@ -42,27 +42,33 @@ def get_strindex(filename: str, settings: StrindexSettings) -> Strindex:
 		strindex.core.create(get_file_path(filename), temp_strindex.name, settings)
 		return Strindex.read(temp_strindex.name)
 
+def convert_strindex_to_dynamic(strindex: Strindex) -> Strindex:
+	strindex = deepcopy(strindex)
+	strindex.types = [Strindex.Type.DYNAMIC] * strindex.count
+	strindex.pointers = [[s, *p] for p, s in zip(strindex.pointers, strindex.strings, strict=True)]
+	return strindex
+
+
 
 @fixture
 def strindex_example() -> Strindex:
 	return Strindex.read(get_file_path("strindex_example.txt"))
 
 @fixture
-def kz_pe_strindex_force() -> Strindex:
+def kz_pe_strindex_force_fixed() -> Strindex:
 	return get_strindex("Katana ZERO.exe", StrindexSettings(_raw="", force_mode=True, min_length=3))
 
 @fixture
-def kz_pe_strindex_full() -> Strindex:
+def kz_pe_strindex_full_fixed() -> Strindex:
 	return get_strindex("Katana ZERO.exe", StrindexSettings(_raw="", _dynamic=False))
 
 @fixture
-def kz_pe_strindex_full_comp() -> Strindex:
-	return get_strindex("Katana ZERO.exe", StrindexSettings(_raw="", _dynamic=True))
+def kz_pe_strindex_full_dynamic(kz_pe_strindex_full_fixed: Strindex) -> Strindex:
+	return convert_strindex_to_dynamic(kz_pe_strindex_full_fixed)
 
 @fixture
-def kz_pe_strindex_part() -> Strindex:
+def kz_pe_strindex_part_fixed() -> Strindex:
 	return get_strindex("Katana ZERO.exe", StrindexSettings(
-		_raw="",
 		_dynamic=False,
 		min_length=3,
 		prefix_bytes=["24c7442404", "ec04c70424"],
@@ -70,16 +76,11 @@ def kz_pe_strindex_part() -> Strindex:
 	))
 
 @fixture
-def kz_pe_strindex_part_comp() -> Strindex:
-	return get_strindex("Katana ZERO.exe", StrindexSettings(
-		_dynamic=True,
-		min_length=3,
-		prefix_bytes=["24c7442404", "ec04c70424"],
-		ranges=["00441078:0060e501"]
-	))
+def kz_pe_strindex_part_dynamic(kz_pe_strindex_part_fixed: Strindex) -> Strindex:
+	return convert_strindex_to_dynamic(kz_pe_strindex_part_fixed)
 
 @fixture
-def ut_iff_strindex_part() -> Strindex:
+def ut_iff_strindex_part_fixed() -> Strindex:
 	return get_strindex("data.win", StrindexSettings(
 		_raw="",
 		_dynamic=False,
@@ -89,12 +90,12 @@ def ut_iff_strindex_part() -> Strindex:
 	))
 
 @fixture
-def mole_locres_strindex_full() -> Strindex:
+def mole_locres_strindex_full_fixed() -> Strindex:
 	return get_strindex("Game.locres", StrindexSettings(_raw="", _dynamic=False))
 
 @fixture
-def mole_locres_strindex_full_comp() -> Strindex:
-	return get_strindex("Game.locres", StrindexSettings(_raw="", _dynamic=True))
+def mole_locres_strindex_full_dynamic(mole_locres_strindex_full_fixed: Strindex) -> Strindex:
+	return convert_strindex_to_dynamic(mole_locres_strindex_full_fixed)
 
 
 
@@ -124,42 +125,46 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 
 	assert get_strindex_hash(strindex_example) == "fd9da9e1"
 
-def test_create_force(kz_pe_strindex_force: Strindex):
-	assert get_strindex_hash(kz_pe_strindex_force) == "9f9484c2"
+def test_create_force(kz_pe_strindex_force_fixed: Strindex):
+	assert get_strindex_hash(kz_pe_strindex_force_fixed) == "9f9484c2"
 
-def test_create_pe(kz_pe_strindex_full: Strindex, kz_pe_strindex_full_comp: Strindex, kz_pe_strindex_part: Strindex):
-	assert get_strindex_hash(kz_pe_strindex_full) == "2691043f"
-	assert get_strindex_hash(kz_pe_strindex_full_comp) == "bd74b73f"
-	assert get_strindex_hash(kz_pe_strindex_part) == "42dabd03"
+def test_create_pe(
+	kz_pe_strindex_full_fixed: Strindex,
+	kz_pe_strindex_full_dynamic: Strindex,
+	kz_pe_strindex_part_fixed: Strindex
+):
+	assert get_strindex_hash(kz_pe_strindex_full_fixed) == "2691043f"
+	assert get_strindex_hash(kz_pe_strindex_full_dynamic) == "bd74b73f"
+	assert get_strindex_hash(kz_pe_strindex_part_fixed) == "00a89f0a"
 
-def test_create_iff(ut_iff_strindex_part: Strindex):
-	assert get_strindex_hash(ut_iff_strindex_part) == "b79037b8"
+def test_create_iff(ut_iff_strindex_part_fixed: Strindex):
+	assert get_strindex_hash(ut_iff_strindex_part_fixed) == "b79037b8"
 
-def test_create_locres(mole_locres_strindex_full: Strindex):
-	assert get_strindex_hash(mole_locres_strindex_full) == "3775c199"
+def test_create_locres(mole_locres_strindex_full_fixed: Strindex):
+	assert get_strindex_hash(mole_locres_strindex_full_fixed) == "3775c199"
 
-def test_patch_pe(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
+def test_patch_pe(kz_pe_strindex_full_fixed: Strindex, kz_pe_strindex_part_fixed: Strindex):
 	with temp_open() as temp_strindex, temp_open() as temp_file:
 		strindex.core.patch(get_file_path("Katana ZERO.exe"), get_file_path("kz_exe.gz"), temp_file.name)
 		assert get_file_hash(temp_file.name) == "d3eed884"
 
-		kz_pe_strindex_full.write(temp_strindex.name)
+		kz_pe_strindex_full_fixed.write(temp_strindex.name)
 		strindex.core.patch(get_file_path("Katana ZERO.exe"), temp_strindex.name, temp_file.name)
 		assert get_file_hash(temp_file.name) == "cf351621"
 
-		kz_pe_strindex_part.write(temp_strindex.name)
+		kz_pe_strindex_part_fixed.write(temp_strindex.name)
 		strindex.core.patch(get_file_path("Katana ZERO.exe"), temp_strindex.name, temp_file.name)
 		assert get_file_hash(temp_file.name) == "f7546be9"
 
-def test_patch_iff(ut_iff_strindex_part: Strindex):
+def test_patch_iff(ut_iff_strindex_part_fixed: Strindex):
 	with temp_open() as temp_strindex, temp_open() as temp_file:
-		ut_iff_strindex_part.write(temp_strindex.name)
+		ut_iff_strindex_part_fixed.write(temp_strindex.name)
 		strindex.core.patch(get_file_path("data.win"), temp_strindex.name, temp_file.name)
 		assert get_file_hash(temp_file.name) == "1f3a3685"
 
-def test_patch_locres(mole_locres_strindex_full: Strindex, mole_locres_strindex_full_comp: Strindex):
+def test_patch_locres(mole_locres_strindex_full_fixed: Strindex, mole_locres_strindex_full_dynamic: Strindex):
 	with temp_open() as temp_strindex, temp_open() as temp_file:
-		for mole_locres_strindex in (mole_locres_strindex_full, mole_locres_strindex_full_comp):
+		for mole_locres_strindex in (mole_locres_strindex_full_fixed, mole_locres_strindex_full_dynamic):
 			mole_locres_strindex.write(temp_strindex.name)
 			strindex.core.patch(get_file_path("Game.locres"), temp_strindex.name, temp_file.name)
 			assert get_file_hash(temp_file.name) == get_file_hash(get_file_path("Game.locres"))
@@ -178,21 +183,21 @@ def test_patch_force():
 		strindex.core.patch(get_file_path("Game.locres"), temp_strindex.name, temp_file.name)
 		assert get_file_hash(temp_file.name) == "6cd4358f"
 
-def test_update(kz_pe_strindex_part_comp: Strindex):
+def test_update(kz_pe_strindex_part_dynamic: Strindex):
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:
-		kz_pe_strindex_part_comp = deepcopy(kz_pe_strindex_part_comp)
-		kz_pe_strindex_part_comp.pointers[0] = kz_pe_strindex_part_comp.pointers[0][:1]
-		kz_pe_strindex_part_comp.write(temp_strindex_in.name)
+		kz_pe_strindex_part_dynamic = deepcopy(kz_pe_strindex_part_dynamic)
+		kz_pe_strindex_part_dynamic.pointers[0] = kz_pe_strindex_part_dynamic.pointers[0][:1]
+		kz_pe_strindex_part_dynamic.write(temp_strindex_in.name)
 
 		strindex.core.update(get_file_path("Katana ZERO.exe"), temp_strindex_in.name, temp_strindex_out.name)
 
-		kz_pe_strindex_part_comp.pointers[0] = Strindex.read(temp_strindex_out.name).pointers[0].copy()
+		kz_pe_strindex_part_dynamic.pointers[0] = Strindex.read(temp_strindex_out.name).pointers[0].copy()
 
-		assert get_strindex_hash(kz_pe_strindex_part_comp) == get_file_hash(temp_strindex_out.name)
+		assert get_strindex_hash(kz_pe_strindex_part_dynamic) == get_file_hash(temp_strindex_out.name)
 
-def test_update_conversion(kz_pe_strindex_part_comp: Strindex):
+def test_update_conversion(kz_pe_strindex_part_dynamic: Strindex):
 	with temp_open() as temp_strindex:
-		kz_pe_strindex_part_comp.write(temp_strindex.name)
+		kz_pe_strindex_part_dynamic.write(temp_strindex.name)
 
 		strindex.core.update(
 			get_file_path("Katana ZERO.exe"), temp_strindex.name,
@@ -204,36 +209,36 @@ def test_update_conversion(kz_pe_strindex_part_comp: Strindex):
 			temp_strindex.name, convert_type=Strindex.Type.DYNAMIC
 		)
 
-		assert get_strindex_hash(kz_pe_strindex_part_comp) == get_file_hash(temp_strindex.name)
+		assert get_strindex_hash(kz_pe_strindex_part_dynamic) == get_file_hash(temp_strindex.name)
 
-def test_filter(kz_pe_strindex_full: Strindex):
+def test_filter(kz_pe_strindex_full_fixed: Strindex):
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:
-		kz_pe_strindex_full = deepcopy(kz_pe_strindex_full)
-		kz_pe_strindex_full.settings = StrindexSettings(min_length=3, whitelist=["latin"])
-		kz_pe_strindex_full.write(temp_strindex_in.name)
+		kz_pe_strindex_full_fixed = deepcopy(kz_pe_strindex_full_fixed)
+		kz_pe_strindex_full_fixed.settings = StrindexSettings(min_length=3, whitelist=["latin"])
+		kz_pe_strindex_full_fixed.write(temp_strindex_in.name)
 
 		strindex.core.filter(temp_strindex_in.name, temp_strindex_out.name)
 
 		assert Strindex.read(temp_strindex_out.name).count == 24180
 
-def test_diff(kz_pe_strindex_full: Strindex, kz_pe_strindex_part: Strindex):
+def test_diff(kz_pe_strindex_full_fixed: Strindex, kz_pe_strindex_part_fixed: Strindex):
 	with temp_open() as temp_strindex_in1, temp_open() as temp_strindex_in2, temp_open() as temp_strindex_out:
-		kz_pe_strindex_full.write(temp_strindex_in1.name)
-		kz_pe_strindex_part.write(temp_strindex_in2.name)
+		kz_pe_strindex_full_fixed.write(temp_strindex_in1.name)
+		kz_pe_strindex_part_fixed.write(temp_strindex_in2.name)
 
 		strindex.core.diff(temp_strindex_in1.name, temp_strindex_in2.name, temp_strindex_out.name)
 
 		assert Strindex.read(temp_strindex_out.name).count == 20840
 
-def test_merge(kz_pe_strindex_full_comp: Strindex):
+def test_merge(kz_pe_strindex_full_dynamic: Strindex):
 	with temp_open() as temp_strindex_in2, temp_open() as temp_strindex_out:
-		kz_pe_strindex_full_comp.write(temp_strindex_in2.name)
+		kz_pe_strindex_full_dynamic.write(temp_strindex_in2.name)
 
 		strindex.core.merge(get_file_path("kz_exe.gz"), temp_strindex_in2.name, temp_strindex_out.name)
 
 		merged_count = sum(
 			s1 != s2 for s1, s2 in
-			zip(kz_pe_strindex_full_comp.strings, Strindex.read(temp_strindex_out.name).strings, strict=True)
+			zip(kz_pe_strindex_full_dynamic.strings, Strindex.read(temp_strindex_out.name).strings, strict=True)
 		)
 
 		assert merged_count == 2148
