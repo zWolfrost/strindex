@@ -20,8 +20,9 @@
 # nuitka-project: --nofollow-import-to=language_tool_python
 
 # nuitka-project: --windows-console-mode=hide
-# nuitka-project: --windows-icon-from-ico=icon.png
-# nuitka-project: --linux-icon=icon.png
+# nuitka-project: --windows-icon-from-ico=assets/icon.ico
+# nuitka-project: --linux-app-console-mode=disable
+# nuitka-project: --linux-app-icon=assets/icon.png
 
 import sys
 
