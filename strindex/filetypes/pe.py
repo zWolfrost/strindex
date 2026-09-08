@@ -1,3 +1,7 @@
+# An huge thanks to Luigi Auriemma for his exestringz tool at https://aluigi.altervista.org/mytoolz.htm#exestringz
+# and to n0p for his SectionDoubleP class at https://git.n0p.cc/SectionDoubleP.git
+# Those two works provided the foundation for my implementation of PE file patching.
+
 import pefile
 
 from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
@@ -99,7 +103,6 @@ class PEFileWrapper(pefile.PE):
 		"""
 			Tested with pefile 1.2.10-123 on 32bit PE executable files.
 			An implementation to push a section header to the section table of a PE file.
-			by n0p
 
 			Adds the section, specified by the functions parameters, at the end of the section table.
 			If the space to add an additional section header is insufficient, a buffer is inserted

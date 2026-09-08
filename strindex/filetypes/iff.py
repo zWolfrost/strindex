@@ -1,3 +1,4 @@
+# For more information on the IFF file format, see
 # https://github.com/panzi/cook-serve-hoomans/blob/master/fileformat.md
 
 from strindex.utils import FileBuffer, ModuleSettings, Strindex
