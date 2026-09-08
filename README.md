@@ -5,7 +5,7 @@
 
 A command line utility program (with GUI support) that allows you to easily extract, list and patch (replace) the strings embedded in a few filetypes.
 
-It's useful to change the text of a program without having to recompile it; for example, to translate it into another language.
+It's useful to change the text of a binary file without having to recompile it; for example, to translate it into another language.
 
 A string can be referenced not only by its pointer / offset, but also by the original string itself to ensure compatibility with different versions of the same program.
 
@@ -31,7 +31,7 @@ You can run the program with the command `strindex <action> <input file(s)> [arg
 
 `strindex -h` will show more information about the available actions and arguments.
 
-*Most importantly*, the program supports the following actions:
+*Most notably*, the program supports the following actions:
 - `create`: Create a list of string replacement instructions (a strindex) extracted from a binary file. Use `-f` to enable "force" mode, and replace strings at the same offset they were found. Use `-D` to create a strindex that uses the original strings as references (dynamic pointers), instead of offsets (fixed pointers).
 - `patch`: Patch a binary file using a strindex. Strindex files compressed with gzip are also supported for all actions.
 - `gui`: Open Strindex in GUI mode.
@@ -45,10 +45,6 @@ You can run the program with the command `strindex <action> <input file(s)> [arg
   ```sh
   strindex create program.exe -p "24c7442404" -p "ec04c70424"
   ```
-- Create a strindex from a PE file, considering only pointers in the range from 0x018bc5ec to 0x01a09fb1.
-  ```sh
-  strindex create program.exe -m 3 -r "018bc5ec:01a09fb1"
-  ```
 - Patch a PE file with a strindex:
   ```sh
   strindex patch program.exe strindex.txt
@@ -56,3 +52,16 @@ You can run the program with the command `strindex <action> <input file(s)> [arg
 
 ## Strindex Example
 You can find an example of a strindex file and an explanation of its settings [here](strindex_example.txt).
+
+## Verified programs/videogames
+Here is a *non-exhaustive* list of programs/videogames that have been verified to work with strindex:
+
+| Name                                                               | File name & type         | Notes
+|--------------------------------------------------------------------|--------------------------|-------
+| [**Katana ZERO**](https://store.steampowered.com/app/460950)       | `Katana ZERO.exe` (PE)   |
+| [**Nuclear Throne**](https://store.steampowered.com/app/242680)    | `nuclearthrone.exe` (PE) | *
+| [**Persona 4 Golden**](https://store.steampowered.com/app/1113000) | `P4G.exe` (PE)           | Notably, the only text that is embedded in this game's .exe file are cutscene subtitles.
+| [**Undertale**](https://store.steampowered.com/app/391540)         | `data.win` (IFF)         |
+| [**MOLE**](https://store.steampowered.com/app/4064510)             | `Game.locres` (locres)   | `Game.locres` is "packed" in `Mole-Windows.pak` (which must be extracted first, using a tool like [repak](https://github.com/trumank/repak)).
+
+*This program/videogame already officially supports localization by external means.
