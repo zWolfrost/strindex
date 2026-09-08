@@ -313,7 +313,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		for gui_class, function in gui_action_map:
 			self.tab_widget.setTabToolTip(
 				self.tab_widget.addTab(gui_class(), function.__name__.capitalize()),
-				function.__doc__.strip()
+				function.__doc__.strip().replace("\t", "")
 			)
 
 		version_label = QtWidgets.QLabel(
