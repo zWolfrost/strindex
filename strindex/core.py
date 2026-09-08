@@ -6,7 +6,7 @@ from pathlib import Path
 from strindex.filetypes import ModuleWrapper
 from strindex.utils import FileBuffer, Print, Progress, Strindex, StrindexSettings
 
-VERSION = "5.0.0"
+VERSION = "5.0.1"
 
 
 def edit_extension(filepath: str, suffix: str) -> str:
@@ -40,8 +40,7 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 	replace strings in the file following the strindex instructions.
 	"""
 
-	if not hasattr(Progress, "global_instance"):
-		Progress.init_global_instance(6)
+	Progress.init_global_instance(6)
 
 	backup_filepath = file_filepath + FileBuffer.read(file_filepath).hash_backup_suffix
 
