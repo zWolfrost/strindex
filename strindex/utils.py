@@ -383,7 +383,7 @@ class Strindex:
 			elif line and not line.startswith("#"):
 				raise ValueError
 		except ValueError as e:
-			raise ValueError(f"Invalid line in strindex body:\n{line!r}") from e
+			raise ValueError(f"Invalid line in strindex body:\n{repr(line)[1:-1]}") from e
 
 	def dump_body_entry(self, i: int) -> str:
 		if self.types[i] == Strindex.Type.FIXED:
