@@ -443,7 +443,7 @@ class Strindex:
 
 		HEADER_INFO = (
 			"# You can freely create & delete comments anywhere in the strindex file.\n"
-			"# For more information about strindex files' settings and syntax see:\n"
+			"# For more information about strindex files' settings and syntax, see:\n"
 			"# https://github.com/zWolfrost/strindex/blob/main/strindex_example.txt\n"
 		)
 		FIXED_INFO = (
@@ -693,12 +693,10 @@ class FileBuffer(bytearray):
 		return self.put_int(value + delta, byte_length, byte_order)
 
 	def replace_string(self, replace: str, sep: bytes = b"\x00") -> bytes:
-		original_length = 0
-
-		for i in range(len(self) - self.cursor):
-			if bytes([self[self.cursor + i]]) == sep:
-				original_length = i
-				break
+		try:
+			original_length = self.index(sep, self.cursor) - self.cursor
+		except ValueError:
+			original_length = len(self) - self.cursor
 
 		replace_bytes = replace.encode("utf-8")
 
@@ -850,4 +848,4 @@ class ModuleProtocol(Protocol):
 	create: Callable[[FileBuffer, StrindexSettings], Strindex]
 	"""Add strings & pointers to the strindex by extracting them from a file buffer (bytearray)."""
 	patch: Callable[[FileBuffer, Strindex], FileBuffer]
-	"""Patch a file buffer (bytearray) using the strindex and pointers in the provided strindex."""
+	"""Patch a file buffer (bytearray) using the strings & pointers from the provided strindex."""

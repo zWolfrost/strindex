@@ -409,12 +409,12 @@ def get_parser() -> argparse.ArgumentParser:
 	)
 
 	parser.description = (
-		"A command line utility that allows you to\n"
-		"easily extract, list and patch the strings embedded in a few binary filetypes.\n\n"
+		"A command line utility that allows you to easily\n"
+		"extract, list and patch the strings embedded in a few binary filetypes.\n\n"
 		"\033[1m\033[34mactions:\033[0m\n" +
 		"\n".join(
-			f"  \033[1m\033[36m{action.__name__: <12}\033[0m"
-			f"{action.__doc__.strip().replace("\n", "\n" + " "*16).replace("\t", "")}"
+			(f"  \033[1m\033[36m{action.__name__: <12}\033[0m"
+			+ action.__doc__.strip().replace("\n", "\n" + " "*16).replace("\t", ""))
 			for action in ACTIONS
 		) +
 		"\n\n  Strindex files compressed with gzip are also supported, for all actions."

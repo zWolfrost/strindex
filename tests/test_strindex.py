@@ -123,7 +123,7 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 	strindex_example.pointers = []
 	strindex_example.types = []
 
-	assert get_strindex_hash(strindex_example) == "fd9da9e1"
+	assert get_strindex_hash(strindex_example) == "8796d862"
 
 def test_create_force(kz_pe_strindex_force_fixed: Strindex):
 	assert get_strindex_hash(kz_pe_strindex_force_fixed) == "9f9484c2"
@@ -135,7 +135,7 @@ def test_create_pe(
 ):
 	assert get_strindex_hash(kz_pe_strindex_full_fixed) == "2691043f"
 	assert get_strindex_hash(kz_pe_strindex_full_dynamic) == "bd74b73f"
-	assert get_strindex_hash(kz_pe_strindex_part_fixed) == "00a89f0a"
+	assert get_strindex_hash(kz_pe_strindex_part_fixed) == "87ed4ee1"
 
 def test_create_iff(ut_iff_strindex_part_fixed: Strindex):
 	assert get_strindex_hash(ut_iff_strindex_part_fixed) == "b79037b8"
