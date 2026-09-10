@@ -166,12 +166,31 @@ class StrindexSettings:
 		self._whitelist_set = self.handle_whitelist(self.whitelist)
 
 	@classmethod
-	def read_from_toml_data(cls, toml_data: str) -> "StrindexSettings":
+	def toml_parse(cls, toml_str: str) -> "StrindexSettings":
 		""" Reads the settings from TOML data. """
 		try:
-			return cls(**tomllib.loads(toml_data), _raw=toml_data)
+			return cls(**tomllib.loads(toml_str), _raw=toml_str)
 		except Exception as e:
 			raise ValueError(f"Error parsing Strindex TOML header:\n{e}") from e
+
+	def toml_dumps(self) -> str: # HACK
+		""" Dumps the settings to a TOML string. """
+
+		def formatter(val):
+			if isinstance(val, list):
+				return "[ " + ", ".join(formatter(v) for v in val) + " ]"
+			if isinstance(val, dict):
+				return "{ " + ", ".join(f'"{k}" = "{v}"' for k, v in val.items()) + " }"
+			if isinstance(val, bytes):
+				return f'"{val.hex()}"'
+			if isinstance(val, range):
+				return f'"{val.start:08x}:{val.stop - 1:08x}"'
+			return JSONEncoder(ensure_ascii=False).encode(val)
+
+		dumps = ""
+		for key, value in self.get_changed().items():
+			dumps += f"{key} = {formatter(value)}\n"
+		return dumps
 
 	def get_changed(self) -> dict:
 		""" Returns a dictionary with the settings that are different from the default settings. """
@@ -243,11 +262,18 @@ class StrindexSettings:
 		return next((f.metadata.get("help") for f in dataclasses.fields(StrindexSettings) if f.name == var), None)
 
 	def __repr__(self) -> str:
-		return str(self.get_dict())
+		return str(self.get_changed())
 
 
 class Strindex:
 	""" A class to parse and create strindex files. """
+
+	settings: StrindexSettings
+
+	types: list[int]
+	pointers: list[list[int | str | bool]]
+	strings: list[str]
+
 
 	class Type:
 		FIXED = 1
@@ -261,6 +287,7 @@ class Strindex:
 	DYNAMIC_PREFIX = POINTERS_PREFIX + "d" + TOKEN_DELIMITER
 	DYNAMIC_TRUE = "+"
 	DYNAMIC_FALSE = "-"
+
 
 	_UNESCAPE_DICT: ClassVar[dict[str, str]] = {
 		"\\": "\\",
@@ -283,31 +310,6 @@ class Strindex:
 	def escape_ctrl(string: str) -> str: # HACK
 		return string.translate(Strindex._ESCAPE_MAP)
 
-	@staticmethod
-	def toml_dumps(obj: dict) -> str: # HACK
-		""" Dumps a dictionary to a TOML string. """
-
-		def formatter(val):
-			if isinstance(val, list):
-				return "[ " + ", ".join(formatter(v) for v in val) + " ]"
-			if isinstance(val, dict):
-				return "{ " + ", ".join(f'"{k}" = "{v}"' for k, v in val.items()) + " }"
-			if isinstance(val, bytes):
-				return f'"{val.hex()}"'
-			if isinstance(val, range):
-				return f'"{val.start:08x}:{val.stop - 1:08x}"'
-			return JSONEncoder(ensure_ascii=False).encode(val)
-
-		dumps = ""
-		for key, value in obj.items():
-			dumps += f"{key} = {formatter(value)}\n"
-		return dumps
-
-	settings: StrindexSettings
-
-	types: list[int]
-	pointers: list[list[int | str | bool]]
-	strings: list[str]
 
 	@property
 	def count(self) -> int:
@@ -425,7 +427,7 @@ class Strindex:
 					break
 				full_header += line
 
-			strindex.settings = StrindexSettings.read_from_toml_data(full_header)
+			strindex.settings = StrindexSettings.toml_parse(full_header)
 
 			while line := f.readline():
 				strindex.parse_body_line(line)
@@ -465,12 +467,10 @@ class Strindex:
 			if self.settings._raw is not None:
 				f.write(self.settings._raw)
 			else:
-				toml_dump = Strindex.toml_dumps(self.settings.get_changed())
-
 				if self.settings._minimal:
-					f.write(toml_dump)
+					f.write(self.settings.toml_dumps())
 				else:
-					f.write(HEADER_INFO + "\n" + toml_dump + "\n")
+					f.write(HEADER_INFO + "\n" + self.settings.toml_dumps() + "\n")
 					if self.count > 0:
 						f.write(FIXED_INFO if self.types[0] == Strindex.Type.FIXED else DYNAMIC_INFO)
 
@@ -524,6 +524,16 @@ class Strindex:
 			f"Types, pointers and strings lists are not the same length"
 			f" ({len(self.types)} != {len(self.pointers)} != {len(self.strings)})."
 		)
+
+	def __repr__(self) -> str:
+		def dump_body_range(indexes: range) -> str:
+			return "\n".join(self.dump_body_entry(i).replace("\n", "\t") for i in indexes)
+
+		return (
+			dump_body_range(range(3)) +
+			(f"\n...{self.count - 6} more...\n" if self.count > 10 else "") +
+			dump_body_range(range(self.count - 3, self.count))
+		) if self.count > 10 else dump_body_range(range(self.count))
 
 
 class FileBuffer(bytearray):
