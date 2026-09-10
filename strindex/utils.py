@@ -297,8 +297,8 @@ class Strindex:
 	}
 	_UNESCAPE_RE = re.compile(r"\\([\\tnr])")
 	@staticmethod
-	def unescape_ctrl(s: str) -> str: # HACK
-		return Strindex._UNESCAPE_RE.sub(lambda m: Strindex._UNESCAPE_DICT[m.group(1)], s)
+	def unescape_ctrl(string: str) -> str: # HACK
+		return Strindex._UNESCAPE_RE.sub(lambda m: Strindex._UNESCAPE_DICT[m.group(1)], string)
 
 	_ESCAPE_MAP = str.maketrans({
 		"\\": r"\\",
