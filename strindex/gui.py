@@ -287,12 +287,9 @@ class MainStrindexGUI(BaseStrindexGUI):
 			if hasattr(self, "tab_widget") else self.sizeHint().height()
 		)
 
-		if sys.platform == "win32":
-			self.setMinimumWidth(650)
-			self.setMaximumWidth(1600)
-			self.setFixedHeight(height_hint)
-		else:
-			self.setFixedSize(800, height_hint)
+		self.setMinimumWidth(450)
+		self.setMaximumWidth(1280)
+		self.setFixedHeight(height_hint)
 
 	def setup(self):
 		self.tab_widget = QtWidgets.QTabWidget()
