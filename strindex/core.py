@@ -110,7 +110,7 @@ def update(
 		try:
 			if strindex.types[i] == Strindex.Type.FIXED:
 				search_index = strindex_updated.pointers.index(strindex.pointers[i], search_index)
-			elif strindex.types[i] == Strindex.Type.DYNAMIC:
+			if strindex.types[i] == Strindex.Type.DYNAMIC:
 				search_index = strindex_updated.strings.index(strindex.pointers[i][0], search_index)
 		except ValueError:
 			strindex.pointers[i] = [] if strindex.types[i] == Strindex.Type.FIXED else strindex.pointers[i][:1]
