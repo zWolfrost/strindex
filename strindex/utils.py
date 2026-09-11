@@ -334,11 +334,21 @@ class Strindex:
 			for type, pointers, string in zip(self.types, self.pointers, self.strings, strict=True)
 		]
 
-	def get_offsets_or_original(self) -> list[str]:
-		return [
-			(",".join(str(p) for p in pointers) if type == Strindex.Type.FIXED else string[0])
-			for type, pointers, string in zip(self.types, self.pointers, self.strings, strict=True)
-		]
+	def get_identifications(self) -> list[str]:
+		ids = []
+		last_offset = 0
+		for type, pointers in zip(self.types, self.pointers, strict=True):
+			if type == Strindex.Type.FIXED:
+				for p in pointers:
+					if p > last_offset:
+						last_offset = p
+						break
+				else:
+					last_offset = pointers[0]
+				ids.append(str(last_offset))
+			if type == Strindex.Type.DYNAMIC:
+				ids.append(pointers[0])
+		return ids
 
 
 	def __init__(self):

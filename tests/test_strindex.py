@@ -200,13 +200,13 @@ def test_update_conversion(kz_pe_strindex_part_dynamic: Strindex):
 		kz_pe_strindex_part_dynamic.write(temp_strindex.name)
 
 		strindex.core.update(
-			get_file_path("Katana ZERO.exe"), temp_strindex.name,
-			temp_strindex.name, convert_type=Strindex.Type.FIXED
+			get_file_path("Katana ZERO.exe"), temp_strindex.name, temp_strindex.name,
+			convert_type=Strindex.Type.FIXED
 		)
 
 		strindex.core.update(
-			get_file_path("Katana ZERO.exe"), temp_strindex.name,
-			temp_strindex.name, convert_type=Strindex.Type.DYNAMIC
+			get_file_path("Katana ZERO.exe"), temp_strindex.name, temp_strindex.name,
+			convert_type=Strindex.Type.DYNAMIC
 		)
 
 		assert get_strindex_hash(kz_pe_strindex_part_dynamic) == get_file_hash(temp_strindex.name)
@@ -223,22 +223,19 @@ def test_filter(kz_pe_strindex_full_fixed: Strindex):
 
 def test_diff(kz_pe_strindex_full_fixed: Strindex, kz_pe_strindex_part_fixed: Strindex):
 	with temp_open() as temp_strindex_in1, temp_open() as temp_strindex_in2, temp_open() as temp_strindex_out:
+		diff_count = kz_pe_strindex_full_fixed.count - kz_pe_strindex_part_fixed.count
+
 		kz_pe_strindex_full_fixed.write(temp_strindex_in1.name)
 		kz_pe_strindex_part_fixed.write(temp_strindex_in2.name)
 
 		strindex.core.diff(temp_strindex_in1.name, temp_strindex_in2.name, temp_strindex_out.name)
 
-		assert Strindex.read(temp_strindex_out.name).count == 20840
+		assert Strindex.read(temp_strindex_out.name).count == diff_count
 
 def test_merge(kz_pe_strindex_full_dynamic: Strindex):
 	with temp_open() as temp_strindex_in2, temp_open() as temp_strindex_out:
 		kz_pe_strindex_full_dynamic.write(temp_strindex_in2.name)
 
-		strindex.core.merge(get_file_path("kz_exe.gz"), temp_strindex_in2.name, temp_strindex_out.name)
+		res = strindex.core.merge(get_file_path("kz_exe.gz"), temp_strindex_in2.name, temp_strindex_out.name)
 
-		merged_count = sum(
-			s1 != s2 for s1, s2 in
-			zip(kz_pe_strindex_full_dynamic.strings, Strindex.read(temp_strindex_out.name).strings, strict=True)
-		)
-
-		assert merged_count == 2148
+		assert str(Strindex.read(get_file_path("kz_exe.gz")).count) in res

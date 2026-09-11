@@ -271,8 +271,8 @@ def diff(strindex_1_filepath: str, strindex_2_filepath: str, strindex_diff_filep
 
 	initial_count = strindex_1.count
 
-	strindex_1_ids = strindex_1.get_offsets_or_original()
-	strindex_2_ids = strindex_2.get_offsets_or_original()
+	strindex_1_ids = strindex_1.get_identifications()
+	strindex_2_ids = strindex_2.get_identifications()
 
 	search_index = 0
 	for i in range(strindex_2.count):
@@ -312,8 +312,8 @@ def merge(strindex_1_filepath: str, strindex_2_filepath: str, strindex_merged_fi
 	strindex_1 = Strindex.read(strindex_1_filepath)
 	strindex_2 = Strindex.read(strindex_2_filepath)
 
-	strindex_1_ids = strindex_1.get_overwrite_or_original()
-	strindex_2_ids = strindex_2.get_overwrite_or_original()
+	strindex_1_ids = strindex_1.get_identifications()
+	strindex_2_ids = strindex_2.get_identifications()
 
 	merged_entries = 0
 	search_index = 0
@@ -332,7 +332,7 @@ def merge(strindex_1_filepath: str, strindex_2_filepath: str, strindex_merged_fi
 	strindex_2.write(strindex_merged_filepath)
 
 	return Print.success(
-		f"Created merged strindex file with {merged_entries} entries merged out of {strindex_2.count} at\n"
+		f"Created merged strindex file with {merged_entries} entries merged out of {strindex_1.count} at\n"
 		f"{strindex_merged_filepath}"
 	)
 
