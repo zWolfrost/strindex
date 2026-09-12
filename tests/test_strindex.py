@@ -119,9 +119,8 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 	strindex_example = deepcopy(strindex_example)
 	strindex_example.settings._raw = None
 
-	strindex_example.strings = []
-	strindex_example.pointers = []
-	strindex_example.types = []
+	for i in reversed(range(strindex_example.count)):
+		strindex_example.delete_index(i)
 
 	assert get_strindex_hash(strindex_example) == "8796d862"
 
@@ -211,15 +210,23 @@ def test_update_conversion(kz_pe_strindex_part_dynamic: Strindex):
 
 		assert get_strindex_hash(kz_pe_strindex_part_dynamic) == get_file_hash(temp_strindex.name)
 
-def test_filter(kz_pe_strindex_full_fixed: Strindex):
+def test_infer(kz_pe_strindex_part_fixed: Strindex):
+	with temp_open() as temp_strindex_in:
+		kz_pe_strindex_part_fixed.write(temp_strindex_in.name)
+
+		infer = strindex.core.infer(get_file_path("Katana ZERO.exe"), temp_strindex_in.name)
+
+		assert FileBuffer(infer.encode()).hash == "710e6836"
+
+def test_filter():
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:
-		kz_pe_strindex_full_fixed = deepcopy(kz_pe_strindex_full_fixed)
-		kz_pe_strindex_full_fixed.settings = StrindexSettings(min_length=3, whitelist=["latin"])
-		kz_pe_strindex_full_fixed.write(temp_strindex_in.name)
+		kz_exe_gz = Strindex.read(get_file_path("kz_exe.gz"))
+		kz_exe_gz.settings = StrindexSettings(min_length=5, whitelist=["latin"])
+		kz_exe_gz.write(temp_strindex_in.name)
 
 		strindex.core.filter(temp_strindex_in.name, temp_strindex_out.name)
 
-		assert Strindex.read(temp_strindex_out.name).count == 24180
+		assert Strindex.read(temp_strindex_out.name).count == 706
 
 def test_diff(kz_pe_strindex_full_fixed: Strindex, kz_pe_strindex_part_fixed: Strindex):
 	with temp_open() as temp_strindex_in1, temp_open() as temp_strindex_in2, temp_open() as temp_strindex_out:
@@ -239,3 +246,14 @@ def test_merge(kz_pe_strindex_full_dynamic: Strindex):
 		res = strindex.core.merge(get_file_path("kz_exe.gz"), temp_strindex_in2.name, temp_strindex_out.name)
 
 		assert str(Strindex.read(get_file_path("kz_exe.gz")).count) in res
+
+def test_spellcheck():
+	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:
+		kz_exe_gz = Strindex.read(get_file_path("kz_exe.gz"))
+		for i in reversed((*range(0, 120), *range(140, kz_exe_gz.count))):
+			kz_exe_gz.delete_index(i)
+		kz_exe_gz.write(temp_strindex_in.name)
+
+		strindex.core.spellcheck(temp_strindex_in.name, temp_strindex_out.name)
+
+		assert get_file_hash(temp_strindex_out.name) == "7fc987d2"

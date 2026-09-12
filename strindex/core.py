@@ -6,7 +6,7 @@ from pathlib import Path
 from strindex.filetypes import ModuleWrapper
 from strindex.utils import FileBuffer, Print, Progress, Strindex, StrindexSettings
 
-VERSION = "5.0.1"
+VERSION = "5.0.2"
 
 
 def edit_extension(filepath: str, suffix: str) -> str:
@@ -177,7 +177,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 				break
 
 			got_any = True
-			infer_output += f"Length {length*2:02}: " + ", ".join(a.hex() for a in affixes) + "\n"
+			infer_output += f"Length {length*2:02}: " + ", ".join(a.hex() for a in sorted(affixes)) + "\n"
 
 			affixes.clear()
 			length += 1

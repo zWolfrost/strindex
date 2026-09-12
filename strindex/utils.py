@@ -261,7 +261,7 @@ class StrindexSettings:
 	def get_doc(var):
 		return next((f.metadata.get("help") for f in dataclasses.fields(StrindexSettings) if f.name == var), None)
 
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		return str(self.get_changed())
 
 
@@ -535,7 +535,7 @@ class Strindex:
 			f" ({len(self.types)} != {len(self.pointers)} != {len(self.strings)})."
 		)
 
-	def __repr__(self) -> str:
+	def __str__(self) -> str:
 		def dump_body_range(indexes: range) -> str:
 			return "\n".join(self.dump_body_entry(i).replace("\n", "\t") for i in indexes)
 
