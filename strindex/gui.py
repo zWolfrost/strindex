@@ -6,6 +6,7 @@ from pathlib import Path
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import QTimer
 
+import strindex
 import strindex.core
 from strindex.utils import Progress, Strindex, StrindexSettings
 
@@ -256,7 +257,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 
 		self.app = QtWidgets.QApplication([])
 		self.app.setApplicationName("Strindex")
-		self.app.setApplicationVersion(strindex.core.VERSION)
+		self.app.setApplicationVersion(strindex.__version__)
 		self.app.setOrganizationName("zWolfrost")
 
 		super().__init__()
@@ -314,7 +315,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 			)
 
 		version_label = QtWidgets.QLabel(
-			f"<a href='https://github.com/zWolfrost/strindex'>v{strindex.core.VERSION}</a>"
+			f"<a href='https://github.com/zWolfrost/strindex'>v{strindex.__version__}</a>"
 			" - press F1 for help"
 		)
 		version_label.setOpenExternalLinks(True)
