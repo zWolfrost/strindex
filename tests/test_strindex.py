@@ -56,11 +56,17 @@ def strindex_example() -> Strindex:
 
 @fixture
 def kz_pe_strindex_force_fixed() -> Strindex:
-	return get_strindex("Katana ZERO.exe", StrindexSettings(_raw="", force_mode=True, min_length=3))
+	return get_strindex("Katana ZERO.exe", StrindexSettings(
+		_minimal=True,
+		force_mode=True,
+		min_length=3
+	))
 
 @fixture
 def kz_pe_strindex_full_fixed() -> Strindex:
-	return get_strindex("Katana ZERO.exe", StrindexSettings(_raw="", _dynamic=False))
+	return get_strindex("Katana ZERO.exe", StrindexSettings(
+		_minimal=True
+	))
 
 @fixture
 def kz_pe_strindex_full_dynamic(kz_pe_strindex_full_fixed: Strindex) -> Strindex:
@@ -69,7 +75,7 @@ def kz_pe_strindex_full_dynamic(kz_pe_strindex_full_fixed: Strindex) -> Strindex
 @fixture
 def kz_pe_strindex_part_fixed() -> Strindex:
 	return get_strindex("Katana ZERO.exe", StrindexSettings(
-		_dynamic=False,
+		_minimal=True,
 		min_length=3,
 		prefix_bytes=["24c7442404", "ec04c70424"],
 		ranges=["00441078:0060e501"]
@@ -82,8 +88,7 @@ def kz_pe_strindex_part_dynamic(kz_pe_strindex_part_fixed: Strindex) -> Strindex
 @fixture
 def ut_iff_strindex_part_fixed() -> Strindex:
 	return get_strindex("data.win", StrindexSettings(
-		_raw="",
-		_dynamic=False,
+		_minimal=True,
 		min_length=3,
 		prefix_bytes=["d000"],
 		ranges=["00c96ce0:00c98410"]
@@ -91,7 +96,9 @@ def ut_iff_strindex_part_fixed() -> Strindex:
 
 @fixture
 def mole_locres_strindex_full_fixed() -> Strindex:
-	return get_strindex("Game.locres", StrindexSettings(_raw="", _dynamic=False))
+	return get_strindex("Game.locres", StrindexSettings(
+		_minimal=True
+	))
 
 @fixture
 def mole_locres_strindex_full_dynamic(mole_locres_strindex_full_fixed: Strindex) -> Strindex:
@@ -125,22 +132,22 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 	assert get_strindex_hash(strindex_example) == "8796d862"
 
 def test_create_force(kz_pe_strindex_force_fixed: Strindex):
-	assert get_strindex_hash(kz_pe_strindex_force_fixed) == "9f9484c2"
+	assert get_strindex_hash(kz_pe_strindex_force_fixed) == "02a48611"
 
 def test_create_pe(
 	kz_pe_strindex_full_fixed: Strindex,
 	kz_pe_strindex_full_dynamic: Strindex,
 	kz_pe_strindex_part_fixed: Strindex
 ):
-	assert get_strindex_hash(kz_pe_strindex_full_fixed) == "2691043f"
-	assert get_strindex_hash(kz_pe_strindex_full_dynamic) == "bd74b73f"
-	assert get_strindex_hash(kz_pe_strindex_part_fixed) == "87ed4ee1"
+	assert get_strindex_hash(kz_pe_strindex_full_fixed) == "167d88c6"
+	assert get_strindex_hash(kz_pe_strindex_full_dynamic) == "73a5b40d"
+	assert get_strindex_hash(kz_pe_strindex_part_fixed) == "dd301364"
 
 def test_create_iff(ut_iff_strindex_part_fixed: Strindex):
-	assert get_strindex_hash(ut_iff_strindex_part_fixed) == "b79037b8"
+	assert get_strindex_hash(ut_iff_strindex_part_fixed) == "72f1fd5c"
 
 def test_create_locres(mole_locres_strindex_full_fixed: Strindex):
-	assert get_strindex_hash(mole_locres_strindex_full_fixed) == "3775c199"
+	assert get_strindex_hash(mole_locres_strindex_full_fixed) == "d5462d92"
 
 def test_patch_pe(kz_pe_strindex_full_fixed: Strindex, kz_pe_strindex_part_fixed: Strindex):
 	with temp_open() as temp_strindex, temp_open() as temp_file:
@@ -171,8 +178,12 @@ def test_patch_locres(mole_locres_strindex_full_fixed: Strindex, mole_locres_str
 		strindex.core.patch(get_file_path("Game.locres"), get_file_path("locres_strindex.txt"), temp_file.name)
 		assert get_file_hash(temp_file.name) == "811cc32e"
 
-def test_patch_force():
+def test_patch_force(kz_pe_strindex_force_fixed: Strindex):
 	with temp_open() as temp_strindex, temp_open() as temp_file:
+		kz_pe_strindex_force_fixed.write(temp_strindex.name)
+		strindex.core.patch(get_file_path("Katana ZERO.exe"), temp_strindex.name, temp_file.name)
+		assert get_file_hash(temp_file.name) == get_file_hash(get_file_path("Katana ZERO.exe"))
+
 		temp_strindex_force = Strindex.read(get_file_path("locres_strindex.txt"))
 		temp_strindex_force.settings._raw = None
 		temp_strindex_force.settings.force_mode = True
