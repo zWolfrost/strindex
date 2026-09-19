@@ -1,5 +1,6 @@
 # nuitka-project: --product-name=strindex
-# nuitka-project: --product-version=5.0.2
+# nuitka-project-set: STRINDEX_VERSION = __import__("strindex").__version__
+# nuitka-project: --product-version={STRINDEX_VERSION}
 
 # nuitka-project: --mode=app
 

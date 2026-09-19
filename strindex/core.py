@@ -3,16 +3,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+import strindex
 from strindex.filetypes import ModuleWrapper
 from strindex.utils import FileBuffer, Print, Progress, Strindex, StrindexSettings
-
-VERSION = "5.0.2"
 
 
 def edit_extension(filepath: str, suffix: str) -> str:
 	path = Path(filepath)
 	return path.with_name(path.stem + suffix).resolve().as_posix()
-
 
 
 def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings) -> str:
@@ -430,7 +428,7 @@ def get_parser() -> argparse.ArgumentParser:
 		help="Suppress all output except for errors.")
 	parser.add_argument("-v", "--verbose", action="store_true",
 		help="Print full error messages.")
-	parser.add_argument("--version", action="version", version=VERSION,
+	parser.add_argument("--version", action="version", version=strindex.__version__,
 		help="Show the version of strindex and exit.")
 
 	write_parser = parser.add_argument_group("[create] exclusive writing options")

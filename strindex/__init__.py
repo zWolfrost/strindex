@@ -6,3 +6,4 @@ except ImportError:
 	gui = None
 
 __all__ = ["core", "gui", "utils"]
+__version__ = "5.0.2"
