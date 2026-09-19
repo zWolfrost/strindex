@@ -261,7 +261,7 @@ def test_merge(kz_pe_strindex_full_dynamic: Strindex):
 def test_spellcheck():
 	with temp_open() as temp_strindex_in, temp_open() as temp_strindex_out:
 		kz_exe_gz = Strindex.read(get_file_path("kz_exe.gz"))
-		for i in reversed((*range(0, 120), *range(140, kz_exe_gz.count))):
+		for i in reversed((*range(0, 120), *range(140, kz_exe_gz.count))): # noqa: PIE808
 			kz_exe_gz.delete_index(i)
 		kz_exe_gz.write(temp_strindex_in.name)
 

@@ -1,6 +1,7 @@
 from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 
 SETTINGS = ModuleSettings(
+	magic_bytes=b"\x0e\x14\x74\x75",
 	default_byte_length=4,
 	default_byte_order="little",
 	supports_dynamic=True
@@ -76,10 +77,6 @@ def get_structures_dict(data: FileBuffer) -> dict[int, tuple[int, int, str]]:
 	Print.debug(f"Found {len(structures)} strings.")
 
 	return structures
-
-
-def match(data: FileBuffer) -> bool:
-	return data[0:4] == b"\x0e\x14\x74\x75"
 
 
 def create(data: FileBuffer, strindex: Strindex) -> Strindex:

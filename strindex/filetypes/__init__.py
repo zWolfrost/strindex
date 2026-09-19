@@ -5,7 +5,7 @@ from strindex.utils import FileBuffer, ModuleProtocol, Print, Strindex, Strindex
 
 MODULES = [iff, locres, pe]
 
-def use_force_module(force_mode):
+def force_module_override(force_mode):
 	def decorator(func):
 		@functools.wraps(func)
 		def wrapper(self: "ModuleWrapper", *args, **kwargs):
@@ -71,9 +71,9 @@ class ModuleWrapper:
 
 	def match(self, data: FileBuffer) -> bool:
 		""" Checks if the file is of the target filetype. """
-		return self.module.match(self.init(data)) if self.module else False
+		return self.module and self.module.SETTINGS.magic_bytes and data.startswith(self.module.SETTINGS.magic_bytes)
 
-	@use_force_module(lambda _, settings: settings.force_mode)
+	@force_module_override(lambda _, settings: settings.force_mode)
 	def create(self, data: FileBuffer, settings: StrindexSettings) -> Strindex:
 		""" Creates a Strindex object from the file data. """
 		empty_strindex = Strindex()
@@ -113,7 +113,7 @@ class ModuleWrapper:
 
 		return strindex
 
-	@use_force_module(lambda _, strindex: strindex.settings.force_mode)
+	@force_module_override(lambda _, strindex: strindex.settings.force_mode)
 	def patch(self, data: FileBuffer, strindex: Strindex) -> FileBuffer:
 		""" Patches the file data with the Strindex object. """
 		if strindex.settings.hash and strindex.settings.hash != data.hash:

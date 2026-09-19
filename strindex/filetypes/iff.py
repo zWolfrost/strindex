@@ -4,6 +4,7 @@
 from strindex.utils import FileBuffer, ModuleSettings, Strindex
 
 SETTINGS = ModuleSettings(
+	magic_bytes=b"FORM",
 	default_byte_length=4,
 	default_byte_order="little",
 	filter_after_create=False,
@@ -19,11 +20,6 @@ def get_last_chunk_pointer(data: FileBuffer) -> int:
 			prev_offset = data.cursor - 4
 		data.cursor += size + 4
 	return prev_offset
-
-
-def match(data: FileBuffer) -> bool:
-	""" Checks if the file is an IFF file. """
-	return data[0:4] == b"FORM"
 
 
 def create(data: FileBuffer, strindex: Strindex) -> Strindex:

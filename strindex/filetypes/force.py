@@ -5,10 +5,6 @@ SETTINGS = ModuleSettings(
 )
 
 
-def match(_: FileBuffer) -> bool:
-	return False
-
-
 def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 	for string, start_offset, _ in data.strings_find():
 		strindex.pointers.append([start_offset])

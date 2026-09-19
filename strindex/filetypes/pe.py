@@ -7,6 +7,7 @@ import pefile
 from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 
 SETTINGS = ModuleSettings(
+	magic_bytes=b"\x4d\x5a",
 	default_byte_order="little",
 	filter_after_create=False,
 	supports_dynamic=True
@@ -16,8 +17,23 @@ SECTION_NAME = b".strdex"
 
 
 class PEFileWrapper(pefile.PE):
-	def __init__(self, data: bytearray):
-		super().__init__(data=bytes(data), fast_load=True)
+	def __init__(self, data: FileBuffer):
+		try:
+			super().__init__(data=bytes(data), fast_load=True)
+		except pefile.PEFormatError as e:
+			raise ValueError("This PE file is invalid or corrupted.") from e
+
+		if self.section_exists(SECTION_NAME):
+			raise ValueError(
+				f'This file contains a "{SECTION_NAME.decode('utf-8')}" section;\n'
+				"It has likely already been patched once, and can't be patched again."
+			)
+
+		if b"\0Cabinet.dll\0" in data:
+			Print.warning(
+				"This PE file is likely a self-extracting CAB file;\n"
+				"You might want to extract the embedded files first."
+			)
 
 
 	def get_new_section_rva(self) -> int:
@@ -215,34 +231,8 @@ class PEFileWrapper(pefile.PE):
 		return 4 if self.OPTIONAL_HEADER.Magic == 0x10b else 8
 
 
-def match(data: FileBuffer) -> bool:
-	""" Checks if the file is a valid PE file. """
-	if data[0:2] != b"\x4d\x5a":
-		return False
-
-	try:
-		PEFileWrapper(data)
-	except pefile.PEFormatError:
-		return False
-
-	if b"\0Cabinet.dll\0" in data:
-		Print.warning(
-			"This PE file is likely a self-extracting CAB file;\n"
-			"You might want to extract the embedded files first."
-		)
-
-	return True
-
-
 def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 	pe = PEFileWrapper(data)
-
-	if pe.section_exists(SECTION_NAME):
-		Print.warning(
-			f'This file contains a "{SECTION_NAME.decode('utf-8')}" section;\n'
-			"It has likely already been patched once."
-		)
-
 	data.byte_length = pe.byte_length
 
 	return data.create_pointers_macro(
@@ -258,12 +248,6 @@ def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	"""
 
 	pe = PEFileWrapper(data)
-
-	if pe.section_exists(SECTION_NAME):
-		raise ValueError(
-			f"This file already contains a \"{SECTION_NAME.decode('utf-8')}\" section. It can't be patched again."
-		)
-
 	data.byte_length = pe.byte_length
 
 	STRDEX_SECTION_BASE_RVA = pe.get_new_section_rva() + pe.OPTIONAL_HEADER.ImageBase
@@ -275,7 +259,7 @@ def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 		lambda string: string.encode("utf-8") + b"\x00"
 	)
 
-	pe = PEFileWrapper(data)
+	pe.__data__ = bytes(data)
 	pe.add_section(Name=SECTION_NAME, Data=new_data, Characteristics=0xF0000040)
 
 	return FileBuffer(pe.write())

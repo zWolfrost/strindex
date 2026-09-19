@@ -851,6 +851,8 @@ class FileBuffer(bytearray):
 
 @dataclasses.dataclass(frozen=True)
 class ModuleSettings:
+	magic_bytes: bytes | None = None
+	"""Magic bytes that identify the file type for this module."""
 	default_byte_length: int | None = None
 	"""Default byte length for the file buffer."""
 	default_byte_order: str | None = None
@@ -858,14 +860,13 @@ class ModuleSettings:
 	filter_after_create: bool = True
 	"""Whether to filter the strindex after returning it using its settings."""
 	supports_dynamic: bool = False
+	"""Whether this module supports patching using dynamic pointers."""
 
 
 class ModuleProtocol(Protocol):
 	SETTINGS: ModuleSettings
 	"""Settings specific to this module."""
-	match: Callable[[FileBuffer], bool]
-	"""Return True if a file buffer (bytearray) is compatible with this module."""
-	create: Callable[[FileBuffer, StrindexSettings], Strindex]
+	create: Callable[[FileBuffer, Strindex], Strindex]
 	"""Add strings & pointers to the strindex by extracting them from a file buffer (bytearray)."""
 	patch: Callable[[FileBuffer, Strindex], FileBuffer]
 	"""Patch a file buffer (bytearray) using the strings & pointers from the provided strindex."""
