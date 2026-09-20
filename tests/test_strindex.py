@@ -129,7 +129,7 @@ def test_strindex_settings_rw(strindex_example: Strindex):
 	for i in reversed(range(strindex_example.count)):
 		strindex_example.delete_index(i)
 
-	assert get_strindex_hash(strindex_example) == "57c566ef"
+	assert get_strindex_hash(strindex_example) == "9ed0abc3"
 
 def test_create_force(kz_pe_strindex_force_fixed: Strindex):
 	assert get_strindex_hash(kz_pe_strindex_force_fixed) == "02a48611"

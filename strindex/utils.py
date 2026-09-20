@@ -461,7 +461,7 @@ class Strindex:
 		""" Saves the strindex data to a file. """
 
 		HEADER_INFO = (
-			"# For more information on how strindex files work, please refer to:\n"
+			"# For more information about how strindex files work, please refer to:\n"
 			"# https://github.com/zWolfrost/strindex/blob/main/strindex_example.txt\n"
 		)
 		FIXED_INFO = (
