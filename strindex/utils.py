@@ -488,7 +488,7 @@ class Strindex:
 				else:
 					f.write(HEADER_INFO + "\n" + self.settings.toml_dumps() + "\n")
 					if self.count > 0:
-						f.write(FIXED_INFO if self.types[0] == Strindex.Type.FIXED else DYNAMIC_INFO)
+						f.write(DYNAMIC_INFO if self.settings._dynamic else FIXED_INFO)
 
 			f.writelines(self.dump_body_entry(i) for i in range(self.count))
 
