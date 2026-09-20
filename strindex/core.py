@@ -13,7 +13,7 @@ def edit_extension(filepath: str, suffix: str) -> str:
 	return path.with_name(path.stem + suffix).resolve().as_posix()
 
 
-def create(file_filepath: str, strindex_filepath: str | None, settings: StrindexSettings) -> str:
+def create(binary_filepath: str, strindex_filepath: str | None, settings: StrindexSettings) -> str:
 	"""
 	Create a list of string replacement instructions (a strindex file)
 	extracting them from a binary file.
@@ -21,9 +21,9 @@ def create(file_filepath: str, strindex_filepath: str | None, settings: Strindex
 
 	Progress.init_global_instance(4)
 
-	strindex_filepath = strindex_filepath or edit_extension(file_filepath, "_strindex.txt")
+	strindex_filepath = strindex_filepath or edit_extension(binary_filepath, "_strindex.txt")
 
-	data = FileBuffer.read(file_filepath)
+	data = FileBuffer.read(binary_filepath)
 
 	strindex = ModuleWrapper.detect_from_data(data).create(data, settings)
 
@@ -32,7 +32,7 @@ def create(file_filepath: str, strindex_filepath: str | None, settings: Strindex
 	return Print.success(f"Successfully created strindex file at\n{strindex_filepath}")
 
 
-def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str | None) -> str:
+def patch(binary_filepath: str, strindex_filepath: str, binary_patched_filepath: str | None) -> str:
 	"""
 	Patch a binary file using a strindex, or, in other words,
 	replace strings in the file following the strindex instructions.
@@ -40,29 +40,32 @@ def patch(file_filepath: str, strindex_filepath: str, file_patched_filepath: str
 
 	Progress.init_global_instance(6)
 
-	backup_filepath = file_filepath + FileBuffer.read(file_filepath).hash_backup_suffix
+	binary_buffer = FileBuffer.read(binary_filepath)
+
+	backup_filepath = binary_filepath + binary_buffer.hash_backup_suffix
 
 	if Path(backup_filepath).exists():
 		Print.info("Detected backup file, patching that one instead.")
 		data = FileBuffer.read(backup_filepath)
 	else:
-		data = FileBuffer.read(file_filepath)
+		data = binary_buffer
+		Progress.global_instance()
 
 	strindex = Strindex.read(strindex_filepath)
 
 	data = ModuleWrapper.detect_from_data(data).patch(data, strindex)
 
-	if not file_patched_filepath:
-		backup_filepath = backup_filepath if Path(backup_filepath).exists() else file_filepath
-		Path(backup_filepath).replace(file_filepath + data.hash_backup_suffix)
-		file_patched_filepath = file_filepath
+	if not binary_patched_filepath:
+		backup_filepath = backup_filepath if Path(backup_filepath).exists() else binary_filepath
+		Path(backup_filepath).replace(binary_filepath + data.hash_backup_suffix)
+		binary_patched_filepath = binary_filepath
 
-	data.write(file_patched_filepath)
+	data.write(binary_patched_filepath)
 
 	return Print.success("File was patched successfully.")
 
 
-def unpatch(file_filepath: str) -> str:
+def unpatch(binary_filepath: str) -> str:
 	"""
 	Unpatch a binary file that was patched with a strindex,
 	using the backup file that's created by default.
@@ -70,20 +73,18 @@ def unpatch(file_filepath: str) -> str:
 
 	Progress.init_global_instance(1)
 
-	file_hash = FileBuffer.read(file_filepath).hash_backup_suffix
-
-	backup_filepath = file_filepath + file_hash
+	backup_filepath = binary_filepath + FileBuffer.read(binary_filepath).hash_backup_suffix
 
 	if not Path(backup_filepath).exists():
 		raise FileNotFoundError("No backup file was found to restore from.")
 
-	Path(backup_filepath).replace(file_filepath)
+	Path(backup_filepath).replace(binary_filepath)
 
 	return Print.success("File was restored from backup successfully.")
 
 
 def update(
-	file_filepath: str,
+	binary_filepath: str,
 	strindex_filepath: str,
 	strindex_updated_filepath: str | None,
 	convert_type: Strindex.Type | None = None
@@ -97,7 +98,7 @@ def update(
 
 	strindex_updated_filepath = strindex_updated_filepath or edit_extension(strindex_filepath, "_updated.txt")
 
-	data = FileBuffer.read(file_filepath)
+	data = FileBuffer.read(binary_filepath)
 
 	strindex = Strindex.read(strindex_filepath)
 	strindex_updated = ModuleWrapper.detect_from_data(data).create(data, strindex.settings)
@@ -137,7 +138,7 @@ def update(
 	return Print.success(f"Created updated strindex at\n{strindex_updated_filepath}")
 
 
-def infer(file_filepath: str, strindex_filepath: str) -> str:
+def infer(binary_filepath: str, strindex_filepath: str) -> str:
 	"""
 	Infer the most suitable values for
 	"prefix_bytes", "suffix_bytes" and "range"
@@ -154,7 +155,7 @@ def infer(file_filepath: str, strindex_filepath: str) -> str:
 	MAX_COUNT = 10
 	MAX_LENGTH = 10
 
-	data = FileBuffer.read(file_filepath)
+	data = FileBuffer.read(binary_filepath)
 
 	strindex = Strindex.read(strindex_filepath)
 

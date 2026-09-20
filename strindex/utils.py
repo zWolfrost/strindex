@@ -101,7 +101,11 @@ class Progress:
 		""" Decorator to mark a function for progress printing. """
 		@functools.wraps(func)
 		def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+			#Print.debug(f"{func.__name__}() started: ", end="")
+			#if hasattr(Progress, "global_instance"):
+			#	Progress.global_instance()
 			result = func(*args, **kwargs)
+			#Print.debug(f"{func.__name__}() completed: ", end="")
 			if hasattr(Progress, "global_instance"):
 				Progress.global_instance()
 			return result

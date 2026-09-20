@@ -35,6 +35,8 @@ class PEFileWrapper(pefile.PE):
 				"You might want to extract the embedded files first."
 			)
 
+		self.__data__ = bytearray(data)
+
 
 	def get_new_section_rva(self) -> int:
 		""" Returns the base rva for a possibly new PE section. """
@@ -56,11 +58,8 @@ class PEFileWrapper(pefile.PE):
 
 		data = b"\x00" * self.OPTIONAL_HEADER.FileAlignment
 
-		def insert_at_offset(offset: int, data: bytes):
-			self.__data__ = self.__data__[:offset] + data + self.__data__[offset:]
-
 		# Adding the null buffer.
-		insert_at_offset(self.OPTIONAL_HEADER.SizeOfHeaders, data)
+		self.__data__[self.OPTIONAL_HEADER.SizeOfHeaders:self.OPTIONAL_HEADER.SizeOfHeaders] = data
 
 		section_table_offset = (
 			self.DOS_HEADER.e_lfanew + 4 + self.FILE_HEADER.sizeof() + self.FILE_HEADER.SizeOfOptionalHeader
@@ -114,7 +113,6 @@ class PEFileWrapper(pefile.PE):
 			if section.PointerToRawData:
 				section.PointerToRawData += alignment
 
-
 	def add_section(self, Name: str, Data: str, Characteristics=0xE00000E0):
 		"""
 			Tested with pefile 1.2.10-123 on 32bit PE executable files.
@@ -164,7 +162,7 @@ class PEFileWrapper(pefile.PE):
 		RawAddress = self.sections[-1].PointerToRawData + self.sections[-1].SizeOfRawData
 
 		# Appending the data of the new section to the file.
-		self.__data__ = self.__data__[:RawAddress] + Data + self.__data__[RawAddress:]
+		self.__data__[RawAddress:RawAddress] = Data
 
 		section_offset = section_table_offset + self.FILE_HEADER.NumberOfSections * 0x28
 
@@ -259,7 +257,7 @@ def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 		lambda string: string.encode("utf-8") + b"\x00"
 	)
 
-	pe.__data__ = bytes(data)
+	pe.__data__ = bytearray(data)
 	pe.add_section(Name=SECTION_NAME, Data=new_data, Characteristics=0xF0000040)
 
 	return FileBuffer(pe.write())
