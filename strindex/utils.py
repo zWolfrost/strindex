@@ -400,25 +400,28 @@ class Strindex:
 			raise ValueError(f"Invalid line in strindex body:\n{repr(line)[1:-1]}") from e
 
 	def dump_body_entry(self, i: int) -> str:
-		if self.types[i] == Strindex.Type.FIXED:
-			escaped_string = Strindex.escape_ctrl(self.strings[i])
-			return (
-				Strindex.FIXED_PREFIX +
-				Strindex.TOKEN_DELIMITER.join(f"{p or 0:08x}" for p in self.pointers[i]) + "\n" +
-				(f"## {escaped_string}\n" if self.settings._references else "") +
-				Strindex.STRING_PREFIX + escaped_string +
-				("\n" if self.settings._minimal else "\n\n")
-			)
-		if self.types[i] == Strindex.Type.DYNAMIC:
-			return (
-				Strindex.DYNAMIC_PREFIX +
-				Strindex.escape_ctrl(self.pointers[i][0]) + Strindex.TOKEN_DELIMITER +
-				(("x" + str(len(self.pointers[i][1:]))) if all(self.pointers[i][1:]) else
-				"".join((Strindex.DYNAMIC_TRUE if p else Strindex.DYNAMIC_FALSE) for p in self.pointers[i][1:])) +
-				"\n" + Strindex.STRING_PREFIX + Strindex.escape_ctrl(self.strings[i]) +
-				("\n" if self.settings._minimal else "\n\n")
-			)
-		raise ValueError(f"Invalid strindex type: {self.types[i]}")
+		match self.types[i]:
+			case Strindex.Type.FIXED:
+				pointer_str = (
+					Strindex.FIXED_PREFIX + (Strindex.TOKEN_DELIMITER.join(f"{p or 0:08x}" for p in self.pointers[i]))
+				)
+			case Strindex.Type.DYNAMIC:
+				pointer_str = (
+					Strindex.DYNAMIC_PREFIX + Strindex.escape_ctrl(self.pointers[i][0]) + Strindex.TOKEN_DELIMITER +
+					(("x" + str(len(self.pointers[i][1:]))) if all(self.pointers[i][1:]) else
+					"".join((Strindex.DYNAMIC_TRUE if p else Strindex.DYNAMIC_FALSE) for p in self.pointers[i][1:]))
+				)
+			case _:
+				raise ValueError(f"Invalid strindex type: {self.types[i]}")
+
+		escaped_string = Strindex.escape_ctrl(self.strings[i])
+
+		return (
+			pointer_str + "\n" +
+			(f"## {escaped_string}\n" if self.settings._references else "") +
+			Strindex.STRING_PREFIX + escaped_string +
+			("\n" if self.settings._minimal else "\n\n")
+		)
 
 	@classmethod
 	@Progress.global_mark
@@ -458,18 +461,17 @@ class Strindex:
 		""" Saves the strindex data to a file. """
 
 		HEADER_INFO = (
-			"# You can freely create & delete comments anywhere in the strindex file.\n"
-			"# For more information about strindex files' settings and syntax, see:\n"
+			"# For more information on how strindex files work, please refer to:\n"
 			"# https://github.com/zWolfrost/strindex/blob/main/strindex_example.txt\n"
 		)
 		FIXED_INFO = (
-			"# EXAMPLE OF REPLACEMENT:\n"
+			"# EXAMPLE OF REPLACEMENT INSTRUCTION:\n"
 			f"# {Strindex.FIXED_PREFIX}"
 			f"[pointer]{Strindex.TOKEN_DELIMITER}[pointer]{Strindex.TOKEN_DELIMITER}[...]\n"
 			f"# {Strindex.STRING_PREFIX}replace the string that was previously provided here, with this one!\n\n"
 		)
 		DYNAMIC_INFO = (
-			"# EXAMPLE OF REPLACEMENT:\n"
+			"# EXAMPLE OF REPLACEMENT INSTRUCTION:\n"
 			f"# {Strindex.DYNAMIC_PREFIX}"
 			f"replace this string...{Strindex.TOKEN_DELIMITER}[reallocate N pointers if [xN] OR [+/-] N times]\n"
 			f"# {Strindex.STRING_PREFIX}...with this string!\n\n"
