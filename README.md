@@ -60,7 +60,8 @@ Here is a *non-exhaustive* list of programs/videogames that have been verified t
 |--------------------------------------------------------------------|--------------------------|-------
 | [**Katana ZERO**](https://store.steampowered.com/app/460950)       | `Katana ZERO.exe` (PE)   |
 | [**Nuclear Throne**](https://store.steampowered.com/app/242680)    | `nuclearthrone.exe` (PE) | *
-| [**Persona 4 Golden**](https://store.steampowered.com/app/1113000) | `P4G.exe` (PE)           | Notably, the only text that is embedded in this game's .exe file are cutscene subtitles.
+| [**Hotline Miami 2**](https://store.steampowered.com/app/219150)   | `HotlineMiami2.exe` (PE) | Notably, the only strings that are embedded in this game's .exe file belong to the level editor.
+| [**Persona 4 Golden**](https://store.steampowered.com/app/1113000) | `P4G.exe` (PE)           | Notably, the only strings that are embedded in this game's .exe file belong to cutscene subtitles.
 | [**Undertale**](https://store.steampowered.com/app/391540)         | `data.win` (IFF)         |
 | [**MOLE**](https://store.steampowered.com/app/4064510)             | `Game.locres` (locres)   | `Game.locres` is "packed" in `Mole-Windows.pak` (which must be extracted first, using a tool like [repak](https://github.com/trumank/repak)).
 
