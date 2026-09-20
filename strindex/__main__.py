@@ -17,6 +17,10 @@
 # nuitka-project: --noinclude-dlls=libQt6OpenGL*
 # nuitka-project: --noinclude-dlls=libQt6Svg*
 
+# nuitka-project: --nofollow-import-to=_hashlib
+# nuitka-project: --noinclude-dlls=libcrypto*
+# nuitka-project: --noinclude-dlls=libssl*
+
 # nuitka-project: --nofollow-import-to=lingua
 # nuitka-project: --nofollow-import-to=language_tool_python
 
