@@ -130,6 +130,8 @@ def update(
 			f"{no_pointers_count} strings could not be found and therefore\n"
 			"will have no pointers in the updated strindex file."
 		)
+	else:
+		Print.info("All strings were found and updated successfully.")
 
 	Progress.global_instance()
 
