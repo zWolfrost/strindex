@@ -54,7 +54,7 @@ class ModuleWrapper:
 			generic_module.module = module
 			if generic_module.match(data):
 				filetype = module.__name__.split(".")[-1]
-				Print.info(f'Detected filetype: "{filetype}".')
+				Print.debug(f'Detected filetype: "{filetype}".')
 				break
 		else:
 			generic_module.module = None
