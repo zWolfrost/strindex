@@ -56,8 +56,8 @@ You can find an example of a strindex file and an explanation of its settings [h
 ## Verified programs/videogames
 Here is a *non-exhaustive* list of programs/videogames that have been verified to work and can be modified using strindex:
 
-| Name                                                               | File name & type         | Notes
-|--------------------------------------------------------------------|--------------------------|-------
+| Name                                                                         | File name & type         | Notes
+|:-----------------------------------------------------------------------------|:-------------------------|:-:
 | [**Katana ZERO**](https://store.steampowered.com/app/460950)                 | `Katana ZERO.exe` (PE)   |
 | [**Nuclear Throne**](https://store.steampowered.com/app/242680)              | `nuclearthrone.exe` (PE) | *
 | [**Hotline Miami 2**](https://store.steampowered.com/app/219150)             | `HotlineMiami2.exe` (PE) | Notably, the only strings that are embedded in this game's .exe file belong to the level editor.
