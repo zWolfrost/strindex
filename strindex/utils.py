@@ -444,7 +444,7 @@ class Strindex:
 		) as f:
 			full_header = ""
 			while line := f.readline():
-				if line.startswith((Strindex.POINTERS_PREFIX, "# " + Strindex.POINTERS_PREFIX)):
+				if line.startswith(Strindex.POINTERS_PREFIX):
 					strindex.parse_body_line(line)
 					break
 				full_header += line
