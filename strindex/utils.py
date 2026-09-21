@@ -138,6 +138,8 @@ class StrindexSettings:
 		"Whether to add reference comments\nof the original strings to fixed pointers."})
 	_minimal: bool = dataclasses.field(default=False, metadata={"help":
 		"Whether to strip the strindex file of\ninformational comments and unnecessary newlines."})
+	_comment: bool = dataclasses.field(default=False, metadata={"help":
+		"Whether to comment out all of the entries\nin the strindex file on its creation."})
 	_whitelist_set: set[str] = dataclasses.field(default_factory=set)
 
 	hash: str | None = dataclasses.field(default=None)
@@ -415,17 +417,20 @@ class Strindex:
 				raise ValueError(f"Invalid strindex type: {self.types[i]}")
 
 		escaped_string = Strindex.escape_ctrl(self.strings[i])
+		comment_prefix = ("# " if self.settings._comment else "")
 
 		return (
+			comment_prefix +
 			pointer_str + "\n" +
-			(f"## {escaped_string}\n" if self.settings._references else "") +
+			((comment_prefix + f"## {escaped_string}\n") if self.settings._references else "") +
+			comment_prefix +
 			Strindex.STRING_PREFIX + escaped_string +
 			("\n" if self.settings._minimal else "\n\n")
 		)
 
 	@classmethod
 	@Progress.global_mark
-	def read(cls, filepath: str) -> "Strindex":
+	def read(cls, filepath: str, allow_empty: bool = False) -> "Strindex":
 		""" Parses a strindex file and returns a dictionary with the data. """
 
 		strindex = cls()
@@ -439,7 +444,7 @@ class Strindex:
 		) as f:
 			full_header = ""
 			while line := f.readline():
-				if line.startswith(Strindex.POINTERS_PREFIX):
+				if line.startswith((Strindex.POINTERS_PREFIX, "# " + Strindex.POINTERS_PREFIX)):
 					strindex.parse_body_line(line)
 					break
 				full_header += line
@@ -449,7 +454,10 @@ class Strindex:
 			while line := f.readline():
 				strindex.parse_body_line(line)
 
-		if strindex.strings[-1] is None:
+		if not allow_empty and strindex.count == 0:
+			raise ValueError("The strindex file has no entries.")
+
+		if strindex.strings and strindex.strings[-1] is None:
 			raise ValueError("The last entry in the strindex file is incomplete.")
 
 		strindex.assert_data()
@@ -545,11 +553,11 @@ class Strindex:
 		def dump_body_range(indexes: range) -> str:
 			return "\n".join(self.dump_body_entry(i).replace("\n", "\t") for i in indexes)
 
-		return (
-			dump_body_range(range(3)) +
+		return str(self.settings) + ((
+			"\n" + dump_body_range(range(3)) +
 			(f"\n...{self.count - 6} more...\n" if self.count > 10 else "") +
 			dump_body_range(range(self.count - 3, self.count))
-		) if self.count > 10 else dump_body_range(range(self.count))
+		) if self.count > 10 else dump_body_range(range(self.count)))
 
 
 class FileBuffer(bytearray):

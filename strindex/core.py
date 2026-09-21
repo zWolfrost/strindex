@@ -21,7 +21,7 @@ def create(binary_filepath: str, strindex_filepath: str | None, settings: Strind
 
 	Progress.init_global_instance(4)
 
-	strindex_filepath = strindex_filepath or edit_extension(binary_filepath, "_strindex.txt")
+	strindex_filepath = strindex_filepath or (binary_filepath + "_strindex.txt")
 
 	data = FileBuffer.read(binary_filepath)
 
@@ -41,6 +41,7 @@ def patch(binary_filepath: str, strindex_filepath: str, binary_patched_filepath:
 	Progress.init_global_instance(6)
 
 	binary_buffer = FileBuffer.read(binary_filepath)
+	strindex = Strindex.read(strindex_filepath)
 
 	backup_filepath = binary_filepath + binary_buffer.hash_backup_suffix
 
@@ -50,8 +51,6 @@ def patch(binary_filepath: str, strindex_filepath: str, binary_patched_filepath:
 	else:
 		data = binary_buffer
 		Progress.global_instance()
-
-	strindex = Strindex.read(strindex_filepath)
 
 	data = ModuleWrapper.detect_from_data(data).patch(data, strindex)
 
@@ -441,6 +440,8 @@ def get_parser() -> argparse.ArgumentParser:
 		help=StrindexSettings.get_doc("_references"))
 	write_parser.add_argument("-M", "--minimal", action="store_true",
 		help=StrindexSettings.get_doc("_minimal"))
+	write_parser.add_argument("-C", "--comment", action="store_true",
+		help=StrindexSettings.get_doc("_comment"))
 
 	APPEND_SPECIFY_INFO = "\nCan be specified multiple times."
 
@@ -511,6 +512,7 @@ def main(sysargs=None):
 						_dynamic = args.dynamic,
 						_references = args.references,
 						_minimal = args.minimal,
+						_comment = args.comment,
 						force_mode = args.force_mode,
 						min_length = args.min_length,
 						prefix_bytes = args.prefix_bytes,

@@ -412,7 +412,10 @@ class CreateGUI(BaseStrindexGUI):
 		chkbox_minimal = QtWidgets.QCheckBox("Minimal")
 		chkbox_minimal.setToolTip(StrindexSettings.get_doc("_minimal"))
 
-		self.create_hbox_widget([chkbox_force, chkbox_dynamic, chkbox_reference, chkbox_minimal])
+		checkbox_comment = QtWidgets.QCheckBox("Comment Entries")
+		checkbox_comment.setToolTip(StrindexSettings.get_doc("_comment"))
+
+		self.create_hbox_widget([chkbox_force, chkbox_dynamic, chkbox_reference, chkbox_minimal, checkbox_comment])
 		self.create_padding(1)
 
 		self.create_action_button(
@@ -420,11 +423,12 @@ class CreateGUI(BaseStrindexGUI):
 			progress_text="Creating... %p%",
 			callback=lambda
 				file, min_length, prefix, suffix, ranges, whitelists,
-				force_mode, dynamic, reference, minimal:
+				force_mode, dynamic, reference, minimal, comment:
 			strindex.core.create(file, None, StrindexSettings(
 				_dynamic = dynamic,
 				_references = reference,
 				_minimal = minimal,
+				_comment = comment,
 				force_mode = force_mode,
 				min_length = min_length if min_length else 3,
 				prefix_bytes = prefix.split(",") if prefix else [],
