@@ -54,7 +54,7 @@ You can run the program with the command `strindex <action> <input file(s)> [arg
 You can find an example of a strindex file and an explanation of its settings [here](strindex_example.txt).
 
 ## Verified programs/videogames
-Here is a *non-exhaustive* list of programs/videogames that have been verified to work and can be modified using strindex:
+Here is a *non-exhaustive* list of programs/videogames that have been verified to work and can be modified using strindex (without considering "force mode"):
 
 | Name                                                                         | File name & type         | Notes
 |:-----------------------------------------------------------------------------|:-------------------------|:-:
