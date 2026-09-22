@@ -412,7 +412,7 @@ class CreateGUI(BaseStrindexGUI):
 		chkbox_minimal = QtWidgets.QCheckBox("Minimal")
 		chkbox_minimal.setToolTip(StrindexSettings.get_doc("_minimal"))
 
-		checkbox_comment = QtWidgets.QCheckBox("Comment Entries")
+		checkbox_comment = QtWidgets.QCheckBox("Comment Instructions")
 		checkbox_comment.setToolTip(StrindexSettings.get_doc("_comment"))
 
 		self.create_hbox_widget([chkbox_force, chkbox_dynamic, chkbox_reference, chkbox_minimal, checkbox_comment])
