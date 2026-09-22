@@ -364,7 +364,7 @@ def spellcheck(strindex_filepath: str, strindex_spellcheck_filepath: str | None)
 
 	Progress.init_global_instance(strindex.count, 1)
 
-	with Path(strindex_spellcheck_filepath).open("w", encoding="utf-8") as f:
+	with Path(strindex_spellcheck_filepath).open("w", encoding="utf-8", newline="\n") as f:
 		for i, string in enumerate(strindex.strings, start=1):
 			Progress.global_instance(i)
 			string_clean = strindex.settings.clean_string(string)
