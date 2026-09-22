@@ -139,7 +139,7 @@ class StrindexSettings:
 	_minimal: bool = dataclasses.field(default=False, metadata={"help":
 		"Whether to strip the strindex file of\ninformational comments and unnecessary newlines."})
 	_comment: bool = dataclasses.field(default=False, metadata={"help":
-		"Whether to comment out all of the entries\nin the strindex file on its creation."})
+		"Whether to comment out all of the instructions\nin the strindex file on its creation."})
 	_whitelist_set: set[str] = dataclasses.field(default_factory=set)
 
 	hash: str | None = dataclasses.field(default=None)
@@ -372,7 +372,7 @@ class Strindex:
 
 			if line.startswith(Strindex.POINTERS_PREFIX):
 				if self.strings and self.strings[-1] is None:
-					raise ValueError
+					self.delete_index(-1)
 
 				if line.startswith(Strindex.FIXED_PREFIX):
 					processed_line = line.removeprefix(Strindex.FIXED_PREFIX)
@@ -417,13 +417,11 @@ class Strindex:
 				raise ValueError(f"Invalid strindex type: {self.types[i]}")
 
 		escaped_string = Strindex.escape_ctrl(self.strings[i])
-		comment_prefix = ("# " if self.settings._comment else "")
 
 		return (
-			comment_prefix +
 			pointer_str + "\n" +
-			((comment_prefix + f"## {escaped_string}\n") if self.settings._references else "") +
-			comment_prefix +
+			(f"## {escaped_string}\n" if self.settings._references else "") +
+			("#" if self.settings._comment else "") +
 			Strindex.STRING_PREFIX + escaped_string +
 			("\n" if self.settings._minimal else "\n\n")
 		)
@@ -454,11 +452,11 @@ class Strindex:
 			while line := f.readline():
 				strindex.parse_body_line(line)
 
+		if strindex.strings and strindex.strings[-1] is None:
+			strindex.delete_index(-1)
+
 		if not allow_empty and strindex.count == 0:
 			raise ValueError("The strindex file has no entries.")
-
-		if strindex.strings and strindex.strings[-1] is None:
-			raise ValueError("The last entry in the strindex file is incomplete.")
 
 		strindex.assert_data()
 
