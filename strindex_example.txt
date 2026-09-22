@@ -15,8 +15,8 @@
 # The arguments --force-mode, --min-length, --prefix-bytes, --suffix-bytes, --range & --whitelist
 # can be used with the [create] action to directly create a strindex filtered with those settings.
 #
-# The [create] action also supports the arguments --dynamic, --references & --minimal, that
-# modify the way the strindex is created (see the --help for more information).
+# The [create] action also supports the arguments --dynamic, --references, --minimal & --comment,
+# that modify the way the strindex is created (see the --help for more information).
 #
 # Below lies an example of every setting along with a description of what it does.
 

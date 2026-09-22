@@ -110,7 +110,7 @@ def test_test_data():
 	# FILES NEEDED FOR TESTING (in ./tests/data/ folder):
 
 	for filepath, hash in (
-		("strindex_example.txt", "1b120609"), # from this repo
+		("strindex_example.txt", "923114c4"), # from this repo
 		("locres_strindex.txt",  "791dc7ab"), # from this repo
 		("kz_exe.gz",            "b7230123"), # from this repo
 		("Katana ZERO.exe",      "b40bda78"), # from Katana ZERO
