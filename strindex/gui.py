@@ -288,7 +288,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 			if hasattr(self, "tab_widget") else self.sizeHint().height()
 		)
 
-		self.setMinimumWidth(445)
+		self.setMinimumWidth(606)
 		self.setMaximumWidth(1280)
 		self.setFixedHeight(height_hint)
 
