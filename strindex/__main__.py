@@ -1,8 +1,12 @@
 # nuitka-project: --product-name=strindex
 # nuitka-project-set: STRINDEX_VERSION = __import__("strindex").__version__
 # nuitka-project: --product-version={STRINDEX_VERSION}
+# nuitka-project-if: {OS} == "Windows":
+#   nuitka-project: --output-filename=strindex-v{STRINDEX_VERSION}-win.exe
+# nuitka-project-else:
+#   nuitka-project: --output-filename=strindex-v{STRINDEX_VERSION}-linux.bin
 
-# nuitka-project: --mode=app
+# nuitka-project: --mode=onefile
 
 # nuitka-project: --enable-plugin=pyside6
 # nuitka-project: --noinclude-qt-plugins=egldeviceintegrations,iconengines,imageformats
@@ -21,8 +25,6 @@
 
 # nuitka-project: --windows-console-mode=hide
 # nuitka-project: --windows-icon-from-ico=assets/icon.ico
-# nuitka-project: --linux-app-console-mode=disable
-# nuitka-project: --linux-app-icon=assets/icon.png
 
 import sys
 
