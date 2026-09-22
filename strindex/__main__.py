@@ -5,17 +5,12 @@
 # nuitka-project: --mode=app
 
 # nuitka-project: --enable-plugin=pyside6
-
-# nuitka-project: --noinclude-qt-plugins=iconengines
-# nuitka-project: --noinclude-qt-plugins=imageformats
-# nuitka-project: --noinclude-qt-plugins=platformthemes
-# nuitka-project: --noinclude-qt-plugins=printsupport
-# nuitka-project: --noinclude-qt-plugins=tls
-# nuitka-project: --noinclude-qt-plugins=webview
-
+# nuitka-project: --noinclude-qt-plugins=egldeviceintegrations,iconengines,imageformats
+# nuitka-project: --noinclude-qt-plugins=platformthemes,printsupport,tls,webview,xcbglintegrations
 # nuitka-project: --noinclude-dlls=libQt6Network*
 # nuitka-project: --noinclude-dlls=libQt6OpenGL*
 # nuitka-project: --noinclude-dlls=libQt6Svg*
+# nuitka-project: --noinclude-dlls=libQt6EglFS*
 
 # nuitka-project: --nofollow-import-to=_hashlib
 # nuitka-project: --noinclude-dlls=libcrypto*
