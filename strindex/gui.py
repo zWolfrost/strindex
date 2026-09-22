@@ -360,7 +360,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		if event.key() == QtCore.Qt.Key.Key_F1:
 			self.show_message(
 				"Strindex is a program that allows you to easily "
-				"extract, list and patch (replace) the strings embedded in a few filetypes.\n\n"
+				"extract, list and patch (replace) the strings embedded in a few binary filetypes.\n\n"
 				"You can hover your mouse over most elements to see a tooltip explaining their purpose.",
 				QtWidgets.QMessageBox.Icon.Information
 			)
