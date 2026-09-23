@@ -294,6 +294,8 @@ class MainStrindexGUI(BaseStrindexGUI):
 		self.setMaximumWidth(1280)
 		self.setFixedHeight(height_hint)
 
+		QTimer.singleShot(1, lambda: self.resize(self.size()))
+
 	def setup(self):
 		self.tab_widget = QtWidgets.QTabWidget()
 
@@ -323,7 +325,7 @@ class MainStrindexGUI(BaseStrindexGUI):
 		version_label.setOpenExternalLinks(True)
 		version_label.setContentsMargins(3, 3, 3, 3)
 		self.tab_widget.setCornerWidget(version_label, QtCore.Qt.Corner.TopRightCorner)
-		self.tab_widget.currentChanged.connect(lambda _: QTimer.singleShot(0, self.set_custom_size))
+		self.tab_widget.currentChanged.connect(self.set_custom_size)
 
 		self._widgets.append(self.tab_widget)
 
