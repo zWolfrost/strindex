@@ -217,7 +217,7 @@ class BaseStrindexGUI(QtWidgets.QWidget):
 
 		grid_layout.setSpacing(10)
 		for i in range(columns):
-			grid_layout.setColumnMinimumWidth(i, 125)
+			grid_layout.setColumnMinimumWidth(i, self.fontMetrics().height() * 8)
 
 		grid_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
@@ -282,11 +282,13 @@ class MainStrindexGUI(BaseStrindexGUI):
 			self.setStyleSheet(f"""QLineEdit[text=""]{{color: {self.palette().windowText().color().name()};}}""")
 
 	def set_custom_size(self):
-		# 52 is the approx. height of the tab bar + other stuff
-		height_hint = (
-			self.tab_widget.currentWidget().sizeHint().height() + 52
-			if hasattr(self, "tab_widget") else self.sizeHint().height()
-		)
+		if hasattr(self, "tab_widget"):
+			# We assume self.tab_widget.widget(0) is the tallest tab!
+			height_hint = self.tab_widget.currentWidget().sizeHint().height() + (
+				self.sizeHint().height() - self.tab_widget.widget(0).sizeHint().height()
+			)
+		else:
+			height_hint = self.sizeHint().height()
 
 		self.setMinimumWidth(606)
 		self.setMaximumWidth(1280)
