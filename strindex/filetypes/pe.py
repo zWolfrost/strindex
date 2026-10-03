@@ -25,7 +25,7 @@ class PEFileWrapper(pefile.PE):
 
 		if self.section_exists(SECTION_NAME):
 			raise ValueError(
-				f'This file contains a "{SECTION_NAME.decode('utf-8')}" section;\n'
+				f'This file contains a "{SECTION_NAME.decode("utf-8")}" section;\n'
 				"It has likely already been patched once, and can't be patched again."
 			)
 
@@ -83,11 +83,9 @@ class PEFileWrapper(pefile.PE):
 			if new_section_offset <= data_rva < self.OPTIONAL_HEADER.SizeOfHeaders:
 				self.set_dword_at_offset(data_offset, data_rva + self.OPTIONAL_HEADER.FileAlignment)
 
-		SizeOfHeaders_offset = self.DOS_HEADER.e_lfanew + 4 + self.FILE_HEADER.sizeof() + 0x3C
-
 		# Adjusting the SizeOfHeaders value.
 		self.set_dword_at_offset(
-			SizeOfHeaders_offset,
+			self.OPTIONAL_HEADER.get_file_offset() + 0x3C,
 			self.OPTIONAL_HEADER.SizeOfHeaders + self.OPTIONAL_HEADER.FileAlignment
 		)
 
@@ -105,15 +103,13 @@ class PEFileWrapper(pefile.PE):
 
 		# The SizeOfHeaders and the PointerToRawData of the sections are increased by FileAlignment.
 		# This is untested! It might be necessary to reparse the pe file data again.
-		alignment = self.OPTIONAL_HEADER.FileAlignment
-
-		self.OPTIONAL_HEADER.SizeOfHeaders += alignment
+		self.OPTIONAL_HEADER.SizeOfHeaders += self.OPTIONAL_HEADER.FileAlignment
 
 		for section in self.sections:
 			if section.PointerToRawData:
-				section.PointerToRawData += alignment
+				section.PointerToRawData += self.OPTIONAL_HEADER.FileAlignment
 
-	def add_section(self, Name: str, Data: str, Characteristics=0xE00000E0):
+	def add_section(self, Name: bytes, Data: bytes, Characteristics=0xE00000E0):
 		"""
 			Tested with pefile 1.2.10-123 on 32bit PE executable files.
 			An implementation to push a section header to the section table of a PE file.
@@ -204,7 +200,7 @@ class PEFileWrapper(pefile.PE):
 				self.OPTIONAL_HEADER.SizeOfUninitializedData += section.SizeOfRawData
 
 
-	def section_exists(self, section_name: str) -> bool:
+	def section_exists(self, section_name: bytes) -> bool:
 		""" Checks if a section with the specified name exists. """
 		return any(sect.Name == section_name.ljust(8, b"\x00") for sect in self.sections)
 
@@ -215,7 +211,7 @@ class PEFileWrapper(pefile.PE):
 		return rva + self.OPTIONAL_HEADER.ImageBase if rva is not None else None
 
 
-	def get_section_range(self, section_name: str) -> range:
+	def get_section_range(self, section_name: bytes) -> range:
 		""" Returns the start and end offset of the specified section. """
 		for sect in self.sections:
 			if sect.Name == section_name.ljust(8, b"\x00"):
@@ -226,7 +222,7 @@ class PEFileWrapper(pefile.PE):
 	@property
 	def byte_length(self) -> int:
 		""" Returns the byte length of the PE file. """
-		return 4 if self.OPTIONAL_HEADER.Magic == 0x10b else 8
+		return 4 if self.PE_TYPE == pefile.OPTIONAL_HEADER_MAGIC_PE else 8
 
 
 def create(data: FileBuffer, strindex: Strindex) -> Strindex:
