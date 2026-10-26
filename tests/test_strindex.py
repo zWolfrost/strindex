@@ -25,9 +25,10 @@ def fixture(func):
 	return pytest.fixture(scope="module")(func)
 
 def get_file_path(filename: str) -> str:
-	if Path(filename).exists():
-		return Path(filename).resolve().as_posix()
-	return (Path(__file__).parent / "data" / filename).resolve().as_posix()
+	for file_path in (Path(filename), Path(__file__).parent / "data" / filename):
+		if file_path.exists():
+			return file_path.resolve().as_posix()
+	raise FileNotFoundError("File not found", filename)
 
 def get_file_hash(file: str) -> str:
 	return FileBuffer.read(file).hash
