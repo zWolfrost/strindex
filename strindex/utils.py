@@ -358,8 +358,6 @@ class Strindex:
 
 
 	def __init__(self):
-		""" Parses a strindex file and returns a dictionary with the data. """
-
 		self.settings = StrindexSettings()
 
 		self.types = []
@@ -429,7 +427,7 @@ class Strindex:
 	@classmethod
 	@Progress.global_mark
 	def read(cls, filepath: str, allow_empty: bool = False) -> "Strindex":
-		""" Parses a strindex file and returns a dictionary with the data. """
+		""" Parses a strindex file and returns a Strindex object with the data. """
 
 		strindex = cls()
 
