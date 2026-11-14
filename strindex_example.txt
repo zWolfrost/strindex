@@ -88,6 +88,11 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # as everything to the right of @ is used by the program to identify the string to patch.
 #
 # The replacements done using METHOD TWO must be kept in order of the appearance in the file.
+#
+# You can also use "<<" to tell the program to fetch the replacement string from a specific file,
+# which can be used to patch binary data (images, audio etc.) instead of text. For example:
+# @f [pointer] [pointer] [...]
+# << file.png (or /path/to/file.png)
 
 
 # The term "pointers" is generic by design, as they can possess different meaning
@@ -97,10 +102,9 @@ among_languages = [ "en", "ja", "ko", "de", "fr", "es", "pt", "ru", "zh" ]
 # and deleting a pointer (or, like in METHOD TWO, setting one to "-"),
 # will make the program skip the reallocation of that one "reference".
 
-
-# IMPORTANT: The control characters "\t", "\n" and "\r" (and "\" by itself) are *ESCAPED*
+# WARNING: The control characters "\t", "\n" and "\r" (and "\" by itself) are *ESCAPED*
 # in the strindex body, and will be *UNESCAPED* when the strindex is read by the program.
-#
+
 # Below lies the start of the body of the strindex, detected by the first @ symbol.
 
 
