@@ -1,7 +1,7 @@
+import tempfile
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 import pytest
 
@@ -13,7 +13,8 @@ from strindex.utils import FileBuffer, Strindex, StrindexSettings
 def temp_open(*args, **kwargs):
 	kwargs["delete"] = False
 
-	with NamedTemporaryFile(*args, **kwargs) as f:
+	with tempfile.NamedTemporaryFile(*args, **kwargs) as f:
+		f: tempfile._TemporaryFileWrapper
 		try:
 			yield f
 		finally:
@@ -115,6 +116,7 @@ def test_test_data():
 		("locres_strindex.txt",  "791dc7ab"), # from this repo
 		("kz_exe.gz",            "b7230123"), # from this repo
 		("Katana ZERO.exe",      "b40bda78"), # from Katana ZERO
+		("rtu_v2_NFB.exe",       "25f09c38"), # from Radio the Universe Demo
 		("data.win",             "d3d27c56"), # from Undertale
 		("Game.locres",          "e4175036"), # from MOLE
 	):
@@ -162,6 +164,17 @@ def test_patch_pe(kz_pe_strindex_full_fixed: Strindex, kz_pe_strindex_part_fixed
 		kz_pe_strindex_part_fixed.write(temp_strindex.name)
 		strindex.core.patch(get_file_path("Katana ZERO.exe"), temp_strindex.name, temp_file.name)
 		assert get_file_hash(temp_file.name) == "f7546be9"
+
+def test_patch_pe_external():
+	with temp_open() as temp_strindex, temp_open() as temp_file_in, temp_open() as temp_file_out:
+		rtu_exe = FileBuffer.read(get_file_path("rtu_v2_NFB.exe"))
+
+		FileBuffer(rtu_exe[0x02990bf8:0x0b8fa176]).write(temp_file_in.name)
+		FileBuffer(b"@f 0223c388\n<< " + temp_file_in.name.encode()).write(temp_strindex.name)
+
+		strindex.core.patch(get_file_path("rtu_v2_NFB.exe"), temp_strindex.name, temp_file_out.name)
+
+		assert get_file_hash(temp_file_out.name) == "7c6574dc"
 
 def test_patch_iff(ut_iff_strindex_part_fixed: Strindex):
 	with temp_open() as temp_strindex, temp_open() as temp_file:

@@ -166,3 +166,4 @@ tests/data/*
 !tests/data/strindex_example.txt
 !tests/data/locres_strindex.txt
 !tests/data/kz_exe.gz
+!tests/data/rtu_strindex.txt

@@ -17,7 +17,8 @@ def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 
 def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	strindex_original, _ = strindex.get_type_pointers(Strindex.Type.DYNAMIC)
-	strindex.normalize_to_fixed([[p] for p in data.strings_search_ordered(strindex_original)], strindex_original)
+	lst_offsets = [[p] for p in data.strings_search_ordered(strindex_original)]
+	strindex.normalize_to_fixed(lst_offsets, strindex_original, use_external=True)
 
 	for string, offset in zip(strindex.strings, strindex.pointers, strict=True):
 		data.cursor = offset[0]

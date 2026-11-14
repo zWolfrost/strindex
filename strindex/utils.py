@@ -279,6 +279,7 @@ class Strindex:
 	types: list[int]
 	pointers: list[list[int | str | bool]]
 	strings: list[str]
+	external: dict[str, bytes]
 
 
 	class Type:
@@ -288,6 +289,7 @@ class Strindex:
 	TOKEN_DELIMITER = " "
 	POINTERS_PREFIX = "@"
 	STRING_PREFIX = ">>" + TOKEN_DELIMITER
+	EXTERNAL_PREFIX = "<<" + TOKEN_DELIMITER
 
 	FIXED_PREFIX = POINTERS_PREFIX + "f" + TOKEN_DELIMITER
 	DYNAMIC_PREFIX = POINTERS_PREFIX + "d" + TOKEN_DELIMITER
@@ -364,6 +366,8 @@ class Strindex:
 		self.pointers = []
 		self.strings = []
 
+		self.external = {}
+
 	def parse_body_line(self, line: str):
 		try:
 			line = line.removesuffix("\n")
@@ -392,6 +396,13 @@ class Strindex:
 				processed_line = line.removeprefix(Strindex.STRING_PREFIX)
 				if self.strings[-1] is None:
 					self.strings[-1] = Strindex.unescape_ctrl(processed_line)
+				else:
+					raise ValueError
+			elif line.startswith(Strindex.EXTERNAL_PREFIX):
+				processed_line = line.removeprefix(Strindex.EXTERNAL_PREFIX)
+				if self.strings[-1] is None:
+					self.strings[-1] = processed_line
+					self.external[processed_line] = None
 				else:
 					raise ValueError
 			elif line and not line.startswith("#"):
@@ -456,6 +467,15 @@ class Strindex:
 		if not allow_empty and strindex.count == 0:
 			raise ValueError("The strindex file has no entries.")
 
+		for ext_path in strindex.external:
+			for ext_root in (Path.cwd(), Path(filepath).parent):
+				full_ext_path = ext_root / Path(ext_path)
+				if full_ext_path.is_file():
+					strindex.external[ext_path] = full_ext_path.read_bytes()
+					break
+			else:
+				raise FileNotFoundError(f"External file not found: {ext_path}")
+
 		strindex.assert_data()
 
 		return strindex
@@ -499,7 +519,7 @@ class Strindex:
 			f.seek(max(f.tell() - 1, 0))
 			f.truncate()
 
-	def normalize_to_fixed(self, full_lst_offsets: list[int], full_lst_strings: list[str]):
+	def normalize_to_fixed(self, full_lst_offsets: list[int], full_lst_strings: list[str], use_external: bool = False):
 		""" Converts dynamic strings to fixed strings and deletes them if necessary. """
 
 		assert len(full_lst_strings) == len(full_lst_offsets), \
@@ -507,29 +527,32 @@ class Strindex:
 
 		search_i = 0
 		for i in range(self.count):
-			if self.types[i] != Strindex.Type.DYNAMIC:
-				continue
-
-			try:
-				search_i = full_lst_strings.index(self.pointers[i][0], search_i)
-				offsets = full_lst_offsets[search_i]
-			except ValueError:
-				pass
-			else:
-				if any(self.pointers[i][1:]):
-					self.types[i] = Strindex.Type.FIXED
-					if len(offsets) != len(self.pointers[i][1:]):
-						Print.warning(
-							f"The number of switches for string #{i}\n"
-							f"doesn't match the number of pointers ({len(offsets)} != {len(self.pointers[i][1:])})"
-						)
-					self.pointers[i] = [p for p, s in zip(offsets, self.pointers[i][1:], strict=False) if s]
-				search_i += 1
+			if self.types[i] == Strindex.Type.DYNAMIC:
+				try:
+					search_i = full_lst_strings.index(self.pointers[i][0], search_i)
+					offsets = full_lst_offsets[search_i]
+				except ValueError:
+					pass
+				else:
+					if any(self.pointers[i][1:]):
+						self.types[i] = Strindex.Type.FIXED
+						if len(offsets) != len(self.pointers[i][1:]):
+							Print.warning(
+								f"The number of switches for string #{i}\n"
+								f"doesn't match the number of pointers ({len(offsets)} != {len(self.pointers[i][1:])})"
+							)
+						self.pointers[i] = [p for p, s in zip(offsets, self.pointers[i][1:], strict=False) if s]
+					search_i += 1
 
 		for i in reversed(range(self.count)):
 			if self.types[i] == Strindex.Type.DYNAMIC:
 				Print.warning(f'String #{i+1} not found: "{self.strings[i]}"')
 				self.delete_index(i)
+			if self.strings[i] in self.external:
+				if use_external:
+					self.strings[i] = self.external[self.strings[i]]
+				else:
+					self.delete_index(i)
 
 	def delete_index(self, i: int):
 		if self.types:
@@ -566,13 +589,11 @@ class FileBuffer(bytearray):
 	@classmethod
 	@Progress.global_mark
 	def read(cls, filepath: str):
-		with Path(filepath).open("rb") as f:
-			return cls(f.read())
+		return cls(Path(filepath).read_bytes())
 
 	@Progress.global_mark
 	def write(self, filepath: str):
-		with Path(filepath).open("wb") as f:
-			f.write(self)
+		return Path(filepath).write_bytes(self)
 
 	def copy(self) -> "FileBuffer":
 		return type(self)(self)
@@ -722,13 +743,13 @@ class FileBuffer(bytearray):
 		self.cursor -= byte_length
 		return self.put_int(value + delta, byte_length, byte_order)
 
-	def replace_string(self, replace: str, sep: bytes = b"\x00") -> bytes:
+	def replace_string(self, replace: str | bytes, sep: bytes = b"\x00") -> bytes:
 		try:
 			original_length = self.index(sep, self.cursor) - self.cursor
 		except ValueError:
 			original_length = len(self) - self.cursor
 
-		replace_bytes = replace.encode("utf-8")
+		replace_bytes = replace.encode("utf-8") if isinstance(replace, str) else replace
 
 		if len(replace_bytes) > original_length:
 			Print.warning(
@@ -819,7 +840,10 @@ class FileBuffer(bytearray):
 
 		for string in strindex.get_type_strings(Strindex.Type.FIXED):
 			update_dict["replaced_bytes"].append(replaced_bytes_from_offset(len(new_data)))
-			new_data += data_from_string(strindex.settings.patch_replace_string(string))
+			if string in strindex.external:
+				new_data += strindex.external[string]
+			else:
+				new_data += data_from_string(strindex.settings.patch_replace_string(string))
 
 		self.update_references(strindex.get_type_pointers(Strindex.Type.FIXED), update_dict["replaced_bytes"])
 
