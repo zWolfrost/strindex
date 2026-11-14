@@ -59,6 +59,7 @@ Here is a *non-exhaustive* list of programs/videogames that have been verified t
 | Name                                                                         | File name & type         | Notes
 |:-----------------------------------------------------------------------------|:-------------------------|:-:
 | [**Katana ZERO**](https://store.steampowered.com/app/460950)                 | `Katana ZERO.exe` (PE)   |
+| [**Radio the Universe Demo**](https://store.steampowered.com/app/1053900)    | `rtu_v2_NFB.exe` (PE)    |
 | [**Nuclear Throne**](https://store.steampowered.com/app/242680)              | `nuclearthrone.exe` (PE) | *
 | [**Hotline Miami 2**](https://store.steampowered.com/app/219150)             | `HotlineMiami2.exe` (PE) | Notably, the only strings that are embedded in this game's .exe file belong to the level editor.
 | [**Persona 4 Golden**](https://store.steampowered.com/app/1113000)           | `P4G.exe` (PE)           | Notably, the only strings that are embedded in this game's .exe file belong to cutscene subtitles.
