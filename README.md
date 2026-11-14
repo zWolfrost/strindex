@@ -3,7 +3,7 @@
 [![GitHub downloads](https://img.shields.io/github/downloads/zWolfrost/strindex/total?label=GitHub%20downloads)](https://github.com/zWolfrost/strindex/releases/latest)
 [![license](https://img.shields.io/github/license/zWolfrost/strindex)](LICENSE)
 
-A command line utility program (with GUI support) that allows you to easily extract, list and patch (replace) the strings embedded in a few filetypes.
+A command line utility program (with GUI support) that allows you to easily extract, list and patch (replace) the strings (and other binaries) embedded in a few filetypes.
 
 It's useful to change the text of a binary file without having to recompile it; for example, to translate it into another language.
 
