@@ -279,6 +279,7 @@ class Strindex:
 	types: list[int]
 	pointers: list[list[int | str | bool]]
 	strings: list[str]
+
 	external: dict[str, bytes]
 
 
