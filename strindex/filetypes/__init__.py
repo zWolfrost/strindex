@@ -43,6 +43,13 @@ class ModuleWrapper:
 		"(using the update action) before patching."
 	)
 
+	EXTERNAL_PATH_WARNING = (
+		"This filetype does not support\n"
+		"patching using external paths.\n"
+		"Please remove any instructions that use\n"
+		"external paths from the strindex.\n"
+	)
+
 	def __init__(self, module: ModuleProtocol | None = None):
 		self.module = module
 
@@ -121,5 +128,7 @@ class ModuleWrapper:
 
 		if not self.module.SETTINGS.supports_dynamic and any(t == Strindex.Type.DYNAMIC for t in strindex.types):
 			raise NotImplementedError(self.DYNAMIC_MODE_WARNING)
+		if not self.module.SETTINGS.supports_external and any(s in strindex.external for s in strindex.strings):
+			raise NotImplementedError(self.EXTERNAL_PATH_WARNING)
 
 		return self.module.patch(self.init(data), strindex)

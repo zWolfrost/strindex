@@ -519,7 +519,7 @@ class Strindex:
 			f.seek(max(f.tell() - 1, 0))
 			f.truncate()
 
-	def normalize_to_fixed(self, full_lst_offsets: list[int], full_lst_strings: list[str], use_external: bool = False):
+	def normalize_to_fixed(self, full_lst_offsets: list[int], full_lst_strings: list[str]):
 		""" Converts dynamic strings to fixed strings and deletes them if necessary. """
 
 		assert len(full_lst_strings) == len(full_lst_offsets), \
@@ -549,10 +549,7 @@ class Strindex:
 				Print.warning(f'String #{i+1} not found: "{self.strings[i]}"')
 				self.delete_index(i)
 			if self.strings[i] in self.external:
-				if use_external:
-					self.strings[i] = self.external[self.strings[i]]
-				else:
-					self.delete_index(i)
+				self.strings[i] = self.external[self.strings[i]]
 
 	def delete_index(self, i: int):
 		if self.types:
@@ -895,6 +892,8 @@ class ModuleSettings:
 	"""Whether to filter the strindex after returning it using its settings."""
 	supports_dynamic: bool = False
 	"""Whether this module supports patching using dynamic pointers."""
+	supports_external: bool = False
+	"""Whether this module supports patching using external paths."""
 
 
 class ModuleProtocol(Protocol):

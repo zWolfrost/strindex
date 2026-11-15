@@ -10,7 +10,8 @@ SETTINGS = ModuleSettings(
 	magic_bytes=b"\x4d\x5a",
 	default_byte_order="little",
 	filter_after_create=False,
-	supports_dynamic=True
+	supports_dynamic=True,
+	supports_external=True
 )
 
 SECTION_NAME = b".strdex"

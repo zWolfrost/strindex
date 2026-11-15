@@ -1,7 +1,8 @@
 from strindex.utils import FileBuffer, ModuleSettings, Print, Strindex
 
 SETTINGS = ModuleSettings(
-	supports_dynamic=True
+	supports_dynamic=True,
+	supports_external=True
 )
 
 
@@ -17,8 +18,7 @@ def create(data: FileBuffer, strindex: Strindex) -> Strindex:
 
 def patch(data: FileBuffer, strindex: Strindex) -> FileBuffer:
 	strindex_original, _ = strindex.get_type_pointers(Strindex.Type.DYNAMIC)
-	lst_offsets = [[p] for p in data.strings_search_ordered(strindex_original)]
-	strindex.normalize_to_fixed(lst_offsets, strindex_original, use_external=True)
+	strindex.normalize_to_fixed([[p] for p in data.strings_search_ordered(strindex_original)], strindex_original)
 
 	for string, offset in zip(strindex.strings, strindex.pointers, strict=True):
 		data.cursor = offset[0]
